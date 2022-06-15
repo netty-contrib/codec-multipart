@@ -75,7 +75,7 @@
   </properties>
 
   <modules>
-    <module>template</module>
+    <module>codec-multipart</module>
     <module>examples</module>
     <module>benchmarks</module>
   </modules>
