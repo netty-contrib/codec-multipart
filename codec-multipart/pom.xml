@@ -6,41 +6,45 @@
 
     <parent>
         <groupId>io.netty.contrib</groupId>
-        <artifactId>netty-template-parent</artifactId>
+        <artifactId>netty-codec-multipart-parent</artifactId>
         <version>5.0.0.Final-SNAPSHOT</version>
     </parent>
 
-    <artifactId>netty-template</artifactId>
+    <artifactId>netty-codec-multipart</artifactId>
     <version>${parent.version}</version>
-    <name>Netty/Codec/Template</name>
+    <name>Netty/Codec/Multipart</name>
     <packaging>jar</packaging>
 
     <properties>
-        <javaModuleName>io.netty.contrib.template</javaModuleName>
+        <javaModuleName>io.netty.contrib.codec.multipart</javaModuleName>
     </properties>
 
     <dependencies>
         <dependency>
             <groupId>io.netty</groupId>
-            <artifactId>netty5-common</artifactId>
+            <artifactId>netty-codec-http</artifactId>
             <version>${netty.version}</version>
         </dependency>
         <dependency>
             <groupId>io.netty</groupId>
-            <artifactId>netty5-buffer</artifactId>
+            <artifactId>netty-common</artifactId>
             <version>${netty.version}</version>
         </dependency>
         <dependency>
             <groupId>io.netty</groupId>
-            <artifactId>netty5-transport</artifactId>
+            <artifactId>netty-buffer</artifactId>
             <version>${netty.version}</version>
         </dependency>
         <dependency>
             <groupId>io.netty</groupId>
-            <artifactId>netty5-codec</artifactId>
+            <artifactId>netty-transport</artifactId>
             <version>${netty.version}</version>
         </dependency>
-
+        <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-codec</artifactId>
+            <version>${netty.version}</version>
+        </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-engine</artifactId>
@@ -49,6 +53,12 @@
         <dependency>
             <groupId>org.assertj</groupId>
             <artifactId>assertj-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-testsuite</artifactId>
+            <version>${netty.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>

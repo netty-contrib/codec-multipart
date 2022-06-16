@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 The Netty Project
+ * Copyright 2016 The Netty Project
  *
  * The Netty Project licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -13,18 +13,18 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-package io.netty.contrib.template;
+package io.netty.contrib.handler.codec.http.multipart;
 
-import io.netty5.buffer.api.Buffer;
-import io.netty5.channel.ChannelHandlerContext;
-import io.netty5.handler.codec.ByteToMessageDecoderForBuffer;
+import org.junit.jupiter.api.Test;
 
-/**
- * Example Netty extension.
- */
-public class ExampleDecoder extends ByteToMessageDecoderForBuffer {
-    @Override
-    protected void decode(ChannelHandlerContext ctx, Buffer in) throws Exception {
-        ctx.fireChannelRead(in.split());
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+public class MemoryFileUploadTest {
+
+    @Test
+    public final void testMemoryFileUploadEquals() {
+        MemoryFileUpload f1 =
+                new MemoryFileUpload("m1", "m1", "application/json", null, null, 100);
+        assertEquals(f1, f1);
     }
 }

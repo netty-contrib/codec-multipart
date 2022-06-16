@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 The Netty Project
+ * Copyright 2012 The Netty Project
  *
  * The Netty Project licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -15,6 +15,6 @@
  */
 
 /**
- * Template contrib package-info.
+ * HTTP multipart support.
  */
-package io.netty.contrib.template;
+package io.netty.contrib.handler.codec.http.multipart;
