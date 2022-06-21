@@ -15,7 +15,7 @@
  */
 package io.netty.contrib.handler.codec.http.multipart;
 
-import io.netty.handler.codec.http.HttpRequest;
+import io.netty5.handler.codec.http.HttpRequest;
 
 import java.nio.charset.Charset;
 

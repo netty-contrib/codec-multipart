@@ -15,11 +15,12 @@
  */
 package io.netty.contrib.handler.codec.http.multipart;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.channel.ChannelException;
-import io.netty.handler.codec.http.HttpHeaderNames;
-import io.netty.handler.codec.http.HttpHeaderValues;
-import io.netty.util.internal.ObjectUtil;
+import io.netty5.buffer.api.Buffer;
+import io.netty5.buffer.api.Owned;
+import io.netty5.channel.ChannelException;
+import io.netty5.handler.codec.http.HttpHeaderNames;
+import io.netty5.handler.codec.http.HttpHeaderValues;
+import io.netty5.util.internal.ObjectUtil;
 
 import java.io.File;
 import java.io.IOException;
@@ -63,6 +64,15 @@ public class DiskFileUpload extends AbstractDiskHttpData implements FileUpload {
                 charset, size, baseDirectory, deleteOnExitTemporaryFile);
     }
 
+    public DiskFileUpload(DiskFileUpload copy) {
+        super(copy);
+        this.baseDir = copy.baseDir;
+        this.deleteOnExit = copy.deleteOnExit;
+        this.filename = copy.filename;
+        this.contentType = copy.contentType;
+        this.contentTransferEncoding = copy.contentTransferEncoding;
+    }
+
     @Override
     public HttpDataType getHttpDataType() {
         return HttpDataType.FileUpload;
@@ -75,7 +85,7 @@ public class DiskFileUpload extends AbstractDiskHttpData implements FileUpload {
 
     @Override
     public void setFilename(String filename) {
-        this.filename = ObjectUtil.checkNotNull(filename, "filename");
+        this.filename = ObjectUtil.checkNotNullWithIAE(filename, "filename");
     }
 
     @Override
@@ -103,7 +113,7 @@ public class DiskFileUpload extends AbstractDiskHttpData implements FileUpload {
 
     @Override
     public void setContentType(String contentType) {
-        this.contentType = ObjectUtil.checkNotNull(contentType, "contentType");
+        this.contentType = ObjectUtil.checkNotNullWithIAE(contentType, "contentType");
     }
 
     @Override
@@ -168,38 +178,13 @@ public class DiskFileUpload extends AbstractDiskHttpData implements FileUpload {
 
     @Override
     public FileUpload copy() {
-        final ByteBuf content = content();
+        final Buffer content = content();
         return replace(content != null ? content.copy() : null);
     }
 
     @Override
-    public FileUpload duplicate() {
-        final ByteBuf content = content();
-        return replace(content != null ? content.duplicate() : null);
-    }
-
-    @Override
-    public FileUpload retainedDuplicate() {
-        ByteBuf content = content();
-        if (content != null) {
-            content = content.retainedDuplicate();
-            boolean success = false;
-            try {
-                FileUpload duplicate = replace(content);
-                success = true;
-                return duplicate;
-            } finally {
-                if (!success) {
-                    content.release();
-                }
-            }
-        } else {
-            return replace(null);
-        }
-    }
-
-    @Override
-    public FileUpload replace(ByteBuf content) {
+    public FileUpload replace(Buffer content) {
+        checkAccessible(content);
         DiskFileUpload upload = new DiskFileUpload(
                 getName(), getFilename(), getContentType(), getContentTransferEncoding(), getCharset(), size,
                 baseDir, deleteOnExit);
@@ -214,26 +199,10 @@ public class DiskFileUpload extends AbstractDiskHttpData implements FileUpload {
     }
 
     @Override
-    public FileUpload retain(int increment) {
-        super.retain(increment);
-        return this;
-    }
-
-    @Override
-    public FileUpload retain() {
-        super.retain();
-        return this;
-    }
-
-    @Override
-    public FileUpload touch() {
-        super.touch();
-        return this;
-    }
-
-    @Override
-    public FileUpload touch(Object hint) {
-        super.touch(hint);
-        return this;
+    protected Owned<AbstractHttpData> prepareSend() {
+        return drop -> {
+            DiskFileUpload upload = new DiskFileUpload(this);
+            return upload;
+        };
     }
 }

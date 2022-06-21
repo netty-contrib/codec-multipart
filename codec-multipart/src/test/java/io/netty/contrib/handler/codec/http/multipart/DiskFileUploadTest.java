@@ -17,11 +17,12 @@ package io.netty.contrib.handler.codec.http.multipart;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufInputStream;
-import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import io.netty.util.CharsetUtil;
 import io.netty.util.internal.PlatformDependent;
-
+import io.netty5.buffer.BufferUtil;
+import io.netty5.buffer.api.Buffer;
+import io.netty5.buffer.api.DefaultBufferAllocators;
 import org.junit.jupiter.api.Test;
 
 import java.io.File;
@@ -31,93 +32,86 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class DiskFileUploadTest {
     @Test
     public void testSpecificCustomBaseDir() throws IOException {
         File baseDir = new File("target/DiskFileUploadTest/testSpecificCustomBaseDir");
         baseDir.mkdirs(); // we don't need to clean it since it is in volatile files anyway
-        DiskFileUpload f =
+        try (DiskFileUpload f =
                 new DiskFileUpload("d1", "d1", "application/json", null, null, 100,
-                        baseDir.getAbsolutePath(), false);
+                        baseDir.getAbsolutePath(), false)) {
 
-        f.setContent(Unpooled.EMPTY_BUFFER);
+            f.setContent(DefaultBufferAllocators.preferredAllocator().allocate(0));
 
-        assertTrue(f.getFile().getAbsolutePath().startsWith(baseDir.getAbsolutePath()));
-        assertTrue(f.getFile().exists());
-        assertEquals(0, f.getFile().length());
-        f.delete();
+            assertTrue(f.getFile().getAbsolutePath().startsWith(baseDir.getAbsolutePath()));
+            assertTrue(f.getFile().exists());
+            assertEquals(0, f.getFile().length());
+        }
     }
 
     @Test
     public final void testDiskFileUploadEquals() {
-        DiskFileUpload f2 =
-                new DiskFileUpload("d1", "d1", "application/json", null, null, 100);
-        assertEquals(f2, f2);
-        f2.delete();
+        try (DiskFileUpload f2 =
+                new DiskFileUpload("d1", "d1", "application/json", null, null, 100)) {
+            assertEquals(f2, f2);
+        }
     }
 
      @Test
      public void testEmptyBufferSetMultipleTimes() throws IOException {
-         DiskFileUpload f =
-                 new DiskFileUpload("d1", "d1", "application/json", null, null, 100);
+         try(DiskFileUpload f =
+                 new DiskFileUpload("d1", "d1", "application/json", null, null, 100)) {
 
-         f.setContent(Unpooled.EMPTY_BUFFER);
+             f.setContent(DefaultBufferAllocators.preferredAllocator().allocate(0));
 
-         assertTrue(f.getFile().exists());
-         assertEquals(0, f.getFile().length());
-         f.setContent(Unpooled.EMPTY_BUFFER);
-         assertTrue(f.getFile().exists());
-         assertEquals(0, f.getFile().length());
-         f.delete();
+             assertTrue(f.getFile().exists());
+             assertEquals(0, f.getFile().length());
+             f.setContent(DefaultBufferAllocators.preferredAllocator().allocate(0));
+             assertTrue(f.getFile().exists());
+             assertEquals(0, f.getFile().length());
+         }
      }
 
     @Test
     public void testEmptyBufferSetAfterNonEmptyBuffer() throws IOException {
-        DiskFileUpload f =
-                new DiskFileUpload("d1", "d1", "application/json", null, null, 100);
+        try(DiskFileUpload f =
+                new DiskFileUpload("d1", "d1", "application/json", null, null, 100)) {
 
-        f.setContent(Unpooled.wrappedBuffer(new byte[] { 1, 2, 3, 4 }));
+            f.setContent(DefaultBufferAllocators.onHeapAllocator().copyOf(new byte[]{1, 2, 3, 4}));
 
-        assertTrue(f.getFile().exists());
-        assertEquals(4, f.getFile().length());
-        f.setContent(Unpooled.EMPTY_BUFFER);
-        assertTrue(f.getFile().exists());
-        assertEquals(0, f.getFile().length());
-        f.delete();
+            assertTrue(f.getFile().exists());
+            assertEquals(4, f.getFile().length());
+            f.setContent(DefaultBufferAllocators.preferredAllocator().allocate(0));
+            assertTrue(f.getFile().exists());
+            assertEquals(0, f.getFile().length());
+        }
     }
 
     @Test
     public void testNonEmptyBufferSetMultipleTimes() throws IOException {
-        DiskFileUpload f =
-                new DiskFileUpload("d1", "d1", "application/json", null, null, 100);
+        try(DiskFileUpload f =
+                new DiskFileUpload("d1", "d1", "application/json", null, null, 100)) {
 
-        f.setContent(Unpooled.wrappedBuffer(new byte[] { 1, 2, 3, 4 }));
+            f.setContent(DefaultBufferAllocators.onHeapAllocator().copyOf(new byte[]{1, 2, 3, 4}));
 
-        assertTrue(f.getFile().exists());
-        assertEquals(4, f.getFile().length());
-        f.setContent(Unpooled.wrappedBuffer(new byte[] { 1, 2}));
-        assertTrue(f.getFile().exists());
-        assertEquals(2, f.getFile().length());
-        f.delete();
+            assertTrue(f.getFile().exists());
+            assertEquals(4, f.getFile().length());
+            f.setContent(DefaultBufferAllocators.onHeapAllocator().copyOf(new byte[]{1, 2}));
+            assertTrue(f.getFile().exists());
+            assertEquals(2, f.getFile().length());
+        }
     }
 
     @Test
     public void testAddContents() throws Exception {
-        DiskFileUpload f1 = new DiskFileUpload("file1", "file1", "application/json", null, null, 0);
-        try {
+        try (DiskFileUpload f1 = new DiskFileUpload("file1", "file1", "application/json", null, null, 0)) {
             byte[] jsonBytes = new byte[4096];
             PlatformDependent.threadLocalRandom().nextBytes(jsonBytes);
 
-            f1.addContent(Unpooled.wrappedBuffer(jsonBytes, 0, 1024), false);
-            f1.addContent(Unpooled.wrappedBuffer(jsonBytes, 1024, jsonBytes.length - 1024), true);
+            f1.addContent(Helpers.copiedBuffer(jsonBytes, 0, 1024), false);
+            f1.addContent(Helpers.copiedBuffer(jsonBytes, 1024, jsonBytes.length - 1024), true);
             assertArrayEquals(jsonBytes, f1.get());
 
             File file = f1.getFile();
@@ -140,33 +134,27 @@ public class DiskFileUploadTest {
             } finally {
                 fis.close();
             }
-        } finally {
-            f1.delete();
         }
     }
 
     @Test
     public void testSetContentFromByteBuf() throws Exception {
-        DiskFileUpload f1 = new DiskFileUpload("file2", "file2", "application/json", null, null, 0);
-        try {
+        try (DiskFileUpload f1 = new DiskFileUpload("file2", "file2", "application/json", null, null, 0)) {
             String json = "{\"hello\":\"world\"}";
             byte[] bytes = json.getBytes(CharsetUtil.UTF_8);
-            f1.setContent(Unpooled.wrappedBuffer(bytes));
+            f1.setContent(Helpers.copiedBuffer(bytes));
             assertEquals(json, f1.getString());
             assertArrayEquals(bytes, f1.get());
             File file = f1.getFile();
             assertEquals((long) bytes.length, file.length());
             assertArrayEquals(bytes, doReadFile(file, bytes.length));
-        } finally {
-            f1.delete();
         }
     }
 
     @Test
     public void testSetContentFromInputStream() throws Exception {
         String json = "{\"hello\":\"world\",\"foo\":\"bar\"}";
-        DiskFileUpload f1 = new DiskFileUpload("file3", "file3", "application/json", null, null, 0);
-        try {
+        try (DiskFileUpload f1 = new DiskFileUpload("file3", "file3", "application/json", null, null, 0)) {
             byte[] bytes = json.getBytes(CharsetUtil.UTF_8);
             ByteBuf buf = Unpooled.wrappedBuffer(bytes);
             InputStream is = new ByteBufInputStream(buf);
@@ -181,8 +169,6 @@ public class DiskFileUploadTest {
                 buf.release();
                 is.close();
             }
-        } finally {
-            f1.delete();
         }
     }
 
@@ -197,28 +183,24 @@ public class DiskFileUploadTest {
     }
 
     private static void testAddContentFromByteBuf0(boolean composite) throws Exception {
-        DiskFileUpload f1 = new DiskFileUpload("file3", "file3", "application/json", null, null, 0);
-        try {
+        try (DiskFileUpload f1 = new DiskFileUpload("file3", "file3", "application/json", null, null, 0)) {
             byte[] bytes = new byte[4096];
             PlatformDependent.threadLocalRandom().nextBytes(bytes);
 
-            final ByteBuf buffer;
+            final Buffer buffer;
 
             if (composite) {
-                buffer = Unpooled.compositeBuffer()
-                        .addComponent(true, Unpooled.wrappedBuffer(bytes, 0 , bytes.length / 2))
-                        .addComponent(true, Unpooled.wrappedBuffer(bytes, bytes.length / 2, bytes.length / 2));
+                buffer = Helpers.toComposite(
+                        Helpers.copiedBuffer(bytes, 0 , bytes.length / 2),
+                        Helpers.copiedBuffer(bytes, bytes.length / 2, bytes.length / 2));
             } else {
-                buffer = Unpooled.wrappedBuffer(bytes);
+                buffer = Helpers.copiedBuffer(bytes);
             }
             f1.addContent(buffer, true);
-            ByteBuf buf = f1.getByteBuf();
-            assertEquals(buf.readerIndex(), 0);
-            assertEquals(buf.writerIndex(), bytes.length);
-            assertArrayEquals(bytes, ByteBufUtil.getBytes(buf));
-        } finally {
-            //release the ByteBuf
-            f1.delete();
+            Buffer buf = f1.getBuffer();
+            assertEquals(buf.readerOffset(), 0);
+            assertEquals(buf.writerOffset(), bytes.length);
+            assertArrayEquals(bytes, BufferUtil.getBytes(buf));
         }
     }
 
@@ -248,12 +230,11 @@ public class DiskFileUploadTest {
         byte[] bytes = json.getBytes(CharsetUtil.UTF_8);
         File tmpFile = null;
         DiskFileUpload f1 = new DiskFileUpload("file4", "file4", "application/json", null, null, 0);
-        try {
+        try (f1) {
             assertNull(f1.getFile());
-            f1.setContent(Unpooled.wrappedBuffer(bytes));
+            f1.setContent(Helpers.copiedBuffer(bytes));
             assertNotNull(tmpFile = f1.getFile());
         } finally {
-            f1.delete();
             assertNull(f1.getFile());
             assertNotNull(tmpFile);
             assertFalse(tmpFile.exists());
@@ -263,10 +244,9 @@ public class DiskFileUploadTest {
     @Test
     public void setSetContentFromFileExceptionally() throws Exception {
         final long maxSize = 4;
-        DiskFileUpload f1 = new DiskFileUpload("file5", "file5", "application/json", null, null, 0);
-        f1.setMaxSize(maxSize);
-        try {
-            f1.setContent(Unpooled.wrappedBuffer(new byte[(int) maxSize]));
+        try (DiskFileUpload f1 = new DiskFileUpload("file5", "file5", "application/json", null, null, 0)) {
+            f1.setMaxSize(maxSize);
+            f1.setContent(Helpers.copiedBuffer(new byte[(int) maxSize]));
             File originalFile = f1.getFile();
             assertNotNull(originalFile);
             assertEquals(maxSize, originalFile.length());
@@ -290,8 +270,6 @@ public class DiskFileUploadTest {
                 assertEquals(originalFile, f1.getFile());
                 assertEquals(maxSize, f1.length());
             }
-        } finally {
-            f1.delete();
         }
     }
 }

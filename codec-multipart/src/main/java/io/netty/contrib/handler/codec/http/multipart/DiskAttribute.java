@@ -15,15 +15,15 @@
  */
 package io.netty.contrib.handler.codec.http.multipart;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.channel.ChannelException;
-import io.netty.handler.codec.http.HttpConstants;
-import io.netty.util.internal.ObjectUtil;
+import io.netty5.buffer.api.Buffer;
+import io.netty5.buffer.api.DefaultBufferAllocators;
+import io.netty5.buffer.api.Owned;
+import io.netty5.channel.ChannelException;
+import io.netty5.handler.codec.http.HttpConstants;
+import io.netty5.util.internal.ObjectUtil;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
-
-import static io.netty.buffer.Unpooled.wrappedBuffer;
 
 /**
  * Disk implementation of Attributes
@@ -100,6 +100,12 @@ public class DiskAttribute extends AbstractDiskHttpData implements Attribute {
         this.deleteOnExit = deleteOnExit;
     }
 
+    protected DiskAttribute(DiskAttribute copy) {
+        super(copy);
+        this.baseDir = copy.baseDir;
+        this.deleteOnExit = copy.deleteOnExit;
+    }
+
     @Override
     public HttpDataType getHttpDataType() {
         return HttpDataType.Attribute;
@@ -107,16 +113,18 @@ public class DiskAttribute extends AbstractDiskHttpData implements Attribute {
 
     @Override
     public String getValue() throws IOException {
+        checkAccessible();
         byte [] bytes = get();
         return new String(bytes, getCharset());
     }
 
     @Override
     public void setValue(String value) throws IOException {
-        ObjectUtil.checkNotNull(value, "value");
+        checkAccessible();
+        ObjectUtil.checkNotNullWithIAE(value, "value");
         byte [] bytes = value.getBytes(getCharset());
         checkSize(bytes.length);
-        ByteBuf buffer = wrappedBuffer(bytes);
+        Buffer buffer = DefaultBufferAllocators.onHeapAllocator().copyOf(bytes);
         if (definedSize > 0) {
             definedSize = buffer.readableBytes();
         }
@@ -124,12 +132,13 @@ public class DiskAttribute extends AbstractDiskHttpData implements Attribute {
     }
 
     @Override
-    public void addContent(ByteBuf buffer, boolean last) throws IOException {
+    public void addContent(Buffer buffer, boolean last) throws IOException {
+        checkAccessible(buffer);
         final long newDefinedSize = size + buffer.readableBytes();
         try {
             checkSize(newDefinedSize);
         } catch (IOException e) {
-            buffer.release();
+            buffer.close();
             throw e;
         }
         if (definedSize > 0 && definedSize < newDefinedSize) {
@@ -201,38 +210,14 @@ public class DiskAttribute extends AbstractDiskHttpData implements Attribute {
 
     @Override
     public Attribute copy() {
-        final ByteBuf content = content();
+        checkAccessible();
+        final Buffer content = content();
         return replace(content != null ? content.copy() : null);
     }
 
     @Override
-    public Attribute duplicate() {
-        final ByteBuf content = content();
-        return replace(content != null ? content.duplicate() : null);
-    }
-
-    @Override
-    public Attribute retainedDuplicate() {
-        ByteBuf content = content();
-        if (content != null) {
-            content = content.retainedDuplicate();
-            boolean success = false;
-            try {
-                Attribute duplicate = replace(content);
-                success = true;
-                return duplicate;
-            } finally {
-                if (!success) {
-                    content.release();
-                }
-            }
-        } else {
-            return replace(null);
-        }
-    }
-
-    @Override
-    public Attribute replace(ByteBuf content) {
+    public Attribute replace(Buffer content) {
+        checkAccessible();
         DiskAttribute attr = new DiskAttribute(getName(), baseDir, deleteOnExit);
         attr.setCharset(getCharset());
         if (content != null) {
@@ -246,26 +231,11 @@ public class DiskAttribute extends AbstractDiskHttpData implements Attribute {
     }
 
     @Override
-    public Attribute retain(int increment) {
-        super.retain(increment);
-        return this;
-    }
-
-    @Override
-    public Attribute retain() {
-        super.retain();
-        return this;
-    }
-
-    @Override
-    public Attribute touch() {
-        super.touch();
-        return this;
-    }
-
-    @Override
-    public Attribute touch(Object hint) {
-        super.touch(hint);
-        return this;
+    protected Owned<AbstractHttpData> prepareSend() {
+        return drop -> {
+            DiskAttribute attr = new DiskAttribute(this);
+            return attr;
+        };
     }
 }
+

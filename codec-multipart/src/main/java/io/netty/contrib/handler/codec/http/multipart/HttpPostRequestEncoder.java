@@ -15,28 +15,32 @@
  */
 package io.netty.contrib.handler.codec.http.multipart;
 
-import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.handler.codec.DecoderResult;
-import io.netty.handler.codec.http.DefaultFullHttpRequest;
-import io.netty.handler.codec.http.DefaultHttpContent;
-import io.netty.handler.codec.http.EmptyHttpHeaders;
-import io.netty.handler.codec.http.FullHttpRequest;
-import io.netty.handler.codec.http.HttpConstants;
-import io.netty.handler.codec.http.HttpContent;
-import io.netty.handler.codec.http.HttpHeaderNames;
-import io.netty.handler.codec.http.HttpHeaderValues;
-import io.netty.handler.codec.http.HttpHeaders;
-import io.netty.handler.codec.http.HttpMethod;
-import io.netty.handler.codec.http.HttpRequest;
-import io.netty.handler.codec.http.HttpUtil;
-import io.netty.handler.codec.http.HttpVersion;
-import io.netty.handler.codec.http.LastHttpContent;
-import io.netty.handler.stream.ChunkedInput;
-import io.netty.util.internal.ObjectUtil;
 import io.netty.util.internal.PlatformDependent;
-import io.netty.util.internal.StringUtil;
+import io.netty.util.internal.ThreadLocalRandom;
+import io.netty5.buffer.api.Buffer;
+import io.netty5.buffer.api.DefaultBufferAllocators;
+import io.netty5.util.Send;
+import io.netty5.channel.ChannelHandlerContext;
+import io.netty5.handler.codec.DecoderResult;
+import io.netty5.handler.codec.http.DefaultFullHttpRequest;
+import io.netty5.handler.codec.http.DefaultHttpContent;
+import io.netty5.handler.codec.http.EmptyHttpHeaders;
+import io.netty5.handler.codec.http.EmptyLastHttpContent;
+import io.netty5.handler.codec.http.FullHttpRequest;
+import io.netty5.handler.codec.http.HttpConstants;
+import io.netty5.handler.codec.http.HttpContent;
+import io.netty5.handler.codec.http.HttpHeaderNames;
+import io.netty5.handler.codec.http.HttpHeaderValues;
+import io.netty5.handler.codec.http.HttpHeaders;
+import io.netty5.handler.codec.http.HttpMethod;
+import io.netty5.handler.codec.http.HttpRequest;
+import io.netty5.handler.codec.http.HttpUtil;
+import io.netty5.handler.codec.http.HttpVersion;
+import io.netty5.handler.codec.http.LastHttpContent;
+import io.netty5.handler.stream.ChunkedInput;
+import io.netty5.util.internal.ObjectUtil;
+import io.netty5.util.internal.StringUtil;
 
 import java.io.File;
 import java.io.IOException;
@@ -44,12 +48,12 @@ import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
 import java.util.regex.Pattern;
 
-import static io.netty.buffer.Unpooled.wrappedBuffer;
 import static io.netty.util.internal.ObjectUtil.checkNotNull;
 import static java.util.AbstractMap.SimpleImmutableEntry;
 
@@ -311,7 +315,7 @@ public class HttpPostRequestEncoder implements ChunkedInput<HttpContent> {
      *             if the encoding is in error or if the finalize were already done
      */
     public void setBodyHttpDatas(List<InterfaceHttpData> datas) throws ErrorDataEncoderException {
-        ObjectUtil.checkNotNull(datas, "datas");
+        ObjectUtil.checkNotNullWithIAE(datas, "datas");
         globalBodySize = 0;
         bodyListDatas.clear();
         currentFileUpload = null;
@@ -806,10 +810,12 @@ public class HttpPostRequestEncoder implements ChunkedInput<HttpContent> {
             HttpContent chunk = nextChunk();
             if (request instanceof FullHttpRequest) {
                 FullHttpRequest fullRequest = (FullHttpRequest) request;
-                ByteBuf chunkContent = chunk.content();
-                if (fullRequest.content() != chunkContent) {
-                    fullRequest.content().clear().writeBytes(chunkContent);
-                    chunkContent.release();
+                Buffer chunkContent = chunk.payload();
+                if (fullRequest.payload() != chunkContent) {
+                    fullRequest.payload().resetOffsets().writeBytes(chunkContent);
+                    if (chunkContent.isAccessible()) {
+                        chunkContent.close();
+                    }
                 }
                 return fullRequest;
             } else {
@@ -854,7 +860,7 @@ public class HttpPostRequestEncoder implements ChunkedInput<HttpContent> {
     /**
      * The ByteBuf currently used by the encoder
      */
-    private ByteBuf currentBuffer;
+    private Buffer currentBuffer;
     /**
      * The current InterfaceHttpData to encode (used if more chunks are available)
      */
@@ -868,13 +874,13 @@ public class HttpPostRequestEncoder implements ChunkedInput<HttpContent> {
      *
      * @return the next ByteBuf to send as an HttpChunk and modifying currentBuffer accordingly
      */
-    private ByteBuf fillByteBuf() {
+    private Buffer fillByteBuf() {
         int length = currentBuffer.readableBytes();
         if (length > HttpPostBodyUtil.chunkSize) {
-            return currentBuffer.readRetainedSlice(HttpPostBodyUtil.chunkSize);
+            return currentBuffer.readSplit(HttpPostBodyUtil.chunkSize);
         } else {
             // to continue
-            ByteBuf slice = currentBuffer;
+            Buffer slice = currentBuffer;
             currentBuffer = null;
             return slice;
         }
@@ -894,9 +900,9 @@ public class HttpPostRequestEncoder implements ChunkedInput<HttpContent> {
         if (currentData == null) {
             return null;
         }
-        ByteBuf buffer;
+        Buffer buffer;
         if (currentData instanceof InternalAttribute) {
-            buffer = ((InternalAttribute) currentData).toByteBuf();
+            buffer = ((InternalAttribute) currentData).toBuffer();
             currentData = null;
         } else {
             try {
@@ -913,7 +919,7 @@ public class HttpPostRequestEncoder implements ChunkedInput<HttpContent> {
         if (currentBuffer == null) {
             currentBuffer = buffer;
         } else {
-            currentBuffer = wrappedBuffer(currentBuffer, buffer);
+            currentBuffer = DefaultBufferAllocators.onHeapAllocator().compose(Arrays.asList(currentBuffer.send(), buffer.send()));
         }
         if (currentBuffer.readableBytes() < HttpPostBodyUtil.chunkSize) {
             currentData = null;
@@ -938,17 +944,18 @@ public class HttpPostRequestEncoder implements ChunkedInput<HttpContent> {
             return null;
         }
         int size = sizeleft;
-        ByteBuf buffer;
+        Buffer buffer;
 
         // Set name=
         if (isKey) {
             String key = currentData.getName();
-            buffer = wrappedBuffer(key.getBytes(charset));
+            buffer = Helpers.copiedBuffer(key, charset);
             isKey = false;
+            Buffer equal = Helpers.copiedBuffer("=", charset);
             if (currentBuffer == null) {
-                currentBuffer = wrappedBuffer(buffer, wrappedBuffer("=".getBytes(charset)));
+                currentBuffer = DefaultBufferAllocators.onHeapAllocator().compose(Arrays.asList(buffer.send(), equal.send()));
             } else {
-                currentBuffer = wrappedBuffer(currentBuffer, buffer, wrappedBuffer("=".getBytes(charset)));
+                currentBuffer = DefaultBufferAllocators.onHeapAllocator().compose(Arrays.asList(currentBuffer.send(), buffer.send(), equal.send()));
             }
             // continue
             size -= buffer.readableBytes() + 1;
@@ -966,10 +973,10 @@ public class HttpPostRequestEncoder implements ChunkedInput<HttpContent> {
         }
 
         // Figure out delimiter
-        ByteBuf delimiter = null;
+        Buffer delimiter = null;
         if (buffer.readableBytes() < size) {
             isKey = true;
-            delimiter = iterator.hasNext() ? wrappedBuffer("&".getBytes(charset)) : null;
+            delimiter = iterator.hasNext() ? Helpers.copiedBuffer("&", charset) : null;
         }
 
         // End for current InterfaceHttpData, need potentially more data
@@ -983,7 +990,7 @@ public class HttpPostRequestEncoder implements ChunkedInput<HttpContent> {
                 }
             } else {
                 if (delimiter != null) {
-                    currentBuffer = wrappedBuffer(currentBuffer, delimiter);
+                    currentBuffer = DefaultBufferAllocators.onHeapAllocator().compose(Arrays.asList(currentBuffer.send(), delimiter.send()));
                 }
             }
             if (currentBuffer.readableBytes() >= HttpPostBodyUtil.chunkSize) {
@@ -996,15 +1003,15 @@ public class HttpPostRequestEncoder implements ChunkedInput<HttpContent> {
         // Put it all together: name=value&
         if (currentBuffer == null) {
             if (delimiter != null) {
-                currentBuffer = wrappedBuffer(buffer, delimiter);
+                currentBuffer = DefaultBufferAllocators.onHeapAllocator().compose(Arrays.asList(buffer.send(), delimiter.send()));
             } else {
                 currentBuffer = buffer;
             }
         } else {
             if (delimiter != null) {
-                currentBuffer = wrappedBuffer(currentBuffer, buffer, delimiter);
+                currentBuffer = DefaultBufferAllocators.onHeapAllocator().compose(Arrays.asList(currentBuffer.send(), buffer.send(), delimiter.send()));
             } else {
-                currentBuffer = wrappedBuffer(currentBuffer, buffer);
+                currentBuffer = DefaultBufferAllocators.onHeapAllocator().compose(Arrays.asList(currentBuffer.send(), buffer.send()));
             }
         }
 
@@ -1045,7 +1052,7 @@ public class HttpPostRequestEncoder implements ChunkedInput<HttpContent> {
             return null;
         } else {
             HttpContent nextChunk = nextChunk();
-            globalProgress += nextChunk.content().readableBytes();
+            globalProgress += nextChunk.payload().readableBytes();
             return nextChunk;
         }
     }
@@ -1061,13 +1068,13 @@ public class HttpPostRequestEncoder implements ChunkedInput<HttpContent> {
     private HttpContent nextChunk() throws ErrorDataEncoderException {
         if (isLastChunk) {
             isLastChunkSent = true;
-            return LastHttpContent.EMPTY_LAST_CONTENT;
+            return new EmptyLastHttpContent(DefaultBufferAllocators.onHeapAllocator());
         }
         // first test if previous buffer is not empty
         int size = calculateRemainingSize();
         if (size <= 0) {
             // NextChunk from buffer
-            ByteBuf buffer = fillByteBuf();
+            Buffer buffer = fillByteBuf();
             return new DefaultHttpContent(buffer);
         }
         // size > 0
@@ -1121,10 +1128,10 @@ public class HttpPostRequestEncoder implements ChunkedInput<HttpContent> {
         if (currentBuffer == null) {
             isLastChunkSent = true;
             // LastChunk with no more data
-            return LastHttpContent.EMPTY_LAST_CONTENT;
+            return new EmptyLastHttpContent(DefaultBufferAllocators.onHeapAllocator());
         }
         // NextChunk as last non empty from buffer
-        ByteBuf buffer = currentBuffer;
+        Buffer buffer = currentBuffer;
         currentBuffer = null;
         return new DefaultHttpContent(buffer);
     }
@@ -1167,7 +1174,7 @@ public class HttpPostRequestEncoder implements ChunkedInput<HttpContent> {
     }
 
     private static class WrappedHttpRequest implements HttpRequest {
-        private final HttpRequest request;
+        protected final HttpRequest request;
         WrappedHttpRequest(HttpRequest request) {
             this.request = request;
         }
@@ -1191,18 +1198,8 @@ public class HttpPostRequestEncoder implements ChunkedInput<HttpContent> {
         }
 
         @Override
-        public HttpMethod getMethod() {
-            return request.method();
-        }
-
-        @Override
         public HttpMethod method() {
             return request.method();
-        }
-
-        @Override
-        public String getUri() {
-            return request.uri();
         }
 
         @Override
@@ -1228,12 +1225,6 @@ public class HttpPostRequestEncoder implements ChunkedInput<HttpContent> {
         @Override
         public DecoderResult decoderResult() {
             return request.decoderResult();
-        }
-
-        @Override
-        @Deprecated
-        public DecoderResult getDecoderResult() {
-            return request.getDecoderResult();
         }
 
         @Override
@@ -1270,54 +1261,7 @@ public class HttpPostRequestEncoder implements ChunkedInput<HttpContent> {
 
         @Override
         public FullHttpRequest copy() {
-            return replace(content().copy());
-        }
-
-        @Override
-        public FullHttpRequest duplicate() {
-            return replace(content().duplicate());
-        }
-
-        @Override
-        public FullHttpRequest retainedDuplicate() {
-            return replace(content().retainedDuplicate());
-        }
-
-        @Override
-        public FullHttpRequest replace(ByteBuf content) {
-            DefaultFullHttpRequest duplicate = new DefaultFullHttpRequest(protocolVersion(), method(), uri(), content);
-            duplicate.headers().set(headers());
-            duplicate.trailingHeaders().set(trailingHeaders());
-            return duplicate;
-        }
-
-        @Override
-        public FullHttpRequest retain(int increment) {
-            content.retain(increment);
-            return this;
-        }
-
-        @Override
-        public FullHttpRequest retain() {
-            content.retain();
-            return this;
-        }
-
-        @Override
-        public FullHttpRequest touch() {
-            content.touch();
-            return this;
-        }
-
-        @Override
-        public FullHttpRequest touch(Object hint) {
-            content.touch(hint);
-            return this;
-        }
-
-        @Override
-        public ByteBuf content() {
-            return content.content();
+            return replace(payload().copy());
         }
 
         @Override
@@ -1330,18 +1274,32 @@ public class HttpPostRequestEncoder implements ChunkedInput<HttpContent> {
         }
 
         @Override
-        public int refCnt() {
-            return content.refCnt();
+        public Buffer payload() {
+            return content.payload();
         }
 
         @Override
-        public boolean release() {
-            return content.release();
+        public Send<FullHttpRequest> send() {
+            return payload().send().map(FullHttpRequest.class,
+                    payload -> new DefaultFullHttpRequest(
+                            protocolVersion(), method(), uri(), payload, headers(), trailingHeaders()));
+        }
+
+        public FullHttpRequest replace(Buffer content) {
+            DefaultFullHttpRequest duplicate = new DefaultFullHttpRequest(protocolVersion(), method(), uri(), content);
+            duplicate.headers().set(headers());
+            duplicate.trailingHeaders().set(trailingHeaders());
+            return duplicate;
         }
 
         @Override
-        public boolean release(int decrement) {
-            return content.release(decrement);
+        public void close() {
+            content.close();
+        }
+
+        @Override
+        public boolean isAccessible() {
+            return content.isAccessible();
         }
     }
 }

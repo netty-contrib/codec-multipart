@@ -15,7 +15,7 @@
  */
 package io.netty.contrib.handler.codec.http.multipart;
 
-import io.netty.buffer.ByteBuf;
+import io.netty5.buffer.api.Buffer;
 
 import java.io.IOException;
 
@@ -37,23 +37,5 @@ public interface Attribute extends HttpData {
     Attribute copy();
 
     @Override
-    Attribute duplicate();
-
-    @Override
-    Attribute retainedDuplicate();
-
-    @Override
-    Attribute replace(ByteBuf content);
-
-    @Override
-    Attribute retain();
-
-    @Override
-    Attribute retain(int increment);
-
-    @Override
-    Attribute touch();
-
-    @Override
-    Attribute touch(Object hint);
+    Attribute replace(Buffer content);
 }

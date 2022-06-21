@@ -15,12 +15,12 @@
  */
 package io.netty.contrib.handler.codec.http.multipart;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufInputStream;
-import io.netty.buffer.ByteBufUtil;
-import io.netty.buffer.Unpooled;
 import io.netty.util.internal.PlatformDependent;
-
+import io.netty.util.internal.ThreadLocalRandom;
+import io.netty5.buffer.BufferInputStream;
+import io.netty5.buffer.BufferUtil;
+import io.netty5.buffer.api.Buffer;
+import io.netty5.buffer.api.Owned;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
@@ -29,23 +29,18 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.nio.charset.Charset;
 import java.security.SecureRandom;
-import java.util.Arrays;
 import java.util.Random;
 import java.util.UUID;
 
-import static io.netty.util.CharsetUtil.*;
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static io.netty.util.CharsetUtil.UTF_8;
+import static org.junit.jupiter.api.Assertions.*;
 
 /** {@link AbstractMemoryHttpData} test cases. */
 public class AbstractMemoryHttpDataTest {
 
     @Test
     public void testSetContentFromFile() throws Exception {
-        TestHttpData test = new TestHttpData("test", UTF_8, 0);
-        try {
+        try(TestHttpData test = new TestHttpData("test", UTF_8, 0)) {
             File tmpFile = PlatformDependent.createTempFile(UUID.randomUUID().toString(), ".tmp", null);
             tmpFile.deleteOnExit();
             FileOutputStream fos = new FileOutputStream(tmpFile);
@@ -58,27 +53,23 @@ public class AbstractMemoryHttpDataTest {
                 fos.close();
             }
             test.setContent(tmpFile);
-            ByteBuf buf = test.getByteBuf();
-            assertEquals(buf.readerIndex(), 0);
-            assertEquals(buf.writerIndex(), bytes.length);
+            Buffer buf = test.getBuffer();
+            assertEquals(buf.readerOffset(), 0);
+            assertEquals(buf.writerOffset(), bytes.length);
             assertArrayEquals(bytes, test.get());
-            assertArrayEquals(bytes, ByteBufUtil.getBytes(buf));
-        } finally {
-            //release the ByteBuf
-            test.delete();
+            assertArrayEquals(bytes, BufferUtil.getBytes(buf));
         }
     }
 
     @Test
     public void testRenameTo() throws Exception {
-        TestHttpData test = new TestHttpData("test", UTF_8, 0);
-        try {
+        try(TestHttpData test = new TestHttpData("test", UTF_8, 0)) {
             File tmpFile = PlatformDependent.createTempFile(UUID.randomUUID().toString(), ".tmp", null);
             tmpFile.deleteOnExit();
             final int totalByteCount = 4096;
             byte[] bytes = new byte[totalByteCount];
-            PlatformDependent.threadLocalRandom().nextBytes(bytes);
-            ByteBuf content = Unpooled.wrappedBuffer(bytes);
+            ThreadLocalRandom.current().nextBytes(bytes);
+            Buffer content = Helpers.copiedBuffer(bytes);
             test.setContent(content);
             boolean succ = test.renameTo(tmpFile);
             assertTrue(succ);
@@ -100,9 +91,6 @@ public class AbstractMemoryHttpDataTest {
             } finally {
                 fis.close();
             }
-        } finally {
-            //release the ByteBuf in AbstractMemoryHttpData
-            test.delete();
         }
     }
     /**
@@ -115,15 +103,15 @@ public class AbstractMemoryHttpDataTest {
         // definedSize=0
         TestHttpData test = new TestHttpData("test", UTF_8, 0);
         String contentStr = "foo_test";
-        ByteBuf buf = Unpooled.wrappedBuffer(contentStr.getBytes(UTF_8));
-        buf.markReaderIndex();
-        ByteBufInputStream is = new ByteBufInputStream(buf);
+        Buffer buf = Helpers.copiedBuffer(contentStr.getBytes(UTF_8));
+        BufferInputStream is = new BufferInputStream(buf.send());
         try {
             test.setContent(is);
-            assertFalse(buf.isReadable());
+            assertFalse(buf.readableBytes() > 0);
             assertEquals(test.getString(UTF_8), contentStr);
-            buf.resetReaderIndex();
-            assertTrue(ByteBufUtil.equals(buf, test.getByteBuf()));
+            buf = Helpers.copiedBuffer(contentStr.getBytes(UTF_8));
+            Buffer buf2 = test.getBuffer();
+            assertTrue(BufferUtil.equals(buf, buf.readerOffset(), buf2, buf2.readerOffset(), buf2.readableBytes()));
         } finally {
             is.close();
         }
@@ -143,11 +131,11 @@ public class AbstractMemoryHttpDataTest {
             data.setContent(new ByteArrayInputStream(bytes));
 
             // Validate stored data.
-            ByteBuf buffer = data.getByteBuf();
+            Buffer buffer = data.getBuffer();
 
-            assertEquals(0, buffer.readerIndex());
-            assertEquals(bytes.length, buffer.writerIndex());
-            assertArrayEquals(bytes, Arrays.copyOf(buffer.array(), bytes.length));
+            assertEquals(0, buffer.readerOffset());
+            assertEquals(bytes.length, buffer.writerOffset());
+            assertArrayEquals(bytes, BufferUtil.getBytes(buffer));
             assertArrayEquals(bytes, data.get());
         }
     }
@@ -171,23 +159,18 @@ public class AbstractMemoryHttpDataTest {
         }
 
         @Override
+        protected Owned<AbstractHttpData> prepareSend() {
+            throw reject();
+        }
+
+        @Override
         public HttpData copy() {
             throw reject();
         }
 
         @Override
-        public HttpData duplicate() {
+        public HttpData replace(Buffer content) {
             throw reject();
-        }
-
-        @Override
-        public HttpData retainedDuplicate() {
-            throw reject();
-        }
-
-        @Override
-        public HttpData replace(ByteBuf content) {
-            return null;
         }
 
         @Override

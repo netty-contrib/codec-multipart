@@ -15,25 +15,27 @@
  */
 package io.netty.contrib.handler.codec.http.multipart;
 
-import static io.netty.util.internal.ObjectUtil.checkNonEmpty;
-
-import io.netty.buffer.ByteBuf;
-import io.netty.channel.ChannelException;
-import io.netty.handler.codec.http.HttpConstants;
-import io.netty.util.AbstractReferenceCounted;
-import io.netty.util.internal.ObjectUtil;
+import io.netty5.buffer.api.Buffer;
+import io.netty5.buffer.api.Drop;
+import io.netty5.buffer.api.internal.ResourceSupport;
+import io.netty5.channel.ChannelException;
+import io.netty5.handler.codec.http.HttpConstants;
+import io.netty5.util.internal.ObjectUtil;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.regex.Pattern;
 
+import static io.netty.util.internal.ObjectUtil.checkNonEmpty;
+
 /**
  * Abstract HttpData implementation
  */
-public abstract class AbstractHttpData extends AbstractReferenceCounted implements HttpData {
+public abstract class AbstractHttpData extends ResourceSupport<HttpData, AbstractHttpData> implements HttpData {
 
     private static final Pattern STRIP_PATTERN = Pattern.compile("(?:^\\s+|\\s+$|\\n)");
     private static final Pattern REPLACE_PATTERN = Pattern.compile("[\\r\\t]");
+    protected final static byte[] EMPTY_ARRAY = new byte[0];
 
     private final String name;
     protected long definedSize;
@@ -42,8 +44,25 @@ public abstract class AbstractHttpData extends AbstractReferenceCounted implemen
     private boolean completed;
     private long maxSize = DefaultHttpDataFactory.MAXSIZE;
 
+    private final static Drop<AbstractHttpData> drop = new Drop<AbstractHttpData>() {
+        @Override
+        public void drop(AbstractHttpData data) {
+            data.delete();
+        }
+
+        @Override
+        public Drop<AbstractHttpData> fork() {
+            return this;
+        }
+
+        @Override
+        public void attach(AbstractHttpData mixedFileUpload) {
+        }
+    };
+
     protected AbstractHttpData(String name, Charset charset, long size) {
-        ObjectUtil.checkNotNull(name, "name");
+        super(drop);
+        ObjectUtil.checkNotNullWithIAE(name, "name");
 
         name = REPLACE_PATTERN.matcher(name).replaceAll(" ");
         name = STRIP_PATTERN.matcher(name).replaceAll("");
@@ -53,6 +72,16 @@ public abstract class AbstractHttpData extends AbstractReferenceCounted implemen
             setCharset(charset);
         }
         definedSize = size;
+    }
+
+    protected AbstractHttpData(AbstractHttpData copy) {
+        super(drop);
+        this.name = copy.name;
+        this.charset = copy.charset;
+        this.definedSize = copy.definedSize;
+        this.size = copy.size;
+        this.completed = copy.completed;
+        this.maxSize = copy.maxSize;
     }
 
     @Override
@@ -93,7 +122,7 @@ public abstract class AbstractHttpData extends AbstractReferenceCounted implemen
 
     @Override
     public void setCharset(Charset charset) {
-        this.charset = ObjectUtil.checkNotNull(charset, "charset");
+        this.charset = ObjectUtil.checkNotNullWithIAE(charset, "charset");
     }
 
     @Override
@@ -107,34 +136,35 @@ public abstract class AbstractHttpData extends AbstractReferenceCounted implemen
     }
 
     @Override
-    public ByteBuf content() {
+    public Buffer content() {
+        checkAccessible();
         try {
-            return getByteBuf();
+            return getBuffer();
         } catch (IOException e) {
             throw new ChannelException(e);
         }
     }
 
     @Override
-    protected void deallocate() {
-        delete();
+    protected RuntimeException createResourceClosedException() {
+        return new IllegalStateException("Resource closed");
     }
 
-    @Override
-    public HttpData retain() {
-        super.retain();
-        return this;
+    protected void checkAccessible() {
+        if (! isAccessible()) {
+            throw new IllegalStateException(getClass().getName()
+                    + " is innaccessible");
+        }
     }
 
-    @Override
-    public HttpData retain(int increment) {
-        super.retain(increment);
-        return this;
+    protected void checkAccessible(Buffer cleanup) {
+        if (! isAccessible()) {
+            if (cleanup != null && cleanup.isAccessible()) {
+                cleanup.close();
+            }
+            throw new IllegalStateException(getClass().getName()
+                    + " is innaccessible");
+        }
     }
 
-    @Override
-    public abstract HttpData touch();
-
-    @Override
-    public abstract HttpData touch(Object hint);
 }
