@@ -152,9 +152,9 @@ public class MemoryAttribute extends AbstractMemoryHttpData implements Attribute
 
     @Override
     protected Owned<AbstractHttpData> prepareSend() {
-        Send send = getBuffer().send();
+        Send<Buffer> send = getBuffer().send();
         return drop -> {
-            Buffer received = (Buffer) send.receive();
+            Buffer received = send.receive();
             MemoryAttribute attr = new MemoryAttribute(getName());
             attr.setCharset(getCharset());
             attr.setContentInternal(received, received.readableBytes());

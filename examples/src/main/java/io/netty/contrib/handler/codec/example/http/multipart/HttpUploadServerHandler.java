@@ -169,7 +169,7 @@ public class HttpUploadServerHandler extends SimpleChannelInboundHandler<HttpObj
         if (decoder != null) {
             if (msg instanceof HttpContent) {
                 // New chunk is received
-                HttpContent chunk = (HttpContent) msg;
+                HttpContent<?> chunk = (HttpContent<?>) msg;
                 try {
                     decoder.offer(chunk);
                 } catch (HttpPostRequestDecoder.ErrorDataDecoderException e1) {

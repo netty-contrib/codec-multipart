@@ -156,7 +156,7 @@ public class HttpPostStandardRequestDecoder implements InterfaceHttpPostRequestD
             if (request instanceof HttpContent) {
                 // Offer automatically if the given request is as type of HttpContent
                 // See #1089
-                offer((HttpContent) request);
+                offer((HttpContent<?>) request);
             } else {
                 parseBody();
             }
@@ -279,7 +279,7 @@ public class HttpPostStandardRequestDecoder implements InterfaceHttpPostRequestD
      *             errors
      */
     @Override
-    public HttpPostStandardRequestDecoder offer(HttpContent content) {
+    public HttpPostStandardRequestDecoder offer(HttpContent<?> content) {
         checkDestroyed();
 
         if (content instanceof LastHttpContent) {

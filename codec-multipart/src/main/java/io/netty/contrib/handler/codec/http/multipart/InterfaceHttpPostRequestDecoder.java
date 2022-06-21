@@ -92,7 +92,7 @@ public interface InterfaceHttpPostRequestDecoder {
      *             if there is a problem with the charset decoding or other
      *             errors
      */
-    InterfaceHttpPostRequestDecoder offer(HttpContent content);
+    InterfaceHttpPostRequestDecoder offer(HttpContent<?> content);
 
     /**
      * True if at current getStatus, there is an available decoded

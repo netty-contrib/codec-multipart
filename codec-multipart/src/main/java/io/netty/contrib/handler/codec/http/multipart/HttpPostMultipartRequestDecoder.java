@@ -208,7 +208,7 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
             if (request instanceof HttpContent) {
                 // Offer automatically if the given request is als type of HttpContent
                 // See #1089
-                offer((HttpContent) request);
+                offer((HttpContent<?>) request);
             } else {
                 parseBody();
             }
@@ -331,7 +331,7 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
      *             errors
      */
     @Override
-    public HttpPostMultipartRequestDecoder offer(HttpContent content) {
+    public HttpPostMultipartRequestDecoder offer(HttpContent<?> content) {
         checkDestroyed();
 
         if (content instanceof LastHttpContent) {

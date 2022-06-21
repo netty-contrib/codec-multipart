@@ -67,7 +67,7 @@ import static java.util.AbstractMap.SimpleImmutableEntry;
  * <P>On the contrary, for TRACE method, RFC says:</P>
  * <P>"A client MUST NOT send a message body in a TRACE request."</P>
  */
-public class HttpPostRequestEncoder implements ChunkedInput<HttpContent> {
+public class HttpPostRequestEncoder implements ChunkedInput<HttpContent<?>> {
 
     /**
      * Different modes to use to encode form data.
@@ -805,7 +805,7 @@ public class HttpPostRequestEncoder implements ChunkedInput<HttpContent> {
             return new WrappedHttpRequest(request);
         } else {
             // get the only one body and set it to the request
-            HttpContent chunk = nextChunk();
+            HttpContent<?> chunk = nextChunk();
             if (request instanceof FullHttpRequest) {
                 FullHttpRequest fullRequest = (FullHttpRequest) request;
                 Buffer chunkContent = chunk.payload();
@@ -894,7 +894,7 @@ public class HttpPostRequestEncoder implements ChunkedInput<HttpContent> {
      * @throws ErrorDataEncoderException
      *             if the encoding is in error
      */
-    private HttpContent encodeNextChunkMultipart(int sizeleft) throws ErrorDataEncoderException {
+    private HttpContent<?> encodeNextChunkMultipart(int sizeleft) throws ErrorDataEncoderException {
         if (currentData == null) {
             return null;
         }
@@ -937,7 +937,7 @@ public class HttpPostRequestEncoder implements ChunkedInput<HttpContent> {
      * @throws ErrorDataEncoderException
      *             if the encoding is in error
      */
-    private HttpContent encodeNextChunkUrlEncoded(int sizeleft) throws ErrorDataEncoderException {
+    private HttpContent<?> encodeNextChunkUrlEncoded(int sizeleft) throws ErrorDataEncoderException {
         if (currentData == null) {
             return null;
         }
@@ -1039,11 +1039,11 @@ public class HttpPostRequestEncoder implements ChunkedInput<HttpContent> {
      *             if the encoding is in error
      */
     @Override
-    public HttpContent readChunk(BufferAllocator allocator) throws Exception {
+    public HttpContent<?> readChunk(BufferAllocator allocator) throws Exception {
         if (isLastChunkSent) {
             return null;
         } else {
-            HttpContent nextChunk = nextChunk();
+            HttpContent<?> nextChunk = nextChunk();
             globalProgress += nextChunk.payload().readableBytes();
             return nextChunk;
         }
@@ -1057,7 +1057,7 @@ public class HttpPostRequestEncoder implements ChunkedInput<HttpContent> {
      * @throws ErrorDataEncoderException
      *             if the encoding is in error
      */
-    private HttpContent nextChunk() throws ErrorDataEncoderException {
+    private HttpContent<?> nextChunk() throws ErrorDataEncoderException {
         if (isLastChunk) {
             isLastChunkSent = true;
             return new EmptyLastHttpContent(DefaultBufferAllocators.onHeapAllocator());
@@ -1072,7 +1072,7 @@ public class HttpPostRequestEncoder implements ChunkedInput<HttpContent> {
         // size > 0
         if (currentData != null) {
             // continue to read data
-            HttpContent chunk;
+            HttpContent<?> chunk;
             if (isMultipart) {
                 chunk = encodeNextChunkMultipart(size);
             } else {
@@ -1089,7 +1089,7 @@ public class HttpPostRequestEncoder implements ChunkedInput<HttpContent> {
         }
         while (size > 0 && iterator.hasNext()) {
             currentData = iterator.next();
-            HttpContent chunk;
+            HttpContent<?> chunk;
             if (isMultipart) {
                 chunk = encodeNextChunkMultipart(size);
             } else {
@@ -1115,7 +1115,7 @@ public class HttpPostRequestEncoder implements ChunkedInput<HttpContent> {
         return size;
     }
 
-    private HttpContent lastChunk() {
+    private HttpContent<?> lastChunk() {
         isLastChunk = true;
         if (currentBuffer == null) {
             isLastChunkSent = true;
@@ -1226,9 +1226,9 @@ public class HttpPostRequestEncoder implements ChunkedInput<HttpContent> {
     }
 
     private static final class WrappedFullHttpRequest extends WrappedHttpRequest implements FullHttpRequest {
-        private final HttpContent content;
+        private final HttpContent<?> content;
 
-        private WrappedFullHttpRequest(HttpRequest request, HttpContent content) {
+        private WrappedFullHttpRequest(HttpRequest request, HttpContent<?> content) {
             super(request);
             this.content = content;
         }
@@ -1259,7 +1259,7 @@ public class HttpPostRequestEncoder implements ChunkedInput<HttpContent> {
         @Override
         public HttpHeaders trailingHeaders() {
             if (content instanceof LastHttpContent) {
-                return ((LastHttpContent) content).trailingHeaders();
+                return ((LastHttpContent<?>) content).trailingHeaders();
             } else {
                 return EmptyHttpHeaders.INSTANCE;
             }
