@@ -19,6 +19,7 @@ import io.netty.buffer.ByteBufAllocator;
 import io.netty.util.internal.PlatformDependent;
 import io.netty.util.internal.ThreadLocalRandom;
 import io.netty5.buffer.api.Buffer;
+import io.netty5.buffer.api.BufferAllocator;
 import io.netty5.buffer.api.DefaultBufferAllocators;
 import io.netty5.util.Send;
 import io.netty5.channel.ChannelHandlerContext;
@@ -1032,12 +1033,6 @@ public class HttpPostRequestEncoder implements ChunkedInput<HttpContent> {
         // cleanFiles();
     }
 
-    @Deprecated
-    @Override
-    public HttpContent readChunk(ChannelHandlerContext ctx) throws Exception {
-        return readChunk(ctx.alloc());
-    }
-
     /**
      * Returns the next available HttpChunk. The caller is responsible to test if this chunk is the last one (isLast()),
      * in order to stop calling this getMethod.
@@ -1047,7 +1042,7 @@ public class HttpPostRequestEncoder implements ChunkedInput<HttpContent> {
      *             if the encoding is in error
      */
     @Override
-    public HttpContent readChunk(ByteBufAllocator allocator) throws Exception {
+    public HttpContent readChunk(BufferAllocator allocator) throws Exception {
         if (isLastChunkSent) {
             return null;
         } else {

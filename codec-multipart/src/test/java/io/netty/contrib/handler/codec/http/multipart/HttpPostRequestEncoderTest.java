@@ -21,6 +21,7 @@ import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestEncoder.Erro
 import io.netty.util.CharsetUtil;
 import io.netty.util.internal.StringUtil;
 import io.netty5.buffer.api.Buffer;
+import io.netty5.buffer.api.BufferAllocator;
 import io.netty5.buffer.api.DefaultBufferAllocators;
 import io.netty5.handler.codec.http.DefaultFullHttpRequest;
 import io.netty5.handler.codec.http.DefaultHttpRequest;
@@ -338,7 +339,7 @@ public class HttpPostRequestEncoderTest {
         encoder.addBodyFileUpload("myfile", file1, "application/x-zip-compressed", false);
         encoder.finalizeRequest();
         while (! encoder.isEndOfInput()) {
-            HttpContent httpContent = encoder.readChunk((ByteBufAllocator) null);
+            HttpContent httpContent = encoder.readChunk((BufferAllocator) null);
             Buffer content = httpContent.payload();
             // TODO how to test this ?
 //            assertTrue((content.unwrap() == content || content.unwrap() == null)  ||
@@ -396,7 +397,7 @@ public class HttpPostRequestEncoderTest {
         checkNextChunkSize(encoder, 8080);
         checkNextChunkSize(encoder, 8080);
 
-        HttpContent httpContent = encoder.readChunk((ByteBufAllocator) null);
+        HttpContent httpContent = encoder.readChunk((BufferAllocator) null);
         assertTrue(httpContent instanceof LastHttpContent, "Expected LastHttpContent is not received");
         httpContent.close();
 
@@ -418,7 +419,7 @@ public class HttpPostRequestEncoderTest {
 
         checkNextChunkSize(encoder, 8080);
 
-        HttpContent httpContent = encoder.readChunk((ByteBufAllocator) null);
+        HttpContent httpContent = encoder.readChunk((BufferAllocator) null);
         assertTrue(httpContent instanceof LastHttpContent, "Expected LastHttpContent is not received");
         httpContent.close();
 
@@ -433,7 +434,7 @@ public class HttpPostRequestEncoderTest {
         int expectedSizeMin = sizeWithoutDelimiter + 2;
         int expectedSizeMax = sizeWithoutDelimiter + 16;
 
-        HttpContent httpContent = encoder.readChunk((ByteBufAllocator) null);
+        HttpContent httpContent = encoder.readChunk((BufferAllocator) null);
 
         int readable = httpContent.payload().readableBytes();
         boolean expectedSize = readable >= expectedSizeMin && readable <= expectedSizeMax;
@@ -458,7 +459,7 @@ public class HttpPostRequestEncoderTest {
         assertNotNull(encoder.finalizeRequest());
 
         while (!encoder.isEndOfInput()) {
-            encoder.readChunk((ByteBufAllocator) null).close();
+            encoder.readChunk((BufferAllocator) null).close();
         }
 
         assertTrue(encoder.isEndOfInput());
