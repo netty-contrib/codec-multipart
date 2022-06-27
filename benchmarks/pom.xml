@@ -33,11 +33,11 @@
             <artifactId>netty-codec-multipart</artifactId>
             <version>${project.version}</version>
         </dependency>
-        <dependency>
+        <!--dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty5-microbench</artifactId>
             <version>${netty.version}</version>
-        </dependency>
+        </dependency-->
         <dependency>
             <groupId>org.openjdk.jmh</groupId>
             <artifactId>jmh-generator-annprocess</artifactId>
