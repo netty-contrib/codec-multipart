@@ -15,7 +15,6 @@
  */
 package io.netty.contrib.handler.codec.http.multipart;
 
-import io.netty.buffer.ByteBuf;
 import io.netty5.buffer.api.Buffer;
 import io.netty5.buffer.api.ByteCursor;
 import io.netty5.handler.codec.http.HttpConstants;

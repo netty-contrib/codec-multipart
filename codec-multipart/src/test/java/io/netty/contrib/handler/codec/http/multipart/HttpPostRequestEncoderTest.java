@@ -15,11 +15,10 @@
  */
 package io.netty.contrib.handler.codec.http.multipart;
 
-import io.netty.buffer.ByteBufAllocator;
 import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestEncoder.EncoderMode;
 import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestEncoder.ErrorDataEncoderException;
-import io.netty.util.CharsetUtil;
-import io.netty.util.internal.StringUtil;
+import io.netty5.util.CharsetUtil;
+import io.netty5.util.internal.StringUtil;
 import io.netty5.buffer.api.Buffer;
 import io.netty5.buffer.api.BufferAllocator;
 import io.netty5.buffer.api.DefaultBufferAllocators;

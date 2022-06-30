@@ -15,7 +15,7 @@
  */
 package io.netty.contrib.handler.codec.http.multipart;
 
-import io.netty.util.CharsetUtil;
+import io.netty5.util.CharsetUtil;
 import io.netty5.buffer.api.Buffer;
 import io.netty5.buffer.api.DefaultBufferAllocators;
 import io.netty5.handler.codec.http.DefaultFullHttpRequest;

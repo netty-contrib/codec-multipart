@@ -15,7 +15,7 @@
  */
 package io.netty.contrib.handler.codec.http.multipart;
 
-import io.netty.util.internal.ObjectUtil;
+import io.netty5.util.internal.ObjectUtil;
 import io.netty5.buffer.api.Buffer;
 import io.netty5.buffer.api.DefaultBufferAllocators;
 import io.netty5.buffer.api.Drop;
@@ -64,21 +64,21 @@ final class InternalAttribute extends ResourceSupport<HttpData, InternalAttribut
     }
 
     public void addValue(String value) {
-        ObjectUtil.checkNotNull(value, "value");
+        ObjectUtil.checkNotNullWithIAE(value, "value");
         Buffer buf = Helpers.copiedBuffer(value, charset);
         this.value.add(buf);
         size += buf.readableBytes();
     }
 
     public void addValue(String value, int rank) {
-        ObjectUtil.checkNotNull(value, "value");
+        ObjectUtil.checkNotNullWithIAE(value, "value");
         Buffer buf = Helpers.copiedBuffer(value, charset);
         this.value.add(rank, buf);
         size += buf.readableBytes();
     }
 
     public void setValue(String value, int rank) {
-        ObjectUtil.checkNotNull(value, "value");
+        ObjectUtil.checkNotNullWithIAE(value, "value");
         Buffer buf = Helpers.copiedBuffer(value, charset);
         Buffer old = this.value.set(rank, buf);
         if (old != null) {

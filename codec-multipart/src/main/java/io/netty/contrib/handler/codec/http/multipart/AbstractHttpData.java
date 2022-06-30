@@ -26,7 +26,7 @@ import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.regex.Pattern;
 
-import static io.netty.util.internal.ObjectUtil.checkNonEmpty;
+import static io.netty5.util.internal.ObjectUtil.checkNonEmpty;
 
 /**
  * Abstract HttpData implementation

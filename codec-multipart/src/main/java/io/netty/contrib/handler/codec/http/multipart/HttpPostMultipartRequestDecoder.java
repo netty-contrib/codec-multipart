@@ -20,10 +20,9 @@ import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestDecoder.EndO
 import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestDecoder.ErrorDataDecoderException;
 import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestDecoder.MultiPartStatus;
 import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestDecoder.NotEnoughDataDecoderException;
-import io.netty.util.CharsetUtil;
-import io.netty.util.internal.InternalThreadLocalMap;
-import io.netty.util.internal.PlatformDependent;
-import io.netty.util.internal.StringUtil;
+import io.netty5.util.CharsetUtil;
+import io.netty5.util.internal.PlatformDependent;
+import io.netty5.util.internal.StringUtil;
 import io.netty5.buffer.api.Buffer;
 import io.netty5.buffer.api.BufferAllocator;
 import io.netty5.buffer.api.ByteCursor;
@@ -46,8 +45,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
-import static io.netty.util.internal.ObjectUtil.checkNotNull;
-import static io.netty.util.internal.ObjectUtil.checkPositiveOrZero;
+import static io.netty5.util.internal.ObjectUtil.checkNotNullWithIAE;
+import static io.netty5.util.internal.ObjectUtil.checkPositiveOrZero;
 
 /**
  * This decoder will decode Body and can handle POST BODY.
@@ -180,9 +179,9 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
      *             errors
      */
     public HttpPostMultipartRequestDecoder(HttpDataFactory factory, HttpRequest request, Charset charset) {
-        this.request = checkNotNull(request, "request");
-        this.charset = checkNotNull(charset, "charset");
-        this.factory = checkNotNull(factory, "factory");
+        this.request = checkNotNullWithIAE(request, "request");
+        this.charset = checkNotNullWithIAE(charset, "charset");
+        this.factory = checkNotNullWithIAE(factory, "factory");
         // Fill default values
 
         String contentTypeValue = this.request.headers().get(HttpHeaderNames.CONTENT_TYPE);
@@ -1319,7 +1318,7 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
      * @return an array of String where values that were separated by ';' or ','
      */
     private static String[] splitMultipartHeaderValues(String svalue) {
-        List<String> values = InternalThreadLocalMap.get().arrayList(1);
+        List<String> values = new ArrayList<>(1);
         boolean inQuote = false;
         boolean escapeNext = false;
         int start = 0;

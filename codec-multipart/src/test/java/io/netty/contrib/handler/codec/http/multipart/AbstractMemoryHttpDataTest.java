@@ -15,8 +15,7 @@
  */
 package io.netty.contrib.handler.codec.http.multipart;
 
-import io.netty.util.internal.PlatformDependent;
-import io.netty.util.internal.ThreadLocalRandom;
+import io.netty5.util.internal.PlatformDependent;
 import io.netty5.buffer.BufferInputStream;
 import io.netty5.buffer.BufferUtil;
 import io.netty5.buffer.api.Buffer;
@@ -31,8 +30,9 @@ import java.nio.charset.Charset;
 import java.security.SecureRandom;
 import java.util.Random;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 
-import static io.netty.util.CharsetUtil.UTF_8;
+import static io.netty5.util.CharsetUtil.UTF_8;
 import static org.junit.jupiter.api.Assertions.*;
 
 /** {@link AbstractMemoryHttpData} test cases. */
@@ -45,7 +45,7 @@ public class AbstractMemoryHttpDataTest {
             tmpFile.deleteOnExit();
             FileOutputStream fos = new FileOutputStream(tmpFile);
             byte[] bytes = new byte[4096];
-            PlatformDependent.threadLocalRandom().nextBytes(bytes);
+            ThreadLocalRandom.current().nextBytes(bytes);
             try {
                 fos.write(bytes);
                 fos.flush();

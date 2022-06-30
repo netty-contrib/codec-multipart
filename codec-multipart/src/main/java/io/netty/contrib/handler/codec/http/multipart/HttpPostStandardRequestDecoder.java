@@ -15,7 +15,6 @@
  */
 package io.netty.contrib.handler.codec.http.multipart;
 
-import io.netty.buffer.Unpooled;
 import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestDecoder.EndOfDataDecoderException;
 import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestDecoder.ErrorDataDecoderException;
 import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestDecoder.MultiPartStatus;
@@ -39,8 +38,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
-import static io.netty.util.internal.ObjectUtil.checkNotNull;
-import static io.netty.util.internal.ObjectUtil.checkPositiveOrZero;
+import static io.netty5.util.internal.ObjectUtil.checkNotNullWithIAE;
+import static io.netty5.util.internal.ObjectUtil.checkPositiveOrZero;
 
 /**
  * This decoder will decode Body and can handle POST BODY.
@@ -150,9 +149,9 @@ public class HttpPostStandardRequestDecoder implements InterfaceHttpPostRequestD
      *             errors
      */
     public HttpPostStandardRequestDecoder(HttpDataFactory factory, HttpRequest request, Charset charset) {
-        this.request = checkNotNull(request, "request");
-        this.charset = checkNotNull(charset, "charset");
-        this.factory = checkNotNull(factory, "factory");
+        this.request = checkNotNullWithIAE(request, "request");
+        this.charset = checkNotNullWithIAE(charset, "charset");
+        this.factory = checkNotNullWithIAE(factory, "factory");
         try {
             if (request instanceof HttpContent) {
                 // Offer automatically if the given request is as type of HttpContent

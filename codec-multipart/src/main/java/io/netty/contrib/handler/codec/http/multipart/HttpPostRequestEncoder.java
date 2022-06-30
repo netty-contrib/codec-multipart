@@ -15,14 +15,10 @@
  */
 package io.netty.contrib.handler.codec.http.multipart;
 
-import io.netty.buffer.ByteBufAllocator;
-import io.netty.util.internal.PlatformDependent;
-import io.netty.util.internal.ThreadLocalRandom;
 import io.netty5.buffer.api.Buffer;
 import io.netty5.buffer.api.BufferAllocator;
 import io.netty5.buffer.api.DefaultBufferAllocators;
 import io.netty5.util.Send;
-import io.netty5.channel.ChannelHandlerContext;
 import io.netty5.handler.codec.DecoderResult;
 import io.netty5.handler.codec.http.DefaultFullHttpRequest;
 import io.netty5.handler.codec.http.DefaultHttpContent;
@@ -53,9 +49,10 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.regex.Pattern;
 
-import static io.netty.util.internal.ObjectUtil.checkNotNull;
+import static io.netty5.util.internal.ObjectUtil.checkNotNullWithIAE;
 import static java.util.AbstractMap.SimpleImmutableEntry;
 
 /**
@@ -215,9 +212,9 @@ public class HttpPostRequestEncoder implements ChunkedInput<HttpContent> {
             HttpDataFactory factory, HttpRequest request, boolean multipart, Charset charset,
             EncoderMode encoderMode)
             throws ErrorDataEncoderException {
-        this.request = checkNotNull(request, "request");
-        this.charset = checkNotNull(charset, "charset");
-        this.factory = checkNotNull(factory, "factory");
+        this.request = checkNotNullWithIAE(request, "request");
+        this.charset = checkNotNullWithIAE(charset, "charset");
+        this.factory = checkNotNullWithIAE(factory, "factory");
         if (HttpMethod.TRACE.equals(request.method())) {
             throw new ErrorDataEncoderException("Cannot create a Encoder if request is a TRACE");
         }
@@ -295,7 +292,7 @@ public class HttpPostRequestEncoder implements ChunkedInput<HttpContent> {
      */
     private static String getNewMultipartDelimiter() {
         // construct a generated delimiter
-        return Long.toHexString(PlatformDependent.threadLocalRandom().nextLong());
+        return Long.toHexString(ThreadLocalRandom.current().nextLong());
     }
 
     /**
@@ -341,7 +338,7 @@ public class HttpPostRequestEncoder implements ChunkedInput<HttpContent> {
      */
     public void addBodyAttribute(String name, String value) throws ErrorDataEncoderException {
         String svalue = value != null? value : StringUtil.EMPTY_STRING;
-        Attribute data = factory.createAttribute(request, checkNotNull(name, "name"), svalue);
+        Attribute data = factory.createAttribute(request, checkNotNullWithIAE(name, "name"), svalue);
         addBodyHttpData(data);
     }
 
@@ -387,8 +384,8 @@ public class HttpPostRequestEncoder implements ChunkedInput<HttpContent> {
      */
     public void addBodyFileUpload(String name, String filename, File file, String contentType, boolean isText)
             throws ErrorDataEncoderException {
-        checkNotNull(name, "name");
-        checkNotNull(file, "file");
+        checkNotNullWithIAE(name, "name");
+        checkNotNullWithIAE(file, "file");
         if (filename == null) {
             filename = StringUtil.EMPTY_STRING;
         }
@@ -452,7 +449,7 @@ public class HttpPostRequestEncoder implements ChunkedInput<HttpContent> {
         if (headerFinalized) {
             throw new ErrorDataEncoderException("Cannot add value once finalized");
         }
-        bodyListDatas.add(checkNotNull(data, "data"));
+        bodyListDatas.add(checkNotNullWithIAE(data, "data"));
         if (!isMultipart) {
             if (data instanceof Attribute) {
                 Attribute attribute = (Attribute) data;

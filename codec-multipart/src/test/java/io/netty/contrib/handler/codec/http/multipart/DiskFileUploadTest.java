@@ -15,11 +15,9 @@
  */
 package io.netty.contrib.handler.codec.http.multipart;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufInputStream;
-import io.netty.buffer.Unpooled;
-import io.netty.util.CharsetUtil;
-import io.netty.util.internal.PlatformDependent;
+import io.netty5.buffer.BufferInputStream;
+import io.netty5.util.CharsetUtil;
+import io.netty5.util.internal.PlatformDependent;
 import io.netty5.buffer.BufferUtil;
 import io.netty5.buffer.api.Buffer;
 import io.netty5.buffer.api.DefaultBufferAllocators;
@@ -31,6 +29,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -108,7 +107,7 @@ public class DiskFileUploadTest {
     public void testAddContents() throws Exception {
         try (DiskFileUpload f1 = new DiskFileUpload("file1", "file1", "application/json", null, null, 0)) {
             byte[] jsonBytes = new byte[4096];
-            PlatformDependent.threadLocalRandom().nextBytes(jsonBytes);
+            ThreadLocalRandom.current().nextBytes(jsonBytes);
 
             f1.addContent(Helpers.copiedBuffer(jsonBytes, 0, 1024), false);
             f1.addContent(Helpers.copiedBuffer(jsonBytes, 1024, jsonBytes.length - 1024), true);
@@ -156,18 +155,15 @@ public class DiskFileUploadTest {
         String json = "{\"hello\":\"world\",\"foo\":\"bar\"}";
         try (DiskFileUpload f1 = new DiskFileUpload("file3", "file3", "application/json", null, null, 0)) {
             byte[] bytes = json.getBytes(CharsetUtil.UTF_8);
-            ByteBuf buf = Unpooled.wrappedBuffer(bytes);
-            InputStream is = new ByteBufInputStream(buf);
-            try {
+
+            try (Buffer buf = Helpers.copiedBuffer(bytes);
+                 InputStream is = new BufferInputStream(buf.send())) {
                 f1.setContent(is);
                 assertEquals(json, f1.getString());
                 assertArrayEquals(bytes, f1.get());
                 File file = f1.getFile();
                 assertEquals((long) bytes.length, file.length());
                 assertArrayEquals(bytes, doReadFile(file, bytes.length));
-            } finally {
-                buf.release();
-                is.close();
             }
         }
     }
@@ -185,7 +181,7 @@ public class DiskFileUploadTest {
     private static void testAddContentFromByteBuf0(boolean composite) throws Exception {
         try (DiskFileUpload f1 = new DiskFileUpload("file3", "file3", "application/json", null, null, 0)) {
             byte[] bytes = new byte[4096];
-            PlatformDependent.threadLocalRandom().nextBytes(bytes);
+            ThreadLocalRandom.current().nextBytes(bytes);
 
             final Buffer buffer;
 
@@ -252,7 +248,7 @@ public class DiskFileUploadTest {
             assertEquals(maxSize, originalFile.length());
             assertEquals(maxSize, f1.length());
             byte[] bytes = new byte[8];
-            PlatformDependent.threadLocalRandom().nextBytes(bytes);
+            ThreadLocalRandom.current().nextBytes(bytes);
             File tmpFile = PlatformDependent.createTempFile(UUID.randomUUID().toString(), ".tmp", null);
             tmpFile.deleteOnExit();
             FileOutputStream fos = new FileOutputStream(tmpFile);
