@@ -15,7 +15,7 @@
  */
 package io.netty.contrib.handler.codec.example.http.multipart;
 
-import io.netty.util.CharsetUtil;
+import io.netty5.util.CharsetUtil;
 import io.netty5.channel.ChannelHandlerContext;
 import io.netty5.channel.SimpleChannelInboundHandler;
 import io.netty5.handler.codec.http.HttpContent;

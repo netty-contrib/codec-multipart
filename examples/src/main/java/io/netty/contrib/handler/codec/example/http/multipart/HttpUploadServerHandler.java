@@ -25,7 +25,7 @@ import io.netty.contrib.handler.codec.http.multipart.HttpDataFactory;
 import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestDecoder;
 import io.netty.contrib.handler.codec.http.multipart.InterfaceHttpData;
 import io.netty.contrib.handler.codec.http.multipart.InterfaceHttpData.HttpDataType;
-import io.netty.util.CharsetUtil;
+import io.netty5.util.CharsetUtil;
 import io.netty5.buffer.api.Buffer;
 import io.netty5.channel.Channel;
 import io.netty5.channel.ChannelFutureListeners;
