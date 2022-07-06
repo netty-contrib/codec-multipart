@@ -150,7 +150,7 @@ public final class HttpUploadClient {
             Bootstrap bootstrap, String host, int port, String get, URI uriSimple) throws Exception {
         // XXX /formget
         // No use of HttpPostRequestEncoder since not a POST
-        Channel channel = bootstrap.connect(host, port).get();
+        Channel channel = bootstrap.connect(host, port).asStage().get();
 
         // Prepare the HTTP request.
         QueryStringEncoder encoder = new QueryStringEncoder(get);
@@ -207,7 +207,7 @@ public final class HttpUploadClient {
             List<Entry<String, String>> headers) throws Exception {
         // XXX /formpost
         // Start the connection attempt.
-        Channel channel = bootstrap.connect(host, port).get();
+        Channel channel = bootstrap.connect(host, port).asStage().get();
 
         // Prepare the HTTP request.
         HttpRequest request = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, uriSimple.toASCIIString());
@@ -265,7 +265,7 @@ public final class HttpUploadClient {
             Iterable<Entry<String, String>> headers, List<InterfaceHttpData> bodylist) throws Exception {
         // XXX /formpostmultipart
         // Start the connection attempt.
-        Channel channel = bootstrap.connect(host, port).get();
+        Channel channel = bootstrap.connect(host, port).asStage().get();
 
         // Prepare the HTTP request.
         HttpRequest request = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, uriFile.toASCIIString());
