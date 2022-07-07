@@ -278,7 +278,6 @@ public class HttpUploadServerHandler extends SimpleChannelInboundHandler<HttpObj
                     if (fileUpload.length() < 10000) {
                         responseContent.append("\tContent of file\r\n");
                         try {
-                            String fileUploadContent = fileUpload.getString(fileUpload.getCharset());
                             responseContent.append(fileUpload.getString(fileUpload.getCharset()));
                         } catch (IOException e1) {
                             // do nothing for the example

@@ -56,7 +56,6 @@ public final class HttpUploadClient {
     static final String FILE = System.getProperty("file", "upload.txt");
 
     public static void main(String[] args) throws Exception {
-        String pwd = System.getProperty("user.dir");
         String postSimple, postFile, get;
         if (BASE_URL.endsWith("/")) {
             postSimple = BASE_URL + "formpost";
