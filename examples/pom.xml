@@ -6,7 +6,7 @@
 
     <parent>
         <groupId>io.netty.contrib</groupId>
-        <artifactId>netty-template-parent</artifactId>
+        <artifactId>netty-codec-multipart-parent</artifactId>
         <version>5.0.0.Final-SNAPSHOT</version>
     </parent>
 
@@ -16,8 +16,13 @@
     <dependencies>
         <dependency>
             <groupId>io.netty.contrib</groupId>
-            <artifactId>netty-template</artifactId>
+            <artifactId>netty-codec-multipart</artifactId>
             <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-codec-http</artifactId>
+            <version>${netty.version}</version>
         </dependency>
     </dependencies>
 </project>

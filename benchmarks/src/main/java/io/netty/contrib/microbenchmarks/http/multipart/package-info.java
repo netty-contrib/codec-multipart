@@ -16,4 +16,4 @@
 /**
  * Benchmarks example.
  */
-package io.netty.contrib.microbenchmarks;
+package io.netty.contrib.microbenchmarks.http.multipart;

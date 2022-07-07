@@ -6,16 +6,186 @@
 
     <parent>
         <groupId>io.netty.contrib</groupId>
-        <artifactId>netty-template-parent</artifactId>
+        <artifactId>netty-codec-multipart-parent</artifactId>
         <version>5.0.0.Final-SNAPSHOT</version>
     </parent>
 
-    <artifactId>netty-template-benchmarks</artifactId>
+    <artifactId>netty-codec-multipart-benchmarks</artifactId>
     <version>${parent.version}</version>
+    <packaging>jar</packaging>
 
     <properties>
-        <jmh.version>1.33</jmh.version>
+        <jmh.version>1.35</jmh.version>
+        <!-- Skip tests by default; run only if -DskipTests=false is specified -->
+        <skipTests>true</skipTests>
+        <!-- This only be set when run on linux as on other platforms we just want to include the jar without native code -->
+        <epoll.classifier/>
+        <!-- This only be set when run on mac as on other platforms we just want to include the jar without native code -->
+        <kqueue.classifier/>
+        <japicmp.skip>true</japicmp.skip>
+        <javaModuleName>io.netty.microbench</javaModuleName>
+        <jni.classifier>${os.detected.name}-${os.detected.arch}</jni.classifier>
+        <junit.version>5.8.2</junit.version>
     </properties>
+
+    <profiles>
+        <profile>
+            <id>linux</id>
+            <activation>
+                <os>
+                    <family>linux</family>
+                </os>
+            </activation>
+            <properties>
+                <epoll.classifier>${jni.classifier}</epoll.classifier>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <artifactId>maven-compiler-plugin</artifactId>
+                        <configuration>
+                            <includes>
+                                <include>**/*.java</include>
+                            </includes>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <id>mac</id>
+            <activation>
+                <os>
+                    <family>mac</family>
+                </os>
+            </activation>
+            <properties>
+                <kqueue.classifier>${jni.classifier}</kqueue.classifier>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <artifactId>maven-compiler-plugin</artifactId>
+                        <configuration>
+                            <includes>
+                                <include>**/*.java</include>
+                            </includes>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <id>benchmark-jar</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-shade-plugin</artifactId>
+                        <version>3.2.1</version>
+                        <executions>
+                            <execution>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>shade</goal>
+                                </goals>
+                                <configuration>
+                                    <finalName>microbenchmarks</finalName>
+                                    <transformers>
+                                        <transformer
+                                                implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                            <mainClass>org.openjdk.jmh.Main</mainClass>
+                                        </transformer>
+                                        <transformer
+                                                implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                                    </transformers>
+                                    <filters>
+                                        <filter>
+                                            <!--
+                                                Shading signed JARs will fail without this.
+                                                http://stackoverflow.com/questions/999489/invalid-signature-file-when-attempting-to-run-a-jar
+                                            -->
+                                            <artifact>*:*</artifact>
+                                            <excludes>
+                                                <exclude>META-INF/*.SF</exclude>
+                                                <exclude>META-INF/*.DSA</exclude>
+                                                <exclude>META-INF/*.RSA</exclude>
+                                            </excludes>
+                                        </filter>
+                                    </filters>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+
+    <dependencies>
+        <dependency>
+            <groupId>io.netty.contrib</groupId>
+            <artifactId>netty-codec-multipart</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-codec-http</artifactId>
+            <version>${netty.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-common</artifactId>
+            <version>${netty.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-microbench</artifactId>
+            <version>${netty.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>io.netty</groupId>
+                    <artifactId>netty-transport-native-kqueue</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-engine</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-params</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.openjdk.jmh</groupId>
+            <artifactId>jmh-core</artifactId>
+            <version>${jmh.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.openjdk.jmh</groupId>
+            <artifactId>jmh-generator-annprocess</artifactId>
+            <version>${jmh.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.agrona</groupId>
+            <artifactId>Agrona</artifactId>
+            <version>0.5.1</version>
+        </dependency>
+    </dependencies>
 
     <build>
         <extensions>
@@ -25,23 +195,18 @@
                 <version>1.7.0</version>
             </extension>
         </extensions>
+        <plugins>
+            <plugin>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <testSourceDirectory>${project.build.sourceDirectory}</testSourceDirectory>
+                    <testClassesDirectory>${project.build.outputDirectory}</testClassesDirectory>
+                    <systemPropertyVariables>
+                        <perfReportDir>${project.build.directory}/reports/performance/</perfReportDir>
+                    </systemPropertyVariables>
+                </configuration>
+            </plugin>
+        </plugins>
     </build>
 
-    <dependencies>
-        <dependency>
-            <groupId>io.netty.contrib</groupId>
-            <artifactId>netty-template</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>io.netty</groupId>
-            <artifactId>netty5-microbench</artifactId>
-            <version>${netty.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.openjdk.jmh</groupId>
-            <artifactId>jmh-generator-annprocess</artifactId>
-            <version>${jmh.version}</version>
-        </dependency>
-    </dependencies>
 </project>

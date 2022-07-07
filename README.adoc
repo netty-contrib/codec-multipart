@@ -6,3 +6,22 @@
 * Maven coordinates:
 ** `io.netty.contrib:netty-template:5.0.0.Final-SNAPSHOT`
 
+## Project description
+
+This project is a porting of the Netty 4.1.78.Final Multipart codec to the new Netty 5.0.0-Alpha3 Buffer API.
+
+## Running the server example
+
+you can run the following http server example showing how to use the HTTP multipart package for file uploads and decoding post data:
+
+```
+cd examples;
+mvn compile exec:java -Dexec.mainClass="io.netty.contrib.handler.codec.example.http.multipart.HttpUploadServer"
+```
+
+And then run the http client example from another console:
+
+```
+cd examples
+mvn compile exec:java -Dexec.mainClass="io.netty.contrib.handler.codec.example.http.multipart.HttpUploadClient"
+```
