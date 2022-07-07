@@ -1,14 +1,23 @@
-= Netty 5.x Template Repository for Netty Contrib
+= Netty 5.x Codec Http Multipart Repository for Netty Contrib
 
 * Netty core repository: https://github.com/netty/netty
 * License: Apache-2.0 License
 * Required Java version: Java 11
 * Maven coordinates:
-** `io.netty.contrib:netty-template:5.0.0.Final-SNAPSHOT`
+** `io.netty5.contrib:netty-codec-multipart:5.0.0.Final-SNAPSHOT`
 
 ## Project description
 
 This project is a porting of the Netty 4.1.78.Final Multipart codec to the new Netty 5.0.0-Alpha3 Buffer API.
+
+## Running the benchmarks
+
+```
+mvn clean install;
+cd benchmark;
+mvn clean package -P benchmark-jar
+java -jar target/microbenchmarks.jar
+```
 
 ## Running the server example
 
