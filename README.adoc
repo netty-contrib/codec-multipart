@@ -10,6 +10,15 @@
 
 This project is a porting of the Netty 4.1.78.Final Multipart codec to the new Netty 5.0.0-Alpha3 Buffer API.
 
+## Running the benchmarks
+
+```
+mvn clean install;
+cd benchmark;
+mvn clean package -P benchmark-jar
+java -jar target/microbenchmarks.jar
+```
+
 ## Running the server example
 
 you can run the following http server example showing how to use the HTTP multipart package for file uploads and decoding post data:
