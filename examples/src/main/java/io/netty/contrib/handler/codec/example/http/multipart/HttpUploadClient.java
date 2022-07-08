@@ -189,7 +189,7 @@ public final class HttpUploadClient {
         channel.writeAndFlush(request);
 
         // Wait for the server to close the connection.
-        channel.closeFuture().sync();
+        channel.closeFuture().asStage().sync();
 
         // convert headers to list
         return headers.entries();
@@ -252,7 +252,7 @@ public final class HttpUploadClient {
         // bodyRequestEncoder.cleanFiles();
 
         // Wait for the server to close the connection.
-        channel.closeFuture().sync();
+        channel.closeFuture().asStage().sync();
         return bodylist;
     }
 
@@ -297,7 +297,7 @@ public final class HttpUploadClient {
         bodyRequestEncoder.cleanFiles();
 
         // Wait for the server to close the connection.
-        channel.closeFuture().sync();
+        channel.closeFuture().asStage().sync();
     }
 
     // use to simulate a small TEXTAREA field in a form
