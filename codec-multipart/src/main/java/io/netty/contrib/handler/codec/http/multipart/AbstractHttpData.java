@@ -112,7 +112,11 @@ public abstract class AbstractHttpData extends ResourceSupport<HttpData, Abstrac
     }
 
     protected void setCompleted() {
-        completed = true;
+        setCompleted(true);
+    }
+
+    protected void setCompleted(boolean completed) {
+        this.completed = completed;
     }
 
     @Override

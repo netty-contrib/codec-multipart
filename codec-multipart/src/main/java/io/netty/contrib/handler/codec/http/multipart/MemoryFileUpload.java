@@ -131,11 +131,11 @@ public class MemoryFileUpload extends AbstractMemoryHttpData implements FileUplo
         if (content != null) {
             try {
                 upload.setContent(content);
-                return upload;
             } catch (IOException e) {
                 throw new ChannelException(e);
             }
         }
+        upload.setCompleted(isCompleted());
         return upload;
     }
 

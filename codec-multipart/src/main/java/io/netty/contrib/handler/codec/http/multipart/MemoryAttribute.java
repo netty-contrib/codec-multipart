@@ -146,6 +146,7 @@ public class MemoryAttribute extends AbstractMemoryHttpData implements Attribute
                 throw new ChannelException(e);
             }
         }
+        attr.setCompleted(isCompleted());
         return attr;
     }
 

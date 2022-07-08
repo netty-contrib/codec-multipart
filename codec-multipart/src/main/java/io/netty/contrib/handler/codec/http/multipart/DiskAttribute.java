@@ -227,6 +227,7 @@ public class DiskAttribute extends AbstractDiskHttpData implements Attribute {
                 throw new ChannelException(e);
             }
         }
+        attr.setCompleted(isCompleted());
         return attr;
     }
 

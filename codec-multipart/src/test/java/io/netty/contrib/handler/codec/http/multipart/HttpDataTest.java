@@ -68,6 +68,20 @@ class HttpDataTest {
         assertThat(content.isAccessible()).isEqualTo(false);
     }
 
+    @ParameterizedHttpDataTest
+    void testCompletedFlagPreservedAfterRetainDuplicate(HttpData httpData) throws IOException {
+        httpData.addContent(Helpers.copiedBuffer("foo".getBytes(CharsetUtil.UTF_8)), false);
+        assertThat(httpData.isCompleted()).isFalse();
+        HttpData duplicate = httpData.replace(httpData.content().split());
+        assertThat(duplicate.isCompleted()).isFalse();
+        duplicate.close();
+        httpData.addContent(Helpers.copiedBuffer("bar".getBytes(CharsetUtil.UTF_8)), true);
+        assertThat(httpData.isCompleted()).isTrue();
+        duplicate = httpData.replace(httpData.content().split());
+        assertThat(duplicate.isCompleted()).isTrue();
+        duplicate.close();
+    }
+
     @Test
     void testAddContentExceedsDefinedSizeDiskFileUpload() {
         doTestAddContentExceedsSize(
