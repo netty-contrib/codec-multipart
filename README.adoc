@@ -4,11 +4,11 @@
 * License: Apache-2.0 License
 * Required Java version: Java 11
 * Maven coordinates:
-** `io.netty5.contrib:netty-codec-multipart:5.0.0.Final-SNAPSHOT`
+** `io.netty5.contrib:netty-codec-multipart:5.0.0.Alpha2-SNAPSHOT`
 
 ## Project description
 
-This project is a porting of the Netty 4.1.78.Final Multipart codec to the new Netty 5.0.0-Alpha3 Buffer API.
+This project is a porting of the Netty 4.1.80.Final-SNAPSHOT Multipart codec to the new Netty 5.0.0-Alpha5 Buffer API.
 
 ## Running the benchmarks
 

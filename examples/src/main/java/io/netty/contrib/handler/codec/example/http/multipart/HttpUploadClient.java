@@ -15,32 +15,31 @@
  */
 package io.netty.contrib.handler.codec.example.http.multipart;
 
-import io.netty.bootstrap.Bootstrap;
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.EventLoopGroup;
-import io.netty.channel.nio.NioEventLoopGroup;
-import io.netty.channel.socket.nio.NioSocketChannel;
-import io.netty.handler.codec.http.DefaultHttpRequest;
-import io.netty.handler.codec.http.HttpHeaderNames;
-import io.netty.handler.codec.http.HttpHeaderValues;
-import io.netty.handler.codec.http.HttpHeaders;
-import io.netty.handler.codec.http.HttpMethod;
-import io.netty.handler.codec.http.HttpRequest;
-import io.netty.handler.codec.http.HttpVersion;
-import io.netty.handler.codec.http.QueryStringEncoder;
-import io.netty.handler.codec.http.cookie.ClientCookieEncoder;
-import io.netty.handler.codec.http.cookie.DefaultCookie;
 import io.netty.contrib.handler.codec.http.multipart.DefaultHttpDataFactory;
 import io.netty.contrib.handler.codec.http.multipart.DiskAttribute;
 import io.netty.contrib.handler.codec.http.multipart.DiskFileUpload;
 import io.netty.contrib.handler.codec.http.multipart.HttpDataFactory;
 import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestEncoder;
 import io.netty.contrib.handler.codec.http.multipart.InterfaceHttpData;
-import io.netty.handler.ssl.SslContext;
-import io.netty.handler.ssl.SslContextBuilder;
-import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
-import io.netty.util.internal.SocketUtils;
+import io.netty5.bootstrap.Bootstrap;
+import io.netty5.channel.Channel;
+import io.netty5.channel.EventLoopGroup;
+import io.netty5.channel.MultithreadEventLoopGroup;
+import io.netty5.channel.nio.NioHandler;
+import io.netty5.channel.socket.nio.NioSocketChannel;
+import io.netty5.handler.codec.http.DefaultHttpRequest;
+import io.netty5.handler.codec.http.HttpHeaderNames;
+import io.netty5.handler.codec.http.HttpHeaderValues;
+import io.netty5.handler.codec.http.HttpHeaders;
+import io.netty5.handler.codec.http.HttpMethod;
+import io.netty5.handler.codec.http.HttpRequest;
+import io.netty5.handler.codec.http.HttpVersion;
+import io.netty5.handler.codec.http.QueryStringEncoder;
+import io.netty5.handler.codec.http.cookie.ClientCookieEncoder;
+import io.netty5.handler.codec.http.cookie.DefaultCookie;
+import io.netty5.handler.ssl.SslContext;
+import io.netty5.handler.ssl.SslContextBuilder;
+import io.netty5.handler.ssl.util.InsecureTrustManagerFactory;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -101,7 +100,7 @@ public final class HttpUploadClient {
         }
 
         // Configure the client.
-        EventLoopGroup group = new NioEventLoopGroup();
+        EventLoopGroup group = new MultithreadEventLoopGroup(NioHandler.newFactory());
 
         // setup the factory: here using a mixed memory/disk based on size threshold
         HttpDataFactory factory = new DefaultHttpDataFactory(DefaultHttpDataFactory.MINSIZE); // Disk if MINSIZE exceed
@@ -150,7 +149,7 @@ public final class HttpUploadClient {
             Bootstrap bootstrap, String host, int port, String get, URI uriSimple) throws Exception {
         // XXX /formget
         // No use of HttpPostRequestEncoder since not a POST
-        Channel channel = bootstrap.connect(host, port).sync().channel();
+        Channel channel = bootstrap.connect(host, port).asStage().get();
 
         // Prepare the HTTP request.
         QueryStringEncoder encoder = new QueryStringEncoder(get);
@@ -190,7 +189,7 @@ public final class HttpUploadClient {
         channel.writeAndFlush(request);
 
         // Wait for the server to close the connection.
-        channel.closeFuture().sync();
+        channel.closeFuture().asStage().sync();
 
         // convert headers to list
         return headers.entries();
@@ -207,9 +206,7 @@ public final class HttpUploadClient {
             List<Entry<String, String>> headers) throws Exception {
         // XXX /formpost
         // Start the connection attempt.
-        ChannelFuture future = bootstrap.connect(SocketUtils.socketAddress(host, port));
-        // Wait until the connection attempt succeeds or fails.
-        Channel channel = future.sync().channel();
+        Channel channel = bootstrap.connect(host, port).asStage().get();
 
         // Prepare the HTTP request.
         HttpRequest request = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, uriSimple.toASCIIString());
@@ -255,7 +252,7 @@ public final class HttpUploadClient {
         // bodyRequestEncoder.cleanFiles();
 
         // Wait for the server to close the connection.
-        channel.closeFuture().sync();
+        channel.closeFuture().asStage().sync();
         return bodylist;
     }
 
@@ -267,9 +264,7 @@ public final class HttpUploadClient {
             Iterable<Entry<String, String>> headers, List<InterfaceHttpData> bodylist) throws Exception {
         // XXX /formpostmultipart
         // Start the connection attempt.
-        ChannelFuture future = bootstrap.connect(SocketUtils.socketAddress(host, port));
-        // Wait until the connection attempt succeeds or fails.
-        Channel channel = future.sync().channel();
+        Channel channel = bootstrap.connect(host, port).asStage().get();
 
         // Prepare the HTTP request.
         HttpRequest request = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, uriFile.toASCIIString());
@@ -302,7 +297,7 @@ public final class HttpUploadClient {
         bodyRequestEncoder.cleanFiles();
 
         // Wait for the server to close the connection.
-        channel.closeFuture().sync();
+        channel.closeFuture().asStage().sync();
     }
 
     // use to simulate a small TEXTAREA field in a form

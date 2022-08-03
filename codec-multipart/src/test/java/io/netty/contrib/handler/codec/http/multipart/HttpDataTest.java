@@ -15,9 +15,9 @@
  */
 package io.netty.contrib.handler.codec.http.multipart;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.PooledByteBufAllocator;
-import io.netty.util.CharsetUtil;
+import io.netty5.util.CharsetUtil;
+import io.netty5.buffer.api.Buffer;
+import io.netty5.buffer.api.DefaultBufferAllocators;
 import org.assertj.core.api.ThrowableAssert;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -63,9 +63,23 @@ class HttpDataTest {
 
     @ParameterizedHttpDataTest
     void testAddContentEmptyBuffer(HttpData httpData) throws IOException {
-        ByteBuf content = PooledByteBufAllocator.DEFAULT.buffer();
+        Buffer content = DefaultBufferAllocators.preferredAllocator().allocate(0);
         httpData.addContent(content, false);
-        assertThat(content.refCnt()).isEqualTo(0);
+        assertThat(content.isAccessible()).isEqualTo(false);
+    }
+
+    @ParameterizedHttpDataTest
+    void testCompletedFlagPreservedAfterRetainDuplicate(HttpData httpData) throws IOException {
+        httpData.addContent(Helpers.copiedBuffer("foo".getBytes(CharsetUtil.UTF_8)), false);
+        assertThat(httpData.isCompleted()).isFalse();
+        HttpData duplicate = httpData.replace(httpData.content().split());
+        assertThat(duplicate.isCompleted()).isFalse();
+        duplicate.close();
+        httpData.addContent(Helpers.copiedBuffer("bar".getBytes(CharsetUtil.UTF_8)), true);
+        assertThat(httpData.isCompleted()).isTrue();
+        duplicate = httpData.replace(httpData.content().split());
+        assertThat(duplicate.isCompleted()).isTrue();
+        duplicate.close();
     }
 
     @Test
@@ -100,7 +114,7 @@ class HttpDataTest {
     }
 
     private static void doTestAddContentExceedsSize(final HttpData httpData, String expectedMessage) {
-        final ByteBuf content = PooledByteBufAllocator.DEFAULT.buffer();
+        final Buffer content = DefaultBufferAllocators.preferredAllocator().allocate(0);
         content.writeBytes(BYTES);
 
         assertThatExceptionOfType(IOException.class)
@@ -112,12 +126,10 @@ class HttpDataTest {
                     }
                 })
                 .withMessage(expectedMessage);
-
-        assertThat(content.refCnt()).isEqualTo(0);
     }
 
     private static void doTestSetContentExceedsSize(final HttpData httpData, String expectedMessage) {
-        final ByteBuf content = PooledByteBufAllocator.DEFAULT.buffer();
+        final Buffer content = DefaultBufferAllocators.preferredAllocator().allocate(0);
         content.writeBytes(BYTES);
 
         assertThatExceptionOfType(IOException.class)
@@ -129,7 +141,5 @@ class HttpDataTest {
                     }
                 })
                 .withMessage(expectedMessage);
-
-        assertThat(content.refCnt()).isEqualTo(0);
     }
 }

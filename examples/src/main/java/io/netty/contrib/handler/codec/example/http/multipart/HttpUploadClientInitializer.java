@@ -15,13 +15,13 @@
  */
 package io.netty.contrib.handler.codec.example.http.multipart;
 
-import io.netty.channel.ChannelInitializer;
-import io.netty.channel.ChannelPipeline;
-import io.netty.channel.socket.SocketChannel;
-import io.netty.handler.codec.http.HttpClientCodec;
-import io.netty.handler.codec.http.HttpContentDecompressor;
-import io.netty.handler.ssl.SslContext;
-import io.netty.handler.stream.ChunkedWriteHandler;
+import io.netty5.channel.ChannelInitializer;
+import io.netty5.channel.ChannelPipeline;
+import io.netty5.channel.socket.SocketChannel;
+import io.netty5.handler.codec.http.HttpClientCodec;
+import io.netty5.handler.codec.http.HttpContentDecompressor;
+import io.netty5.handler.ssl.SslContext;
+import io.netty5.handler.stream.ChunkedWriteHandler;
 
 public class HttpUploadClientInitializer extends ChannelInitializer<SocketChannel> {
 
@@ -36,7 +36,7 @@ public class HttpUploadClientInitializer extends ChannelInitializer<SocketChanne
         ChannelPipeline pipeline = ch.pipeline();
 
         if (sslCtx != null) {
-            pipeline.addLast("ssl", sslCtx.newHandler(ch.alloc()));
+            pipeline.addLast("ssl", sslCtx.newHandler(ch.bufferAllocator()));
         }
 
         pipeline.addLast("codec", new HttpClientCodec());

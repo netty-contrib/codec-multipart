@@ -15,104 +15,106 @@
  */
 package io.netty.contrib.handler.codec.http.multipart;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.CompositeByteBuf;
-import io.netty.handler.codec.http.HttpConstants;
-import io.netty.util.internal.ObjectUtil;
+import io.netty5.buffer.api.Buffer;
+import io.netty5.buffer.api.CompositeBuffer;
+import io.netty5.buffer.api.DefaultBufferAllocators;
+import io.netty5.buffer.api.internal.Statics;
+import io.netty5.handler.codec.http.HttpConstants;
+import io.netty5.util.internal.ObjectUtil;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.RandomAccessFile;
-import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.charset.Charset;
-
-import static io.netty.buffer.Unpooled.EMPTY_BUFFER;
-import static io.netty.buffer.Unpooled.buffer;
-import static io.netty.buffer.Unpooled.compositeBuffer;
-import static io.netty.buffer.Unpooled.wrappedBuffer;
+import java.util.Arrays;
 
 /**
  * Abstract Memory HttpData implementation
  */
 public abstract class AbstractMemoryHttpData extends AbstractHttpData {
 
-    private ByteBuf byteBuf;
-    private int chunkPosition;
+    private Buffer byteBuf;
 
     protected AbstractMemoryHttpData(String name, Charset charset, long size) {
         super(name, charset, size);
-        byteBuf = EMPTY_BUFFER;
+        byteBuf = DefaultBufferAllocators.preferredAllocator().allocate(0);
     }
 
     @Override
-    public void setContent(ByteBuf buffer) throws IOException {
-        ObjectUtil.checkNotNull(buffer, "buffer");
+    public void setContent(Buffer buffer) throws IOException {
+        checkAccessible(buffer);
+        ObjectUtil.checkNotNullWithIAE(buffer, "buffer");
         long localsize = buffer.readableBytes();
         try {
             checkSize(localsize);
         } catch (IOException e) {
-            buffer.release();
+            buffer.close();
             throw e;
         }
         if (definedSize > 0 && definedSize < localsize) {
-            buffer.release();
+            buffer.close();
             throw new IOException("Out of size: " + localsize + " > " +
                     definedSize);
         }
         if (byteBuf != null) {
-            byteBuf.release();
+            byteBuf.close();
         }
-        byteBuf = buffer;
-        size = localsize;
+        setContentInternal(buffer, localsize);
+    }
+
+    protected final void setContentInternal(Buffer buffer, long size) {
+        this.byteBuf = buffer;
+        this.size = size;
         setCompleted();
     }
 
     @Override
     public void setContent(InputStream inputStream) throws IOException {
-        ObjectUtil.checkNotNull(inputStream, "inputStream");
+        checkAccessible();
 
+        ObjectUtil.checkNotNullWithIAE(inputStream, "inputStream");
         byte[] bytes = new byte[4096 * 4];
-        ByteBuf buffer = buffer();
+        Buffer buffer = DefaultBufferAllocators.preferredAllocator().allocate(0);
         int written = 0;
         try {
-            int read = inputStream.read(bytes);
-            while (read > 0) {
+            int read;
+            while ((read = inputStream.read(bytes)) > 0) {
                 buffer.writeBytes(bytes, 0, read);
                 written += read;
                 checkSize(written);
-                read = inputStream.read(bytes);
             }
         } catch (IOException e) {
-            buffer.release();
+            buffer.close();
             throw e;
         }
         size = written;
         if (definedSize > 0 && definedSize < size) {
-            buffer.release();
+            buffer.close();
             throw new IOException("Out of size: " + size + " > " + definedSize);
         }
         if (byteBuf != null) {
-            byteBuf.release();
+            byteBuf.close();
         }
         byteBuf = buffer;
         setCompleted();
     }
 
     @Override
-    public void addContent(ByteBuf buffer, boolean last)
+    public void addContent(Buffer buffer, boolean last)
             throws IOException {
+        checkAccessible(buffer);
         if (buffer != null) {
             long localsize = buffer.readableBytes();
             try {
                 checkSize(size + localsize);
             } catch (IOException e) {
-                buffer.release();
+                buffer.close();
                 throw e;
             }
             if (definedSize > 0 && definedSize < size + localsize) {
-                buffer.release();
+                buffer.close();
                 throw new IOException("Out of size: " + (size + localsize) +
                         " > " + definedSize);
             }
@@ -121,58 +123,55 @@ public abstract class AbstractMemoryHttpData extends AbstractHttpData {
                 byteBuf = buffer;
             } else if (localsize == 0) {
                 // Nothing to add and byteBuf already exists
-                buffer.release();
+                buffer.close();
             } else if (byteBuf.readableBytes() == 0) {
                 // Previous buffer is empty, so just replace it
-                byteBuf.release();
+                byteBuf.close();
                 byteBuf = buffer;
-            } else if (byteBuf instanceof CompositeByteBuf) {
-                CompositeByteBuf cbb = (CompositeByteBuf) byteBuf;
-                cbb.addComponent(true, buffer);
+            } else if (CompositeBuffer.isComposite(this.byteBuf)) {
+                CompositeBuffer cbb = (CompositeBuffer) this.byteBuf;
+                cbb.extendWith(buffer.send());
             } else {
-                CompositeByteBuf cbb = compositeBuffer(Integer.MAX_VALUE);
-                cbb.addComponents(true, byteBuf, buffer);
-                byteBuf = cbb;
+                byteBuf = DefaultBufferAllocators.onHeapAllocator().compose(Arrays.asList(this.byteBuf.send(), buffer.send()));
             }
         }
         if (last) {
             setCompleted();
         } else {
-            ObjectUtil.checkNotNull(buffer, "buffer");
+            ObjectUtil.checkNotNullWithIAE(buffer, "buffer");
         }
     }
 
     @Override
     public void setContent(File file) throws IOException {
-        ObjectUtil.checkNotNull(file, "file");
+        checkAccessible();
+        ObjectUtil.checkNotNullWithIAE(file, "file");
 
         long newsize = file.length();
         if (newsize > Integer.MAX_VALUE) {
             throw new IllegalArgumentException("File too big to be loaded in memory");
         }
         checkSize(newsize);
-        RandomAccessFile accessFile = new RandomAccessFile(file, "r");
-        ByteBuffer byteBuffer;
-        try {
-            FileChannel fileChannel = accessFile.getChannel();
-            try {
-                byte[] array = new byte[(int) newsize];
-                byteBuffer = ByteBuffer.wrap(array);
-                int read = 0;
-                while (read < newsize) {
-                    read += fileChannel.read(byteBuffer);
+        Buffer buf = DefaultBufferAllocators.onHeapAllocator().allocate((int) newsize);
+        try (RandomAccessFile accessFile = new RandomAccessFile(file, "r");
+             FileChannel fileChannel = accessFile.getChannel()) {
+            int bytesRead = 0;
+            int remaining = (int) newsize;
+            do {
+                buf.ensureWritable(remaining);
+                int bytes = buf.transferFrom(fileChannel, remaining);
+                if (bytes == -1) {
+                    break;
                 }
-            } finally {
-                fileChannel.close();
-            }
-        } finally {
-            accessFile.close();
+                bytesRead += bytes;
+                remaining -= bytes;
+            } while (bytesRead < newsize);
         }
-        byteBuffer.flip();
+
         if (byteBuf != null) {
-            byteBuf.release();
+            byteBuf.close();
         }
-        byteBuf = wrappedBuffer(Integer.MAX_VALUE, byteBuffer);
+        byteBuf = buf;
         size = newsize;
         setCompleted();
     }
@@ -180,7 +179,9 @@ public abstract class AbstractMemoryHttpData extends AbstractHttpData {
     @Override
     public void delete() {
         if (byteBuf != null) {
-            byteBuf.release();
+            if (byteBuf.isAccessible()) {
+                byteBuf.close();
+            }
             byteBuf = null;
         }
     }
@@ -188,10 +189,10 @@ public abstract class AbstractMemoryHttpData extends AbstractHttpData {
     @Override
     public byte[] get() {
         if (byteBuf == null) {
-            return EMPTY_BUFFER.array();
+            return EMPTY_ARRAY;
         }
         byte[] array = new byte[byteBuf.readableBytes()];
-        byteBuf.getBytes(byteBuf.readerIndex(), array);
+        byteBuf.copyInto(byteBuf.readerOffset(), array, 0, byteBuf.readableBytes());
         return array;
     }
 
@@ -217,28 +218,17 @@ public abstract class AbstractMemoryHttpData extends AbstractHttpData {
      * @return the attached ByteBuf containing the actual bytes
      */
     @Override
-    public ByteBuf getByteBuf() {
+    public Buffer getBuffer() {
         return byteBuf;
     }
 
     @Override
-    public ByteBuf getChunk(int length) throws IOException {
-        if (byteBuf == null || length == 0 || byteBuf.readableBytes() == 0) {
-            chunkPosition = 0;
-            return EMPTY_BUFFER;
+    public Buffer getChunk(int length) {
+        int readableBytes = byteBuf.readableBytes();
+        if (byteBuf == null || length == 0 || readableBytes == 0) {
+            return DefaultBufferAllocators.preferredAllocator().allocate(0);
         }
-        int sizeLeft = byteBuf.readableBytes() - chunkPosition;
-        if (sizeLeft == 0) {
-            chunkPosition = 0;
-            return EMPTY_BUFFER;
-        }
-        int sliceLength = length;
-        if (sizeLeft < length) {
-            sliceLength = sizeLeft;
-        }
-        ByteBuf chunk = byteBuf.retainedSlice(chunkPosition, sliceLength);
-        chunkPosition += sliceLength;
-        return chunk;
+        return byteBuf.readSplit(Math.min(readableBytes, length));
     }
 
     @Override
@@ -248,7 +238,7 @@ public abstract class AbstractMemoryHttpData extends AbstractHttpData {
 
     @Override
     public boolean renameTo(File dest) throws IOException {
-        ObjectUtil.checkNotNull(dest, "dest");
+        ObjectUtil.checkNotNullWithIAE(dest, "dest");
         if (byteBuf == null) {
             // empty file
             if (!dest.createNewFile()) {
@@ -257,30 +247,19 @@ public abstract class AbstractMemoryHttpData extends AbstractHttpData {
             return true;
         }
         int length = byteBuf.readableBytes();
-        long written = 0;
-        RandomAccessFile accessFile = new RandomAccessFile(dest, "rw");
-        try {
-            FileChannel fileChannel = accessFile.getChannel();
-            try {
-                if (byteBuf.nioBufferCount() == 1) {
-                    ByteBuffer byteBuffer = byteBuf.nioBuffer();
-                    while (written < length) {
-                        written += fileChannel.write(byteBuffer);
-                    }
-                } else {
-                    ByteBuffer[] byteBuffers = byteBuf.nioBuffers();
-                    while (written < length) {
-                        written += fileChannel.write(byteBuffers);
-                    }
+        try(RandomAccessFile accessFile = new RandomAccessFile(dest, "rw");
+            FileChannel fileChannel = accessFile.getChannel()) {
+            int written;
+
+            do {
+                if ((written = byteBuf.transferTo(fileChannel, length)) == -1) {
+                    break;
                 }
-                fileChannel.force(false);
-            } finally {
-                fileChannel.close();
-            }
-        } finally {
-            accessFile.close();
+                length -= written;
+            } while (length > 0);
+            fileChannel.force(false);
         }
-        return written == length;
+        return length == 0;
     }
 
     @Override
@@ -289,15 +268,8 @@ public abstract class AbstractMemoryHttpData extends AbstractHttpData {
     }
 
     @Override
-    public HttpData touch() {
-        return touch(null);
+    protected RuntimeException createResourceClosedException() {
+        return Statics.bufferIsClosed(getBuffer());
     }
 
-    @Override
-    public HttpData touch(Object hint) {
-        if (byteBuf != null) {
-            byteBuf.touch(hint);
-        }
-        return this;
-    }
 }

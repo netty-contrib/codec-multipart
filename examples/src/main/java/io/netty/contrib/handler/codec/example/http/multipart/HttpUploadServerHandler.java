@@ -15,28 +15,6 @@
  */
 package io.netty.contrib.handler.codec.example.http.multipart;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelFutureListener;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.SimpleChannelInboundHandler;
-import io.netty.handler.codec.http.DefaultFullHttpResponse;
-import io.netty.handler.codec.http.FullHttpResponse;
-import io.netty.handler.codec.http.HttpContent;
-import io.netty.handler.codec.http.HttpHeaderNames;
-import io.netty.handler.codec.http.HttpUtil;
-import io.netty.handler.codec.http.HttpHeaderValues;
-import io.netty.handler.codec.http.HttpMethod;
-import io.netty.handler.codec.http.HttpObject;
-import io.netty.handler.codec.http.HttpRequest;
-import io.netty.handler.codec.http.HttpResponseStatus;
-import io.netty.handler.codec.http.HttpVersion;
-import io.netty.handler.codec.http.LastHttpContent;
-import io.netty.handler.codec.http.QueryStringDecoder;
-import io.netty.handler.codec.http.cookie.Cookie;
-import io.netty.handler.codec.http.cookie.ServerCookieDecoder;
-import io.netty.handler.codec.http.cookie.ServerCookieEncoder;
 import io.netty.contrib.handler.codec.http.multipart.Attribute;
 import io.netty.contrib.handler.codec.http.multipart.DefaultHttpDataFactory;
 import io.netty.contrib.handler.codec.http.multipart.DiskAttribute;
@@ -45,11 +23,31 @@ import io.netty.contrib.handler.codec.http.multipart.FileUpload;
 import io.netty.contrib.handler.codec.http.multipart.HttpData;
 import io.netty.contrib.handler.codec.http.multipart.HttpDataFactory;
 import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestDecoder;
-import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestDecoder.EndOfDataDecoderException;
-import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestDecoder.ErrorDataDecoderException;
 import io.netty.contrib.handler.codec.http.multipart.InterfaceHttpData;
 import io.netty.contrib.handler.codec.http.multipart.InterfaceHttpData.HttpDataType;
-import io.netty.util.CharsetUtil;
+import io.netty5.util.CharsetUtil;
+import io.netty5.buffer.api.Buffer;
+import io.netty5.channel.Channel;
+import io.netty5.channel.ChannelFutureListeners;
+import io.netty5.channel.ChannelHandlerContext;
+import io.netty5.channel.SimpleChannelInboundHandler;
+import io.netty5.handler.codec.http.DefaultFullHttpResponse;
+import io.netty5.handler.codec.http.FullHttpResponse;
+import io.netty5.handler.codec.http.HttpContent;
+import io.netty5.handler.codec.http.HttpHeaderNames;
+import io.netty5.handler.codec.http.HttpHeaderValues;
+import io.netty5.handler.codec.http.HttpMethod;
+import io.netty5.handler.codec.http.HttpObject;
+import io.netty5.handler.codec.http.HttpRequest;
+import io.netty5.handler.codec.http.HttpResponseStatus;
+import io.netty5.handler.codec.http.HttpUtil;
+import io.netty5.handler.codec.http.HttpVersion;
+import io.netty5.handler.codec.http.LastHttpContent;
+import io.netty5.handler.codec.http.QueryStringDecoder;
+import io.netty5.handler.codec.http.cookie.Cookie;
+import io.netty5.handler.codec.http.cookie.ServerCookieDecoder;
+import io.netty5.handler.codec.http.cookie.ServerCookieEncoder;
+import io.netty5.util.concurrent.Future;
 
 import java.io.IOException;
 import java.net.URI;
@@ -60,8 +58,6 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import static io.netty.buffer.Unpooled.*;
 
 public class HttpUploadServerHandler extends SimpleChannelInboundHandler<HttpObject> {
 
@@ -89,14 +85,14 @@ public class HttpUploadServerHandler extends SimpleChannelInboundHandler<HttpObj
     }
 
     @Override
-    public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+    public void channelInactive(ChannelHandlerContext ctx) {
         if (decoder != null) {
             decoder.cleanFiles();
         }
     }
 
     @Override
-    public void channelRead0(ChannelHandlerContext ctx, HttpObject msg) throws Exception {
+    public void messageReceived(ChannelHandlerContext ctx, HttpObject msg) throws Exception {
         if (msg instanceof HttpRequest) {
             HttpRequest request = this.request = (HttpRequest) msg;
             URI uri = new URI(request.uri());
@@ -152,10 +148,10 @@ public class HttpUploadServerHandler extends SimpleChannelInboundHandler<HttpObj
             }
             try {
                 decoder = new HttpPostRequestDecoder(factory, request);
-            } catch (ErrorDataDecoderException e1) {
+            } catch (HttpPostRequestDecoder.ErrorDataDecoderException e1) {
                 e1.printStackTrace();
                 responseContent.append(e1.getMessage());
-                writeResponse(ctx.channel(), true);
+                writeResponse(ctx, true);
                 return;
             }
 
@@ -176,10 +172,10 @@ public class HttpUploadServerHandler extends SimpleChannelInboundHandler<HttpObj
                 HttpContent chunk = (HttpContent) msg;
                 try {
                     decoder.offer(chunk);
-                } catch (ErrorDataDecoderException e1) {
+                } catch (HttpPostRequestDecoder.ErrorDataDecoderException e1) {
                     e1.printStackTrace();
                     responseContent.append(e1.getMessage());
-                    writeResponse(ctx.channel(), true);
+                    writeResponse(ctx, true);
                     return;
                 }
                 responseContent.append('o');
@@ -188,13 +184,13 @@ public class HttpUploadServerHandler extends SimpleChannelInboundHandler<HttpObj
                 readHttpDataChunkByChunk();
                 // example of reading only if at the end
                 if (chunk instanceof LastHttpContent) {
-                    writeResponse(ctx.channel());
+                    writeResponse(ctx);
 
                     reset();
                 }
             }
         } else {
-            writeResponse(ctx.channel());
+            writeResponse(ctx);
         }
     }
 
@@ -247,7 +243,7 @@ public class HttpUploadServerHandler extends SimpleChannelInboundHandler<HttpObj
                     logger.info(builder.toString());
                 }
             }
-        } catch (EndOfDataDecoderException e1) {
+        } catch (HttpPostRequestDecoder.EndOfDataDecoderException e1) {
             // end
             responseContent.append("\r\n\r\nEND OF CONTENT CHUNK BY CHUNK\r\n\r\n");
         }
@@ -304,13 +300,14 @@ public class HttpUploadServerHandler extends SimpleChannelInboundHandler<HttpObj
         }
     }
 
-    private void writeResponse(Channel channel) {
-        writeResponse(channel, false);
+    private void writeResponse(ChannelHandlerContext ctx) {
+        writeResponse(ctx, false);
     }
 
-    private void writeResponse(Channel channel, boolean forceClose) {
+    private void writeResponse(ChannelHandlerContext ctx, boolean forceClose) {
+        Channel channel = ctx.channel();
         // Convert the response content to a ChannelBuffer.
-        ByteBuf buf = copiedBuffer(responseContent.toString(), CharsetUtil.UTF_8);
+        Buffer buf = channel.bufferAllocator().copyOf(responseContent.toString(), CharsetUtil.UTF_8);
         responseContent.setLength(0);
 
         // Decide whether to close the connection or not.
@@ -342,10 +339,10 @@ public class HttpUploadServerHandler extends SimpleChannelInboundHandler<HttpObj
             }
         }
         // Write the response.
-        ChannelFuture future = channel.writeAndFlush(response);
+        Future<Void> future = channel.writeAndFlush(response);
         // Close the connection after the write operation is done if necessary.
         if (!keepAlive) {
-            future.addListener(ChannelFutureListener.CLOSE);
+            future.addListener(ctx, ChannelFutureListeners.CLOSE);
         }
     }
 
@@ -421,7 +418,7 @@ public class HttpUploadServerHandler extends SimpleChannelInboundHandler<HttpObj
         responseContent.append("</body>");
         responseContent.append("</html>");
 
-        ByteBuf buf = copiedBuffer(responseContent.toString(), CharsetUtil.UTF_8);
+        Buffer buf = ctx.bufferAllocator().copyOf(responseContent.toString(), CharsetUtil.UTF_8);
         // Build the response object.
         FullHttpResponse response = new DefaultFullHttpResponse(
                 HttpVersion.HTTP_1_1, HttpResponseStatus.OK, buf);
@@ -438,15 +435,15 @@ public class HttpUploadServerHandler extends SimpleChannelInboundHandler<HttpObj
         }
 
         // Write the response.
-        ChannelFuture future = ctx.channel().writeAndFlush(response);
+        Future<Void> future = ctx.channel().writeAndFlush(response);
         // Close the connection after the write operation is done if necessary.
         if (!keepAlive) {
-            future.addListener(ChannelFutureListener.CLOSE);
+            future.addListener(ctx, ChannelFutureListeners.CLOSE);
         }
     }
 
     @Override
-    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+    public void channelExceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
         logger.log(Level.WARNING, responseContent.toString(), cause);
         ctx.channel().close();
     }

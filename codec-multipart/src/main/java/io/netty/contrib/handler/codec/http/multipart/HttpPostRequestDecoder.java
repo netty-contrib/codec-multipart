@@ -15,14 +15,14 @@
  */
 package io.netty.contrib.handler.codec.http.multipart;
 
-import io.netty.handler.codec.DecoderException;
-import io.netty.handler.codec.http.HttpConstants;
-import io.netty.handler.codec.http.HttpContent;
-import io.netty.handler.codec.http.HttpHeaderNames;
-import io.netty.handler.codec.http.HttpHeaderValues;
-import io.netty.handler.codec.http.HttpRequest;
-import io.netty.util.internal.ObjectUtil;
-import io.netty.util.internal.StringUtil;
+import io.netty5.util.internal.ObjectUtil;
+import io.netty5.util.internal.StringUtil;
+import io.netty5.handler.codec.DecoderException;
+import io.netty5.handler.codec.http.HttpConstants;
+import io.netty5.handler.codec.http.HttpContent;
+import io.netty5.handler.codec.http.HttpHeaderNames;
+import io.netty5.handler.codec.http.HttpHeaderValues;
+import io.netty5.handler.codec.http.HttpRequest;
 
 import java.nio.charset.Charset;
 import java.util.List;
@@ -84,9 +84,9 @@ public class HttpPostRequestDecoder implements InterfaceHttpPostRequestDecoder {
      *             errors
      */
     public HttpPostRequestDecoder(HttpDataFactory factory, HttpRequest request, Charset charset) {
-        ObjectUtil.checkNotNull(factory, "factory");
-        ObjectUtil.checkNotNull(request, "request");
-        ObjectUtil.checkNotNull(charset, "charset");
+        ObjectUtil.checkNotNullWithIAE(factory, "factory");
+        ObjectUtil.checkNotNullWithIAE(request, "request");
+        ObjectUtil.checkNotNullWithIAE(charset, "charset");
 
         // Fill default values
         if (isMultipart(request)) {

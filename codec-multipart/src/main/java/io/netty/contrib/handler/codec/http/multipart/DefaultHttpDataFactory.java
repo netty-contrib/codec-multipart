@@ -15,9 +15,9 @@
  */
 package io.netty.contrib.handler.codec.http.multipart;
 
-import io.netty.handler.codec.http.DefaultHttpRequest;
-import io.netty.handler.codec.http.HttpConstants;
-import io.netty.handler.codec.http.HttpRequest;
+import io.netty5.handler.codec.http.DefaultHttpRequest;
+import io.netty5.handler.codec.http.HttpConstants;
+import io.netty5.handler.codec.http.HttpRequest;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -313,7 +313,9 @@ public class DefaultHttpDataFactory implements HttpDataFactory {
         List<HttpData> list = requestFileDeleteMap.remove(request);
         if (list != null) {
             for (HttpData data : list) {
-                data.release();
+                if (data.isAccessible()) {
+                    data.close();
+                }
             }
         }
     }
@@ -329,7 +331,9 @@ public class DefaultHttpDataFactory implements HttpDataFactory {
 
             List<HttpData> list = e.getValue();
             for (HttpData data : list) {
-                data.release();
+                if (data.isAccessible()) {
+                    data.close();
+                }
             }
 
             i.remove();

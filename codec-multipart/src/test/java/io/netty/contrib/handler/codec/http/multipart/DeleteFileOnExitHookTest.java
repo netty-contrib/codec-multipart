@@ -15,9 +15,9 @@
  */
 package io.netty.contrib.handler.codec.http.multipart;
 
-import io.netty.buffer.Unpooled;
-import io.netty.handler.codec.http.DefaultHttpRequest;
-import io.netty.handler.codec.http.HttpRequest;
+import io.netty5.buffer.api.DefaultBufferAllocators;
+import io.netty5.handler.codec.http.DefaultHttpRequest;
+import io.netty5.handler.codec.http.HttpRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -25,11 +25,9 @@ import java.io.File;
 import java.io.FilenameFilter;
 import java.io.IOException;
 
-import static io.netty.handler.codec.http.HttpMethod.POST;
-import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static io.netty5.handler.codec.http.HttpMethod.POST;
+import static io.netty5.handler.codec.http.HttpVersion.HTTP_1_1;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Test DeleteFileOnExitHook
@@ -50,7 +48,7 @@ public class DeleteFileOnExitHookTest {
 
         fu = defaultHttpDataFactory.createFileUpload(
                 REQUEST, "attribute1", "tmp_f.txt", "text/plain", null, null, 0);
-        fu.setContent(Unpooled.wrappedBuffer(new byte[]{1, 2, 3, 4}));
+        fu.setContent(DefaultBufferAllocators.onHeapAllocator().copyOf(new byte[]{1, 2, 3, 4}));
 
         assertTrue(fu.getFile().exists());
     }
@@ -72,12 +70,12 @@ public class DeleteFileOnExitHookTest {
     }
 
     @Test
-    public void testAfterHttpDataReleaseCheckFileExist() throws IOException {
+    public void testAfterHttpDataReleaseCheckFileExist() throws Exception {
 
         String filePath = fu.getFile().getPath();
         assertTrue(DeleteFileOnExitHook.checkFileExist(filePath));
 
-        fu.release();
+        fu.close();
         assertFalse(DeleteFileOnExitHook.checkFileExist(filePath));
     }
 }
