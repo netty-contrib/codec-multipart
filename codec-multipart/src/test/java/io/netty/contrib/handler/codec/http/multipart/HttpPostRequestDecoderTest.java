@@ -541,7 +541,7 @@ public class HttpPostRequestDecoderTest {
     @Test
     public void testFormEncodeIncorrect() throws Exception {
         LastHttpContent content = new DefaultLastHttpContent(
-                Helpers.copiedBuffer("project=netty&&project=netty", CharsetUtil.US_ASCII));
+                Helpers.copiedBuffer("project=netty&=netty&project=netty", CharsetUtil.US_ASCII));
         DefaultHttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/");
         HttpPostRequestDecoder decoder = new HttpPostRequestDecoder(req);
         try {
@@ -763,7 +763,7 @@ public class HttpPostRequestDecoderTest {
     @Test
     public void testNotLeak() {
         final FullHttpRequest request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/",
-                Helpers.copiedBuffer("a=1&&b=2", CharsetUtil.US_ASCII));
+                Helpers.copiedBuffer("a=1&=2&b=3", CharsetUtil.US_ASCII));
         try {
             assertThrows(HttpPostRequestDecoder.ErrorDataDecoderException.class, new Executable() {
                 @Override
