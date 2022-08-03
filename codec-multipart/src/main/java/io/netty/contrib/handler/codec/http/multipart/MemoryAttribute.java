@@ -73,7 +73,7 @@ public class MemoryAttribute extends AbstractMemoryHttpData implements Attribute
         ObjectUtil.checkNotNullWithIAE(value, "value");
         byte [] bytes = value.getBytes(getCharset());
         checkSize(bytes.length);
-        Buffer buffer = DefaultBufferAllocators.onHeapAllocator().copyOf(bytes);
+        Buffer buffer = DefaultBufferAllocators.preferredAllocator().copyOf(bytes);
         if (definedSize > 0) {
             definedSize = buffer.readableBytes();
         }
