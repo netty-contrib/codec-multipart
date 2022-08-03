@@ -19,6 +19,7 @@ import io.netty5.buffer.api.DefaultBufferAllocators;
 import io.netty5.handler.codec.http.DefaultLastHttpContent;
 import io.netty5.handler.codec.http.EmptyLastHttpContent;
 import io.netty5.util.AsciiString;
+import io.netty5.util.Resource;
 
 import java.nio.charset.Charset;
 import java.util.stream.Collectors;
@@ -48,7 +49,7 @@ public class Helpers {
     }
 
     static Buffer toComposite(Buffer ... bufs) {
-        return DefaultBufferAllocators.onHeapAllocator().compose(Stream.of(bufs).map(b -> b.send()).collect(Collectors.toList()));
+        return DefaultBufferAllocators.onHeapAllocator().compose(Stream.of(bufs).map(Resource::send).collect(Collectors.toList()));
     }
 
     static EmptyLastHttpContent emptyLastHttpContent() {
