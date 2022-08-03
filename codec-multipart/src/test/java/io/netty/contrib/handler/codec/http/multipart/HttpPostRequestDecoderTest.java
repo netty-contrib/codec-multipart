@@ -69,7 +69,7 @@ public class HttpPostRequestDecoderTest {
         final DefaultHttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST,
                 "http://localhost");
 
-        req.setDecoderResult(DecoderResult.SUCCESS);
+        req.setDecoderResult(DecoderResult.success());
         req.headers().add(HttpHeaderNames.CONTENT_TYPE, contentTypeValue);
         req.headers().add(HttpHeaderNames.TRANSFER_ENCODING, HttpHeaderValues.CHUNKED);
 
@@ -115,7 +115,7 @@ public class HttpPostRequestDecoderTest {
         final DefaultFullHttpRequest req = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST,
                 "http://localhost", DefaultBufferAllocators.preferredAllocator().allocate(0));
 
-        req.setDecoderResult(DecoderResult.SUCCESS);
+        req.setDecoderResult(DecoderResult.success());
         req.headers().add(HttpHeaderNames.CONTENT_TYPE, "multipart/form-data; boundary=" + boundary);
         req.headers().add(HttpHeaderNames.TRANSFER_ENCODING, HttpHeaderValues.CHUNKED);
 
@@ -160,7 +160,7 @@ public class HttpPostRequestDecoderTest {
         for (int i = 0; i < 4; i++) {
             final DefaultFullHttpRequest req = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST,
                     "http://localhost", DefaultBufferAllocators.preferredAllocator().allocate(0));
-            req.setDecoderResult(DecoderResult.SUCCESS);
+            req.setDecoderResult(DecoderResult.success());
             req.headers().add(HttpHeaderNames.CONTENT_TYPE, "multipart/form-data; boundary=" + boundary);
             req.headers().add(HttpHeaderNames.TRANSFER_ENCODING, HttpHeaderValues.CHUNKED);
             final String body =
@@ -196,7 +196,7 @@ public class HttpPostRequestDecoderTest {
         final DefaultFullHttpRequest req = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST,
                 "http://localhost", DefaultBufferAllocators.preferredAllocator().allocate(0));
 
-        req.setDecoderResult(DecoderResult.SUCCESS);
+        req.setDecoderResult(DecoderResult.success());
         req.headers().add(HttpHeaderNames.CONTENT_TYPE, "multipart/form-data; boundary=\"" + boundary + '"');
         req.headers().add(HttpHeaderNames.TRANSFER_ENCODING, HttpHeaderValues.CHUNKED);
 
@@ -418,7 +418,7 @@ public class HttpPostRequestDecoderTest {
         final DefaultFullHttpRequest req = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST,
                 "http://localhost", DefaultBufferAllocators.preferredAllocator().allocate(0));
 
-        req.setDecoderResult(DecoderResult.SUCCESS);
+        req.setDecoderResult(DecoderResult.success());
         req.headers().add(HttpHeaderNames.CONTENT_TYPE, "multipart/form-data; boundary=" + boundary);
         req.headers().add(HttpHeaderNames.TRANSFER_ENCODING, HttpHeaderValues.CHUNKED);
 
