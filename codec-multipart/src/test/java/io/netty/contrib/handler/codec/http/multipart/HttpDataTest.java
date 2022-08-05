@@ -29,6 +29,7 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import java.nio.charset.Charset;
 import java.util.Random;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -111,6 +112,156 @@ class HttpDataTest {
     void testSetContentExceedsMaxSize(final HttpData httpData) {
         httpData.setMaxSize(10);
         doTestSetContentExceedsSize(httpData, "Size exceed allowed maximum capacity");
+    }
+
+    @Test
+    void testMemoryAttributeSend() throws IOException {
+        try (MemoryAttribute mem = new MemoryAttribute("test", 10, Charset.defaultCharset())) {
+            mem.addContent(Helpers.copiedBuffer("content", Charset.defaultCharset()), false);
+            mem.setMaxSize(100);
+            assertThat(mem.isCompleted()).isFalse();
+            final MemoryAttribute memSend = (MemoryAttribute) mem.send().receive();
+            try (memSend) {
+                assertThat(mem.isAccessible()).isFalse();
+                assertThat(memSend.isAccessible()).isTrue();
+                assertThat(memSend.isCompleted()).isFalse();
+                assertThat(memSend.getValue()).isEqualTo("content");
+                assertThat(memSend.getHttpDataType()).isEqualTo(InterfaceHttpData.HttpDataType.Attribute);
+                assertThat(memSend.isInMemory()).isTrue();
+                assertThat(memSend.getCharset()).isEqualTo(Charset.defaultCharset());
+                assertThat(memSend.definedLength()).isEqualTo(10);
+                assertThat(memSend.getMaxSize()).isEqualTo(100);
+            }
+            assertThat(memSend.isAccessible()).isFalse();
+        }
+    }
+
+    @Test
+    void testMemoryFileUploadSend() throws IOException {
+        try (MemoryFileUpload mem = new MemoryFileUpload("test", "filename", "text/plain", "BINARY", CharsetUtil.UTF_8, 10)) {
+            mem.addContent(Helpers.copiedBuffer("content", Charset.defaultCharset()), false);
+            mem.setMaxSize(100);
+            assertThat(mem.isCompleted()).isFalse();
+            final MemoryFileUpload memSend = (MemoryFileUpload) mem.send().receive();
+            try (memSend) {
+                assertThat(mem.isAccessible()).isFalse();
+                assertThat(memSend.isAccessible()).isTrue();
+                assertThat(memSend.isCompleted()).isFalse();
+                assertThat(memSend.getString()).isEqualTo("content");
+                assertThat(memSend.getHttpDataType()).isEqualTo(InterfaceHttpData.HttpDataType.FileUpload);
+                assertThat(memSend.isInMemory()).isTrue();
+                assertThat(memSend.getCharset()).isEqualTo(CharsetUtil.UTF_8);
+                assertThat(memSend.definedLength()).isEqualTo(10);
+                assertThat(memSend.getMaxSize()).isEqualTo(100);
+                assertThat(memSend.getName()).isEqualTo("test");
+                assertThat(memSend.getFilename()).isEqualTo("filename");
+                assertThat(memSend.getContentType()).isEqualTo("text/plain");
+                assertThat(memSend.getContentTransferEncoding()).isEqualTo("BINARY");
+
+            }
+            assertThat(memSend.isAccessible()).isFalse();
+        }
+    }
+
+    @Test
+    void testMixedAttributeSend() throws IOException {
+        try (MixedAttribute data = new MixedAttribute("test", 10, 100, CharsetUtil.UTF_8, "/tmp", true)) {
+            data.addContent(Helpers.copiedBuffer("content", Charset.defaultCharset()), false);
+            data.setMaxSize(1000);
+            assertThat(data.isCompleted()).isFalse();
+            final MixedAttribute send = (MixedAttribute) data.send().receive();
+            try (send) {
+                assertThat(data.isAccessible()).isFalse();
+                assertThat(send.isAccessible()).isTrue();
+                assertThat(send.isCompleted()).isFalse();
+                assertThat(send.getValue()).isEqualTo("content");
+                assertThat(send.getHttpDataType()).isEqualTo(InterfaceHttpData.HttpDataType.Attribute);
+                assertThat(send.isInMemory()).isTrue();
+                assertThat(send.getCharset()).isEqualTo(CharsetUtil.UTF_8);
+                assertThat(send.definedLength()).isEqualTo(10);
+                assertThat(send.getMaxSize()).isEqualTo(1000);
+                assertThat(send.limitSize).isEqualTo(100);
+                assertThat(send.deleteOnExit).isTrue();
+                assertThat(send.baseDir).isEqualTo("/tmp");
+            }
+            assertThat(send.isAccessible()).isFalse();
+        }
+    }
+
+    @Test
+    void testMixedFileUploadSend() throws IOException {
+        try (MixedFileUpload data = new MixedFileUpload("test", "filename", "text/plain", "BINARY",
+                CharsetUtil.UTF_8, 10, 100, "/tmp", true)) {
+            data.addContent(Helpers.copiedBuffer("content", Charset.defaultCharset()), false);
+            data.setMaxSize(1000);
+            assertThat(data.isCompleted()).isFalse();
+            final MixedFileUpload send = (MixedFileUpload) data.send().receive();
+            try (send) {
+                assertThat(data.isAccessible()).isFalse();
+                assertThat(send.isAccessible()).isTrue();
+                assertThat(send.isCompleted()).isFalse();
+                assertThat(send.getString()).isEqualTo("content");
+                assertThat(send.getHttpDataType()).isEqualTo(InterfaceHttpData.HttpDataType.FileUpload);
+                assertThat(send.isInMemory()).isTrue();
+                assertThat(send.getCharset()).isEqualTo(Charset.defaultCharset());
+                assertThat(send.definedLength()).isEqualTo(10);
+                assertThat(send.getMaxSize()).isEqualTo(1000);
+                assertThat(send.limitSize).isEqualTo(100);
+                assertThat(send.deleteOnExit).isTrue();
+                assertThat(send.baseDir).isEqualTo("/tmp");
+            }
+            assertThat(send.isAccessible()).isFalse();
+        }
+
+    }
+
+    @Test
+    void testDiskAttributeSend() throws IOException {
+        try (DiskAttribute data = new DiskAttribute("test", 10, "/tmp", true)) {
+            data.addContent(Helpers.copiedBuffer("content", Charset.defaultCharset()), false);
+            data.setMaxSize(1000);
+            assertThat(data.isCompleted()).isFalse();
+            final DiskAttribute send = (DiskAttribute) data.send().receive();
+            try (send) {
+                assertThat(data.isAccessible()).isFalse();
+                assertThat(send.isAccessible()).isTrue();
+                assertThat(send.isCompleted()).isFalse();
+                assertThat(send.getString()).isEqualTo("content");
+                assertThat(send.getHttpDataType()).isEqualTo(InterfaceHttpData.HttpDataType.Attribute);
+                assertThat(send.isInMemory()).isFalse();
+                assertThat(send.getCharset()).isEqualTo(Charset.defaultCharset());
+                assertThat(send.definedLength()).isEqualTo(10);
+                assertThat(send.getMaxSize()).isEqualTo(1000);
+                assertThat(send.deleteOnExit()).isTrue();
+                assertThat(send.getBaseDirectory()).isEqualTo("/tmp");
+            }
+            assertThat(send.isAccessible()).isFalse();
+        }
+    }
+
+    @Test
+    void testDiskFileUploadSend() throws IOException {
+
+        try (DiskFileUpload data = new DiskFileUpload("test", "", "text/plain", null, CharsetUtil.UTF_8, 10, "/tmp", true)) {
+            data.addContent(Helpers.copiedBuffer("content", Charset.defaultCharset()), false);
+            data.setMaxSize(1000);
+            assertThat(data.isCompleted()).isFalse();
+            final DiskFileUpload send = (DiskFileUpload) data.send().receive();
+            try (send) {
+                assertThat(data.isAccessible()).isFalse();
+                assertThat(send.isAccessible()).isTrue();
+                assertThat(send.isCompleted()).isFalse();
+                assertThat(send.getString()).isEqualTo("content");
+                assertThat(send.getHttpDataType()).isEqualTo(InterfaceHttpData.HttpDataType.FileUpload);
+                assertThat(send.isInMemory()).isFalse();
+                assertThat(send.getCharset()).isEqualTo(Charset.defaultCharset());
+                assertThat(send.definedLength()).isEqualTo(10);
+                assertThat(send.getMaxSize()).isEqualTo(1000);
+                assertThat(send.deleteOnExit()).isTrue();
+                assertThat(send.getBaseDirectory()).isEqualTo("/tmp");
+            }
+            assertThat(send.isAccessible()).isFalse();
+        }
     }
 
     private static void doTestAddContentExceedsSize(final HttpData httpData, String expectedMessage) {

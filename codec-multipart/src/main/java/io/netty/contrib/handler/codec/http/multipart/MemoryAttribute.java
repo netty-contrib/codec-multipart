@@ -158,6 +158,9 @@ public class MemoryAttribute extends AbstractMemoryHttpData implements Attribute
             MemoryAttribute attr = new MemoryAttribute(getName());
             attr.setCharset(getCharset());
             attr.setContentInternal(received, received.readableBytes());
+            attr.setMaxSize(getMaxSize());
+            attr.setCompleted(isCompleted());
+            attr.definedSize = definedSize;
             return attr;
         };
     }

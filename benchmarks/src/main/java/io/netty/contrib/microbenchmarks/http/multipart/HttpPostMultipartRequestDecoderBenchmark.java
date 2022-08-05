@@ -20,7 +20,6 @@ import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestDecoder;
 import io.netty.contrib.handler.codec.http.multipart.InterfaceHttpData;
 import io.netty5.buffer.api.Buffer;
 import io.netty5.buffer.api.BufferAllocator;
-import io.netty5.buffer.api.DefaultBufferAllocators;
 import io.netty5.handler.codec.http.DefaultHttpContent;
 import io.netty5.handler.codec.http.DefaultHttpRequest;
 import io.netty5.handler.codec.http.DefaultLastHttpContent;
@@ -29,8 +28,6 @@ import io.netty5.handler.codec.http.HttpMethod;
 import io.netty5.handler.codec.http.HttpVersion;
 import io.netty5.microbench.util.AbstractMicrobenchmark;
 import io.netty5.util.CharsetUtil;
-import io.netty5.util.ResourceLeakDetector;
-import io.netty5.util.ResourceLeakDetector.Level;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Fork;
 import org.openjdk.jmh.annotations.Measurement;
@@ -47,6 +44,15 @@ import java.util.function.Supplier;
 @Warmup(iterations = 2)
 @Measurement(iterations = 3)
 @OutputTimeUnit(TimeUnit.MILLISECONDS)
+@Fork(jvmArgsAppend = {"-dsa",
+        "-da",
+        "-XX:+HeapDumpOnOutOfMemoryError",
+        "-XX:+UnlockDiagnosticVMOptions",
+        "-XX:+DebugNonSafepoints",
+        "-Dio.netty5.leakDetection.level=disabled",        // changed to paranoid for detecting buffer leaks
+        "-Dio.netty5.buffer.leakDetectionEnabled=false",   // changed to true for detecting buffer leaks
+        "-Dio.netty5.buffer.lifecycleTracingEnabled=false" // changed to true for detecting buffer leaks
+})
 public class HttpPostMultipartRequestDecoderBenchmark
         extends AbstractMicrobenchmark {
 
@@ -127,91 +133,12 @@ public class HttpPostMultipartRequestDecoderBenchmark
     }
 
     @Benchmark
-    public double multipartRequestDecoderHighDisabledLevel(Context ctx) {
-        final Level level = ResourceLeakDetector.getLevel();
-        try {
-            ResourceLeakDetector.setLevel(Level.DISABLED);
-            return testHighNumberChunks(ctx,false, true);
-        } finally {
-            ResourceLeakDetector.setLevel(level);
-        }
+    public double multipartRequestDecoderHigh(Context ctx) {
+        return testHighNumberChunks(ctx,false, true);
     }
 
     @Benchmark
-    public double multipartRequestDecoderBigDisabledLevel(Context ctx) {
-        final Level level = ResourceLeakDetector.getLevel();
-        try {
-            ResourceLeakDetector.setLevel(Level.DISABLED);
-            return testHighNumberChunks(ctx,true, true);
-        } finally {
-            ResourceLeakDetector.setLevel(level);
-        }
+    public double multipartRequestDecoderBig(Context ctx) {
+        return testHighNumberChunks(ctx,true, true);
     }
-
-    @Benchmark
-    public double multipartRequestDecoderHighSimpleLevel(Context ctx) {
-        final Level level = ResourceLeakDetector.getLevel();
-        try {
-            ResourceLeakDetector.setLevel(Level.SIMPLE);
-            return testHighNumberChunks(ctx,false, true);
-        } finally {
-            ResourceLeakDetector.setLevel(level);
-        }
-    }
-
-    @Benchmark
-    public double multipartRequestDecoderBigSimpleLevel(Context ctx) {
-        final Level level = ResourceLeakDetector.getLevel();
-        try {
-            ResourceLeakDetector.setLevel(Level.SIMPLE);
-            return testHighNumberChunks(ctx,true, true);
-        } finally {
-            ResourceLeakDetector.setLevel(level);
-        }
-    }
-
-    @Benchmark
-    public double multipartRequestDecoderHighAdvancedLevel(Context ctx) {
-        final Level level = ResourceLeakDetector.getLevel();
-        try {
-            ResourceLeakDetector.setLevel(Level.ADVANCED);
-            return testHighNumberChunks(ctx,false, true);
-        } finally {
-            ResourceLeakDetector.setLevel(level);
-        }
-    }
-
-    @Benchmark
-    public double multipartRequestDecoderBigAdvancedLevel(Context ctx) {
-        final Level level = ResourceLeakDetector.getLevel();
-        try {
-            ResourceLeakDetector.setLevel(Level.ADVANCED);
-            return testHighNumberChunks(ctx,true, true);
-        } finally {
-            ResourceLeakDetector.setLevel(level);
-        }
-    }
-
-    @Benchmark
-    public double multipartRequestDecoderHighParanoidLevel(Context ctx) {
-        final Level level = ResourceLeakDetector.getLevel();
-        try {
-            ResourceLeakDetector.setLevel(Level.PARANOID);
-            return testHighNumberChunks(ctx,false, true);
-        } finally {
-            ResourceLeakDetector.setLevel(level);
-        }
-    }
-
-    @Benchmark
-    public double multipartRequestDecoderBigParanoidLevel(Context ctx) {
-        final Level level = ResourceLeakDetector.getLevel();
-        try {
-            ResourceLeakDetector.setLevel(Level.PARANOID);
-            return testHighNumberChunks(ctx,true, true);
-        } finally {
-            ResourceLeakDetector.setLevel(level);
-        }
-    }
-
 }

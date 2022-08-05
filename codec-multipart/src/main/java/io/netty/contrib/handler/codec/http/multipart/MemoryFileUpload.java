@@ -148,6 +148,9 @@ public class MemoryFileUpload extends AbstractMemoryHttpData implements FileUplo
             MemoryFileUpload upload = new MemoryFileUpload(
                     getName(), getFilename(), getContentType(), getContentTransferEncoding(), getCharset(), size);
             upload.setContentInternal(received, received.readableBytes());
+            upload.setCompleted(isCompleted());
+            upload.definedSize = definedLength();
+            upload.setMaxSize(getMaxSize());
             return upload;
         };
     }
