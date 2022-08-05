@@ -24,26 +24,26 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.Charset;
 
-abstract class AbstractMixedHttpData<D extends HttpData> extends ResourceSupport<HttpData, AbstractMixedHttpData<?>> implements HttpData {
+abstract class AbstractMixedHttpData<D extends HttpData> extends ResourceSupport<HttpData, AbstractMixedHttpData<? extends HttpData>> implements HttpData {
     final String baseDir;
     final boolean deleteOnExit;
     D wrapped;
 
     protected final long limitSize;
 
-    private final static Drop<AbstractMixedHttpData<?>> drop = new Drop<>() {
+    private final static Drop<AbstractMixedHttpData<? extends HttpData>> drop = new Drop<>() {
         @Override
-        public void drop(AbstractMixedHttpData<?> data) {
+        public void drop(AbstractMixedHttpData<? extends HttpData> data) {
             data.delete();
         }
 
         @Override
-        public Drop<AbstractMixedHttpData<?>> fork() {
+        public Drop<AbstractMixedHttpData<? extends HttpData>> fork() {
             return this;
         }
 
         @Override
-        public void attach(AbstractMixedHttpData<?> mixedFileUpload) {
+        public void attach(AbstractMixedHttpData<? extends HttpData> mixedFileUpload) {
         }
     };
 
