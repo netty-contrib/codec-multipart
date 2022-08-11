@@ -66,7 +66,7 @@
   </developers>
 
   <properties>
-    <netty.version>4.1.78.Final</netty.version>
+    <netty.version>4.1.80.Final-SNAPSHOT</netty.version>
     <netty.build.version>29</netty.build.version>
     <project.scm.id>github</project.scm.id>
     <release.gpg.keyname />
