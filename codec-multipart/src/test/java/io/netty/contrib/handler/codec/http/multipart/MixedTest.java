@@ -15,8 +15,9 @@
  */
 package io.netty.contrib.handler.codec.http.multipart;
 
-import io.netty.buffer.Unpooled;
-import io.netty.util.CharsetUtil;
+import io.netty5.buffer.api.Buffer;
+import io.netty5.buffer.api.DefaultBufferAllocators;
+import io.netty5.util.CharsetUtil;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
@@ -24,34 +25,38 @@ import java.io.IOException;
 
 public class MixedTest {
     @Test
-    public void mixedAttributeRefCnt() throws IOException {
+    public void mixAttributeClosed() throws IOException {
         MixedAttribute attribute = new MixedAttribute("foo", 100);
-        Assertions.assertEquals(1, attribute.refCnt());
-        attribute.retain();
-        Assertions.assertEquals(2, attribute.refCnt());
+        byte[] bytes1 = new byte[90];
+        Buffer buf1 = DefaultBufferAllocators.onHeapAllocator().allocate(bytes1.length);
+        buf1.writeBytes(bytes1);
+        attribute.setContent(buf1);
+        Assertions.assertTrue(buf1.isAccessible());
 
-        attribute.addContent(Unpooled.wrappedBuffer(new byte[90]), false);
-        Assertions.assertEquals(2, attribute.refCnt());
-
-        attribute.addContent(Unpooled.wrappedBuffer(new byte[90]), true);
-        Assertions.assertEquals(2, attribute.refCnt());
-
-        attribute.release(2);
+        byte[] bytes2 = new byte[110];
+        Buffer buf2 = DefaultBufferAllocators.onHeapAllocator().allocate(bytes2.length);
+        buf2.writeBytes(bytes2);
+        attribute.setContent(buf2); // buf1 should be closed because we have changed to Disk. buf2 should be also closed.
+        Assertions.assertFalse(buf1.isAccessible());
+        Assertions.assertFalse(buf2.isAccessible());
+        attribute.close();
     }
 
     @Test
-    public void mixedFileUploadRefCnt() throws IOException {
+    public void mixedFileUploadClosed() throws IOException {
         MixedFileUpload upload = new MixedFileUpload("foo", "foo", "foo", "UTF-8", CharsetUtil.UTF_8, 0, 100);
-        Assertions.assertEquals(1, upload.refCnt());
-        upload.retain();
-        Assertions.assertEquals(2, upload.refCnt());
+        byte[] bytes1 = new byte[90];
+        Buffer buf1 = DefaultBufferAllocators.onHeapAllocator().allocate(bytes1.length);
+        buf1.writeBytes(bytes1);
+        upload.setContent(buf1);
+        Assertions.assertTrue(buf1.isAccessible());
 
-        upload.addContent(Unpooled.wrappedBuffer(new byte[90]), false);
-        Assertions.assertEquals(2, upload.refCnt());
-
-        upload.addContent(Unpooled.wrappedBuffer(new byte[90]), true);
-        Assertions.assertEquals(2, upload.refCnt());
-
-        upload.release(2);
+        byte[] bytes2 = new byte[110];
+        Buffer buf2 = DefaultBufferAllocators.onHeapAllocator().allocate(bytes2.length);
+        buf2.writeBytes(bytes2);
+        upload.setContent(buf2); // buf1 should be closed because we have changed to Disk. buf2 should be also closed.
+        Assertions.assertFalse(buf1.isAccessible());
+        Assertions.assertFalse(buf2.isAccessible());
+        upload.close();
     }
 }

@@ -7,7 +7,7 @@
     <parent>
         <groupId>io.netty.contrib</groupId>
         <artifactId>netty-codec-multipart-parent</artifactId>
-        <version>5.0.0.Final-SNAPSHOT</version>
+        <version>5.0.0.Alpha2-SNAPSHOT</version>
     </parent>
 
     <artifactId>netty-codec-multipart-benchmarks</artifactId>
@@ -23,7 +23,7 @@
         <!-- This only be set when run on mac as on other platforms we just want to include the jar without native code -->
         <kqueue.classifier/>
         <japicmp.skip>true</japicmp.skip>
-        <javaModuleName>io.netty.microbench</javaModuleName>
+        <javaModuleName>io.netty5.microbench</javaModuleName>
         <jni.classifier>${os.detected.name}-${os.detected.arch}</jni.classifier>
         <junit.version>5.8.2</junit.version>
     </properties>
@@ -130,22 +130,16 @@
         </dependency>
         <dependency>
             <groupId>io.netty</groupId>
-            <artifactId>netty-codec-http</artifactId>
-            <version>${netty.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>io.netty</groupId>
-            <artifactId>netty-common</artifactId>
-            <version>${netty.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>io.netty</groupId>
-            <artifactId>netty-microbench</artifactId>
+            <artifactId>netty5-microbench</artifactId>
             <version>${netty.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>io.netty</groupId>
-                    <artifactId>netty-transport-native-kqueue</artifactId>
+                    <artifactId>netty5-transport-native-epoll</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>io.netty</groupId>
+                    <artifactId>netty5-transport-native-kqueue</artifactId>
                 </exclusion>
             </exclusions>
         </dependency>

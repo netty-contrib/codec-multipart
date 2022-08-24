@@ -15,7 +15,8 @@
  */
 package io.netty.contrib.handler.codec.http.multipart;
 
-import io.netty.buffer.ByteBuf;
+import io.netty5.buffer.api.Owned;
+import io.netty5.util.Send;
 
 import java.nio.charset.Charset;
 
@@ -38,7 +39,16 @@ public class MixedFileUpload extends AbstractMixedHttpData<FileUpload> implement
                 size > limitSize ?
                         new DiskFileUpload(name, filename, contentType, contentTransferEncoding, charset, size) :
                         new MemoryFileUpload(name, filename, contentType, contentTransferEncoding, charset, size)
-                );
+        );
+    }
+
+    private MixedFileUpload(long limitSize, String baseDir, boolean deleteOnExit, FileUpload fileUpload) {
+        super(limitSize, baseDir, deleteOnExit, fileUpload);
+    }
+
+    @Override
+    public String getContentType() {
+        return wrapped.getContentType();
     }
 
     @Override
@@ -52,6 +62,11 @@ public class MixedFileUpload extends AbstractMixedHttpData<FileUpload> implement
     }
 
     @Override
+    public void setContentType(String contentType) {
+        wrapped.setContentType(contentType);
+    }
+
+    @Override
     public void setContentTransferEncoding(String contentTransferEncoding) {
         wrapped.setContentTransferEncoding(contentTransferEncoding);
     }
@@ -59,16 +74,6 @@ public class MixedFileUpload extends AbstractMixedHttpData<FileUpload> implement
     @Override
     public void setFilename(String filename) {
         wrapped.setFilename(filename);
-    }
-
-    @Override
-    public void setContentType(String contentType) {
-        wrapped.setContentType(contentType);
-    }
-
-    @Override
-    public String getContentType() {
-        return wrapped.getContentType();
     }
 
     @Override
@@ -81,50 +86,11 @@ public class MixedFileUpload extends AbstractMixedHttpData<FileUpload> implement
     }
 
     @Override
-    public FileUpload copy() {
-        // for binary compatibility
-        return super.copy();
-    }
-
-    @Override
-    public FileUpload duplicate() {
-        // for binary compatibility
-        return super.duplicate();
-    }
-
-    @Override
-    public FileUpload retainedDuplicate() {
-        // for binary compatibility
-        return super.retainedDuplicate();
-    }
-
-    @Override
-    public FileUpload replace(ByteBuf content) {
-        // for binary compatibility
-        return super.replace(content);
-    }
-
-    @Override
-    public FileUpload touch() {
-        // for binary compatibility
-        return super.touch();
-    }
-
-    @Override
-    public FileUpload touch(Object hint) {
-        // for binary compatibility
-        return super.touch(hint);
-    }
-
-    @Override
-    public FileUpload retain() {
-        // for binary compatibility
-        return super.retain();
-    }
-
-    @Override
-    public FileUpload retain(int increment) {
-        // for binary compatibility
-        return super.retain(increment);
+    protected Owned<AbstractMixedHttpData<?>> prepareSend() {
+        Send<HttpData> send = wrapped.send();
+        return drop -> {
+            FileUpload received = (FileUpload) send.receive();
+            return new MixedFileUpload(limitSize, baseDir, deleteOnExit, received);
+        };
     }
 }

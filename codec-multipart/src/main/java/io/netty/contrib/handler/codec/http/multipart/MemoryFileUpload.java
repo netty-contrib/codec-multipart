@@ -15,11 +15,13 @@
  */
 package io.netty.contrib.handler.codec.http.multipart;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.channel.ChannelException;
-import io.netty.handler.codec.http.HttpHeaderNames;
-import io.netty.handler.codec.http.HttpHeaderValues;
-import io.netty.util.internal.ObjectUtil;
+import io.netty5.buffer.api.Buffer;
+import io.netty5.buffer.api.Owned;
+import io.netty5.util.Send;
+import io.netty5.channel.ChannelException;
+import io.netty5.handler.codec.http.HttpHeaderNames;
+import io.netty5.handler.codec.http.HttpHeaderValues;
+import io.netty5.util.internal.ObjectUtil;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -57,7 +59,7 @@ public class MemoryFileUpload extends AbstractMemoryHttpData implements FileUplo
 
     @Override
     public void setFilename(String filename) {
-        this.filename = ObjectUtil.checkNotNull(filename, "filename");
+        this.filename = ObjectUtil.checkNotNullWithIAE(filename, "filename");
     }
 
     @Override
@@ -85,7 +87,7 @@ public class MemoryFileUpload extends AbstractMemoryHttpData implements FileUplo
 
     @Override
     public void setContentType(String contentType) {
-        this.contentType = ObjectUtil.checkNotNull(contentType, "contentType");
+        this.contentType = ObjectUtil.checkNotNullWithIAE(contentType, "contentType");
     }
 
     @Override
@@ -117,38 +119,13 @@ public class MemoryFileUpload extends AbstractMemoryHttpData implements FileUplo
 
     @Override
     public FileUpload copy() {
-        final ByteBuf content = content();
+        final Buffer content = content();
         return replace(content != null ? content.copy() : content);
     }
 
     @Override
-    public FileUpload duplicate() {
-        final ByteBuf content = content();
-        return replace(content != null ? content.duplicate() : content);
-    }
-
-    @Override
-    public FileUpload retainedDuplicate() {
-        ByteBuf content = content();
-        if (content != null) {
-            content = content.retainedDuplicate();
-            boolean success = false;
-            try {
-                FileUpload duplicate = replace(content);
-                success = true;
-                return duplicate;
-            } finally {
-                if (!success) {
-                    content.release();
-                }
-            }
-        } else {
-            return replace(null);
-        }
-    }
-
-    @Override
-    public FileUpload replace(ByteBuf content) {
+    public FileUpload replace(Buffer content) {
+        checkAccessible(content);
         MemoryFileUpload upload = new MemoryFileUpload(
                 getName(), getFilename(), getContentType(), getContentTransferEncoding(), getCharset(), size);
         if (content != null) {
@@ -163,26 +140,19 @@ public class MemoryFileUpload extends AbstractMemoryHttpData implements FileUplo
     }
 
     @Override
-    public FileUpload retain() {
-        super.retain();
-        return this;
+    protected Owned<AbstractHttpData> prepareSend() {
+        Send send = getBuffer().send();
+
+        return drop -> {
+            Buffer received = (Buffer) send.receive();
+            MemoryFileUpload upload = new MemoryFileUpload(
+                    getName(), getFilename(), getContentType(), getContentTransferEncoding(), getCharset(), size);
+            upload.setContentInternal(received, received.readableBytes());
+            upload.setCompleted(isCompleted());
+            upload.definedSize = definedLength();
+            upload.setMaxSize(getMaxSize());
+            return upload;
+        };
     }
 
-    @Override
-    public FileUpload retain(int increment) {
-        super.retain(increment);
-        return this;
-    }
-
-    @Override
-    public FileUpload touch() {
-        super.touch();
-        return this;
-    }
-
-    @Override
-    public FileUpload touch(Object hint) {
-        super.touch(hint);
-        return this;
-    }
 }

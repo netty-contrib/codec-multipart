@@ -15,22 +15,40 @@
  */
 package io.netty.contrib.handler.codec.http.multipart;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.util.AbstractReferenceCounted;
+import io.netty5.buffer.api.Buffer;
+import io.netty5.buffer.api.Drop;
+import io.netty5.buffer.api.internal.ResourceSupport;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.Charset;
 
-abstract class AbstractMixedHttpData<D extends HttpData> extends AbstractReferenceCounted implements HttpData {
+abstract class AbstractMixedHttpData<D extends HttpData> extends ResourceSupport<HttpData, AbstractMixedHttpData<? extends HttpData>> implements HttpData {
     final String baseDir;
     final boolean deleteOnExit;
     D wrapped;
 
-    private final long limitSize;
+    protected final long limitSize;
+
+    private final static Drop<AbstractMixedHttpData<? extends HttpData>> drop = new Drop<>() {
+        @Override
+        public void drop(AbstractMixedHttpData<? extends HttpData> data) {
+            data.delete();
+        }
+
+        @Override
+        public Drop<AbstractMixedHttpData<? extends HttpData>> fork() {
+            return this;
+        }
+
+        @Override
+        public void attach(AbstractMixedHttpData<? extends HttpData> mixedFileUpload) {
+        }
+    };
 
     AbstractMixedHttpData(long limitSize, String baseDir, boolean deleteOnExit, D initial) {
+        super (drop);
         this.limitSize = limitSize;
         this.wrapped = initial;
         this.baseDir = baseDir;
@@ -46,16 +64,18 @@ abstract class AbstractMixedHttpData<D extends HttpData> extends AbstractReferen
 
     @Override
     public void setMaxSize(long maxSize) {
+        checkAccessible();
         wrapped.setMaxSize(maxSize);
     }
 
     @Override
-    public ByteBuf content() {
+    public Buffer content() {
         return wrapped.content();
     }
 
     @Override
     public void checkSize(long newSize) throws IOException {
+        checkAccessible();
         wrapped.checkSize(newSize);
     }
 
@@ -75,30 +95,26 @@ abstract class AbstractMixedHttpData<D extends HttpData> extends AbstractReferen
     }
 
     @Override
-    public void addContent(ByteBuf buffer, boolean last) throws IOException {
+    public void addContent(Buffer buffer, boolean last) throws IOException {
+        checkAccessible(buffer);
         if (wrapped instanceof AbstractMemoryHttpData) {
             try {
                 checkSize(wrapped.length() + buffer.readableBytes());
                 if (wrapped.length() + buffer.readableBytes() > limitSize) {
                     D diskData = makeDiskData();
-                    ByteBuf data = ((AbstractMemoryHttpData) wrapped).getByteBuf();
-                    if (data != null && data.isReadable()) {
-                        diskData.addContent(data.retain(), false);
+                    Buffer data = ((AbstractMemoryHttpData) wrapped).getBuffer();
+                    if (data != null && data.readableBytes() > 0) {
+                        diskData.addContent(data, false); // data will be closed by this method
                     }
-                    wrapped.release();
+                    wrapped.close();
                     wrapped = diskData;
                 }
             } catch (IOException e) {
-                buffer.release();
+                buffer.close();
                 throw e;
             }
         }
         wrapped.addContent(buffer, last);
-    }
-
-    @Override
-    protected void deallocate() {
-        delete();
     }
 
     @Override
@@ -112,8 +128,8 @@ abstract class AbstractMixedHttpData<D extends HttpData> extends AbstractReferen
     }
 
     @Override
-    public ByteBuf getByteBuf() throws IOException {
-        return wrapped.getByteBuf();
+    public Buffer getBuffer() throws IOException {
+        return wrapped.getBuffer();
     }
 
     @Override
@@ -147,18 +163,21 @@ abstract class AbstractMixedHttpData<D extends HttpData> extends AbstractReferen
     }
 
     @Override
-    public void setContent(ByteBuf buffer) throws IOException {
+    public void setContent(Buffer buffer) throws IOException {
+        checkAccessible(buffer);
         try {
             checkSize(buffer.readableBytes());
         } catch (IOException e) {
-            buffer.release();
+            buffer.close();
             throw e;
         }
         if (buffer.readableBytes() > limitSize) {
             if (wrapped instanceof AbstractMemoryHttpData) {
                 // change to Disk
-                wrapped.release();
-                wrapped = makeDiskData();
+                D oldWrapped = wrapped;
+                try (oldWrapped) {
+                    wrapped = makeDiskData();
+                }
             }
         }
         wrapped.setContent(buffer);
@@ -166,12 +185,15 @@ abstract class AbstractMixedHttpData<D extends HttpData> extends AbstractReferen
 
     @Override
     public void setContent(File file) throws IOException {
+        checkAccessible();
         checkSize(file.length());
         if (file.length() > limitSize) {
             if (wrapped instanceof AbstractMemoryHttpData) {
                 // change to Disk
-                wrapped.release();
-                wrapped = makeDiskData();
+                D oldWrapped = wrapped;
+                try (oldWrapped) {
+                    wrapped = makeDiskData();
+                }
             }
         }
         wrapped.setContent(file);
@@ -179,10 +201,13 @@ abstract class AbstractMixedHttpData<D extends HttpData> extends AbstractReferen
 
     @Override
     public void setContent(InputStream inputStream) throws IOException {
+        checkAccessible();
         if (wrapped instanceof AbstractMemoryHttpData) {
             // change to Disk even if we don't know the size
-            wrapped.release();
-            wrapped = makeDiskData();
+            D oldWrapped = wrapped;
+            try(oldWrapped) {
+                wrapped = makeDiskData();
+            }
         }
         wrapped.setContent(inputStream);
     }
@@ -218,7 +243,7 @@ abstract class AbstractMixedHttpData<D extends HttpData> extends AbstractReferen
     }
 
     @Override
-    public ByteBuf getChunk(int length) throws IOException {
+    public Buffer getChunk(int length) throws IOException {
         return wrapped.getChunk(length);
     }
 
@@ -235,45 +260,27 @@ abstract class AbstractMixedHttpData<D extends HttpData> extends AbstractReferen
 
     @SuppressWarnings("unchecked")
     @Override
-    public D duplicate() {
-        return (D) wrapped.duplicate();
-    }
-
-    @SuppressWarnings("unchecked")
-    @Override
-    public D retainedDuplicate() {
-        return (D) wrapped.retainedDuplicate();
-    }
-
-    @SuppressWarnings("unchecked")
-    @Override
-    public D replace(ByteBuf content) {
+    public D replace(Buffer content) {
         return (D) wrapped.replace(content);
     }
 
-    @SuppressWarnings("unchecked")
     @Override
-    public D touch() {
-        wrapped.touch();
-        return (D) this;
+    protected RuntimeException createResourceClosedException() {
+        return new IllegalStateException("Resource is closed");
     }
 
-    @SuppressWarnings("unchecked")
-    @Override
-    public D touch(Object hint) {
-        wrapped.touch(hint);
-        return (D) this;
+    protected void checkAccessible() {
+        if (! isAccessible()) {
+            throw createResourceClosedException();
+        }
     }
 
-    @SuppressWarnings("unchecked")
-    @Override
-    public D retain() {
-        return (D) super.retain();
-    }
-
-    @SuppressWarnings("unchecked")
-    @Override
-    public D retain(int increment) {
-        return (D) super.retain(increment);
+    protected void checkAccessible(Buffer cleanup) {
+        if (! isAccessible()) {
+            if (cleanup != null && cleanup.isAccessible()) {
+                cleanup.close();
+            }
+            throw createResourceClosedException();
+        }
     }
 }
