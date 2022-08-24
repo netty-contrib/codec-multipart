@@ -15,49 +15,43 @@
  */
 package io.netty.contrib.handler.codec.http.multipart;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
-import io.netty.handler.codec.http.DefaultFullHttpRequest;
-import io.netty.handler.codec.http.DefaultHttpContent;
-import io.netty.handler.codec.http.DefaultHttpRequest;
-import io.netty.handler.codec.http.DefaultLastHttpContent;
-import io.netty.handler.codec.http.FullHttpRequest;
-import io.netty.handler.codec.http.HttpConstants;
-import io.netty.handler.codec.http.HttpHeaderNames;
-import io.netty.handler.codec.http.HttpMethod;
-import io.netty.handler.codec.http.HttpRequest;
-import io.netty.handler.codec.http.HttpVersion;
-import io.netty.util.CharsetUtil;
+import io.netty5.util.CharsetUtil;
+import io.netty5.buffer.api.Buffer;
+import io.netty5.buffer.api.DefaultBufferAllocators;
+import io.netty5.handler.codec.http.DefaultFullHttpRequest;
+import io.netty5.handler.codec.http.DefaultHttpContent;
+import io.netty5.handler.codec.http.DefaultHttpRequest;
+import io.netty5.handler.codec.http.FullHttpRequest;
+import io.netty5.handler.codec.http.HttpConstants;
+import io.netty5.handler.codec.http.HttpHeaderNames;
+import io.netty5.handler.codec.http.HttpMethod;
+import io.netty5.handler.codec.http.HttpRequest;
+import io.netty5.handler.codec.http.HttpVersion;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.Arrays;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class HttpPostMultiPartRequestDecoderTest {
 
     @Test
     public void testDecodeFullHttpRequestWithNoContentTypeHeader() {
-        FullHttpRequest req = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/");
+        FullHttpRequest req = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/", DefaultBufferAllocators.preferredAllocator().allocate(0));
         try {
             new HttpPostMultipartRequestDecoder(req);
             fail("Was expecting an ErrorDataDecoderException");
         } catch (HttpPostRequestDecoder.ErrorDataDecoderException expected) {
             // expected
         } finally {
-            assertTrue(req.release());
+            req.close();
         }
     }
 
     @Test
     public void testDecodeFullHttpRequestWithInvalidCharset() {
-        FullHttpRequest req = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/");
+        FullHttpRequest req = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/", DefaultBufferAllocators.preferredAllocator().allocate(0));
         req.headers().set(HttpHeaderNames.CONTENT_TYPE,
                 "multipart/form-data; boundary=--89421926422648 [; charset=UTF-8]");
 
@@ -67,7 +61,7 @@ public class HttpPostMultiPartRequestDecoderTest {
         } catch (HttpPostRequestDecoder.ErrorDataDecoderException expected) {
             // expected
         } finally {
-            assertTrue(req.release());
+            req.close();
         }
     }
 
@@ -81,7 +75,7 @@ public class HttpPostMultiPartRequestDecoderTest {
                         "--861fbeab-cd20-470c-9609-d40a0f704466--\n";
 
         FullHttpRequest req = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/upload",
-                Unpooled.copiedBuffer(content, CharsetUtil.US_ASCII));
+                Helpers.copiedBuffer(content, CharsetUtil.US_ASCII));
         req.headers().set("content-type", "multipart/form-data; boundary=861fbeab-cd20-470c-9609-d40a0f704466");
         req.headers().set("content-length", content.length());
 
@@ -91,12 +85,12 @@ public class HttpPostMultiPartRequestDecoderTest {
         } catch (HttpPostRequestDecoder.ErrorDataDecoderException expected) {
             // expected
         } finally {
-            assertTrue(req.release());
+            req.close();
         }
     }
 
     @Test
-    public void testDelimiterExceedLeftSpaceInCurrentBuffer() {
+    public void testDelimiterExceedLeftSpaceInCurrentBuffer() throws IOException {
         String delimiter = "--861fbeab-cd20-470c-9609-d40a0f704466";
         String suffix = '\n' + delimiter + "--\n";
         byte[] bsuffix = suffix.getBytes(CharsetUtil.UTF_8);
@@ -115,44 +109,34 @@ public class HttpPostMultiPartRequestDecoderTest {
         // Factory using Memory mode
         HttpDataFactory factory = new DefaultHttpDataFactory(false);
         HttpPostMultipartRequestDecoder decoder = new HttpPostMultipartRequestDecoder(factory, request);
-        ByteBuf buf = Unpooled.wrappedBuffer(prefix.getBytes(CharsetUtil.UTF_8));
+        Buffer buf = Helpers.copiedBuffer(prefix.getBytes(CharsetUtil.UTF_8));
         DefaultHttpContent httpContent = new DefaultHttpContent(buf);
         decoder.offer(httpContent);
         assertNotNull((HttpData) decoder.currentPartialHttpData());
-        httpContent.release();
+        httpContent.close();
         // Chunk less than Delimiter size but containing part of delimiter
         byte[] body = new byte[bytesLastChunk + bsuffix1.length];
         Arrays.fill(body, (byte) 2);
         for (int i = 0; i < bsuffix1.length; i++) {
             body[bytesLastChunk + i] = bsuffix1[i];
         }
-        ByteBuf content = Unpooled.wrappedBuffer(body);
+        Buffer content = Helpers.copiedBuffer(body);
         httpContent = new DefaultHttpContent(content);
         decoder.offer(httpContent); // Ouf of range before here
-        assertNotNull(((HttpData) decoder.currentPartialHttpData()).content());
-        httpContent.release();
-        content = Unpooled.wrappedBuffer(bsuffix2);
+        assertNotNull(((HttpData) decoder.currentPartialHttpData()).getBuffer());
+        httpContent.close();
+        content = Helpers.copiedBuffer(bsuffix2);
         httpContent = new DefaultHttpContent(content);
         decoder.offer(httpContent);
         assertNull((HttpData) decoder.currentPartialHttpData());
-        httpContent.release();
-        decoder.offer(new DefaultLastHttpContent());
+        httpContent.close();
+        decoder.offer(Helpers.defaultLastHttpContent());
         FileUpload data = (FileUpload) decoder.getBodyHttpDatas().get(0);
         assertEquals(data.length(), bytesLastChunk);
         assertEquals(true, data.isInMemory());
 
-        InterfaceHttpData[] httpDatas = decoder.getBodyHttpDatas().toArray(new InterfaceHttpData[0]);
-        for (InterfaceHttpData httpData : httpDatas) {
-            assertEquals(1, httpData.refCnt(), "Before cleanAllHttpData should be 1");
-        }
         factory.cleanAllHttpData();
-        for (InterfaceHttpData httpData : httpDatas) {
-            assertEquals(1, httpData.refCnt(), "After cleanAllHttpData should be 1 if in Memory");
-        }
         decoder.destroy();
-        for (InterfaceHttpData httpData : httpDatas) {
-            assertEquals(0, httpData.refCnt(), "RefCnt should be 0");
-        }
     }
 
     private void commonTestBigFileDelimiterInMiddleChunk(HttpDataFactory factory, boolean inMemory)
@@ -179,11 +163,11 @@ public class HttpPostMultiPartRequestDecoderTest {
         request.headers().set("content-length", prefix.length() + fileSize + suffix.length());
 
         HttpPostMultipartRequestDecoder decoder = new HttpPostMultipartRequestDecoder(factory, request);
-        ByteBuf buf = Unpooled.wrappedBuffer(prefix.getBytes(CharsetUtil.UTF_8));
+        Buffer buf = Helpers.copiedBuffer(prefix.getBytes(CharsetUtil.UTF_8));
         DefaultHttpContent httpContent = new DefaultHttpContent(buf);
         decoder.offer(httpContent);
-        assertNotNull(((HttpData) decoder.currentPartialHttpData()).content());
-        httpContent.release();
+        assertNotNull(((HttpData) decoder.currentPartialHttpData()).getBuffer());
+        httpContent.close();
 
         byte[] body = new byte[bytesPerChunk];
         Arrays.fill(body, (byte) 1);
@@ -191,11 +175,11 @@ public class HttpPostMultiPartRequestDecoderTest {
         body[0] = HttpConstants.CR;
         body[1] = HttpConstants.LF;
         for (int i = 0; i < nbChunks; i++) {
-            ByteBuf content = Unpooled.wrappedBuffer(body, 0, bytesPerChunk);
+            Buffer content = Helpers.copiedBuffer(body, 0, bytesPerChunk);
             httpContent = new DefaultHttpContent(content);
             decoder.offer(httpContent); // **OutOfMemory previously here**
-            assertNotNull(((HttpData) decoder.currentPartialHttpData()).content());
-            httpContent.release();
+            assertNotNull(((HttpData) decoder.currentPartialHttpData()).getBuffer());
+            httpContent.close();
         }
 
         byte[] bsuffix1 = suffix1.getBytes(CharsetUtil.UTF_8);
@@ -216,45 +200,35 @@ public class HttpPostMultiPartRequestDecoderTest {
             lastbody[bsuffix1.length + i] = bsuffix1[i];
         }
 
-        ByteBuf content2 = Unpooled.wrappedBuffer(previousLastbody, 0, previousLastbody.length);
+        Buffer content2 = Helpers.copiedBuffer(previousLastbody, 0, previousLastbody.length);
         httpContent = new DefaultHttpContent(content2);
         decoder.offer(httpContent);
-        assertNotNull(((HttpData) decoder.currentPartialHttpData()).content());
-        httpContent.release();
-        content2 = Unpooled.wrappedBuffer(lastbody, 0, lastbody.length);
+        assertNotNull(((HttpData) decoder.currentPartialHttpData()).getBuffer());
+        httpContent.close();
+        content2 = Helpers.copiedBuffer(lastbody, 0, lastbody.length);
         httpContent = new DefaultHttpContent(content2);
         decoder.offer(httpContent);
-        assertNotNull(((HttpData) decoder.currentPartialHttpData()).content());
-        httpContent.release();
-        content2 = Unpooled.wrappedBuffer(suffix2.getBytes(CharsetUtil.UTF_8));
+        assertNotNull(((HttpData) decoder.currentPartialHttpData()).getBuffer());
+        httpContent.close();
+        content2 = Helpers.copiedBuffer(suffix2.getBytes(CharsetUtil.UTF_8));
         httpContent = new DefaultHttpContent(content2);
         decoder.offer(httpContent);
         assertNull(decoder.currentPartialHttpData());
-        httpContent.release();
-        decoder.offer(new DefaultLastHttpContent());
+        httpContent.close();
+        decoder.offer(Helpers.defaultLastHttpContent());
 
         FileUpload data = (FileUpload) decoder.getBodyHttpDatas().get(0);
         assertEquals(data.length(), fileSize);
         assertEquals(inMemory, data.isInMemory());
         if (data.isInMemory()) {
             // To be done only if not inMemory: assertEquals(data.get().length, fileSize);
-            assertFalse(data.getByteBuf().capacity() < 1024 * 1024,
+            assertFalse(data.getBuffer().capacity() < 1024 * 1024,
                     "Capacity should be higher than 1M");
         }
         assertTrue(decoder.getCurrentAllocatedCapacity() < 1024 * 1024,
                 "Capacity should be less than 1M");
-        InterfaceHttpData[] httpDatas = decoder.getBodyHttpDatas().toArray(new InterfaceHttpData[0]);
-        for (InterfaceHttpData httpData : httpDatas) {
-            assertEquals(1, httpData.refCnt(), "Before cleanAllHttpData should be 1");
-        }
         factory.cleanAllHttpData();
-        for (InterfaceHttpData httpData : httpDatas) {
-            assertEquals(inMemory? 1 : 0, httpData.refCnt(), "After cleanAllHttpData should be 1 if in Memory");
-        }
         decoder.destroy();
-        for (InterfaceHttpData httpData : httpDatas) {
-            assertEquals(0, httpData.refCnt(), "RefCnt should be 0");
-        }
     }
 
     @Test
@@ -282,19 +256,19 @@ public class HttpPostMultiPartRequestDecoderTest {
     }
 
     @Test
-    public void testNotBadReleaseBuffersDuringDecodingDiskFactory() throws IOException {
+    public void testNotBadReleaseBuffersDuringDecodingDiskFactory() throws Exception {
         // Using Disk Factory
         HttpDataFactory factory = new DefaultHttpDataFactory(true);
         commonNotBadReleaseBuffersDuringDecoding(factory, false);
     }
     @Test
-    public void testNotBadReleaseBuffersDuringDecodingMemoryFactory() throws IOException {
+    public void testNotBadReleaseBuffersDuringDecodingMemoryFactory() throws Exception {
         // Using Memory Factory
         HttpDataFactory factory = new DefaultHttpDataFactory(false);
         commonNotBadReleaseBuffersDuringDecoding(factory, true);
     }
     @Test
-    public void testNotBadReleaseBuffersDuringDecodingMixedFactory() throws IOException {
+    public void testNotBadReleaseBuffersDuringDecodingMixedFactory() throws Exception {
         // Using Mixed Factory
         HttpDataFactory factory = new DefaultHttpDataFactory(100);
         commonNotBadReleaseBuffersDuringDecoding(factory, false);
@@ -309,7 +283,7 @@ public class HttpPostMultiPartRequestDecoderTest {
                 "\r\n\u0001\u0002\u0003\u0004\r\n--861fbeab-cd20-470c-9609-d40a0f704466--\r\n\",\n";
 
         FullHttpRequest req = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/upload",
-                Unpooled.copiedBuffer(content, CharsetUtil.US_ASCII));
+                Helpers.copiedBuffer(content, CharsetUtil.US_ASCII));
         req.headers().set("content-type", "multipart/form-data; boundary=861fbeab-cd20-470c-9609-d40a0f704466");
         req.headers().set("content-length", content.length());
 
@@ -320,7 +294,7 @@ public class HttpPostMultiPartRequestDecoderTest {
     }
 
     private static void commonNotBadReleaseBuffersDuringDecoding(HttpDataFactory factory, boolean inMemory)
-            throws IOException {
+            throws Exception {
         int nbItems = 20;
         int bytesPerItem = 1000;
         int maxMemory = 500;
@@ -353,23 +327,23 @@ public class HttpPostMultiPartRequestDecoderTest {
             for (int i = 0; i < bp2.length; i++) {
                 prefix[bp1.length + 2 + i] = bp2[i];
             }
-            ByteBuf buf = Unpooled.wrappedBuffer(prefix);
+            Buffer buf = Helpers.copiedBuffer(prefix);
             DefaultHttpContent httpContent = new DefaultHttpContent(buf);
             decoder.offer(httpContent);
-            httpContent.release();
+            httpContent.close();
             byte[] body = new byte[bytesPerItem];
             Arrays.fill(body, (byte) rank);
-            ByteBuf content = Unpooled.wrappedBuffer(body, 0, bytesPerItem);
+            Buffer content = Helpers.copiedBuffer(body, 0, bytesPerItem);
             httpContent = new DefaultHttpContent(content);
             decoder.offer(httpContent);
-            httpContent.release();
+            httpContent.close();
         }
         byte[] lastbody = suffix.getBytes(CharsetUtil.UTF_8);
-        ByteBuf content2 = Unpooled.wrappedBuffer(lastbody, 0, lastbody.length);
+        Buffer content2 = Helpers.copiedBuffer(lastbody, 0, lastbody.length);
         DefaultHttpContent httpContent = new DefaultHttpContent(content2);
         decoder.offer(httpContent);
-        httpContent.release();
-        decoder.offer(new DefaultLastHttpContent());
+        httpContent.close();
+        decoder.offer(Helpers.defaultLastHttpContent());
 
         for (int rank = 0; rank < nbItems; rank++) {
             FileUpload data = (FileUpload) decoder.getBodyHttpData("image" + (10 + rank));
@@ -380,9 +354,9 @@ public class HttpPostMultiPartRequestDecoderTest {
             assertTrue(Arrays.equals(body, data.get()));
         }
         // To not be done since will load full file on memory: assertEquals(data.get().length, fileSize);
-        // Not mandatory since implicitly called during destroy of decoder
+        // Not mandatory since implicitely called during destroy of decoder
         for (InterfaceHttpData httpData: decoder.getBodyHttpDatas()) {
-            httpData.release();
+            httpData.close();
             factory.removeHttpDataFromClean(request, httpData);
         }
         factory.cleanAllHttpData();
@@ -420,11 +394,11 @@ public class HttpPostMultiPartRequestDecoderTest {
         request.headers().set("content-length", prefix.length() + fileSize + suffix.length() + 4);
 
         HttpPostMultipartRequestDecoder decoder = new HttpPostMultipartRequestDecoder(factory, request);
-        ByteBuf buf = Unpooled.wrappedBuffer(prefix.getBytes(CharsetUtil.UTF_8));
+        Buffer buf = Helpers.copiedBuffer(prefix.getBytes(CharsetUtil.UTF_8));
         DefaultHttpContent httpContent = new DefaultHttpContent(buf);
         decoder.offer(httpContent);
-        assertNotNull(((HttpData) decoder.currentPartialHttpData()).content());
-        httpContent.release();
+        assertNotNull(((HttpData) decoder.currentPartialHttpData()).getBuffer());
+        httpContent.close();
 
         byte[] body = new byte[bytesPerChunk];
         Arrays.fill(body, (byte) 1);
@@ -432,58 +406,49 @@ public class HttpPostMultiPartRequestDecoderTest {
         body[0] = HttpConstants.CR;
         body[1] = HttpConstants.LF;
         for (int i = 0; i < nbChunks; i++) {
-            ByteBuf content = Unpooled.wrappedBuffer(body, 0, bytesPerChunk);
+            Buffer content = Helpers.copiedBuffer(body, 0, bytesPerChunk);
             httpContent = new DefaultHttpContent(content);
             decoder.offer(httpContent); // **OutOfMemory previously here**
-            assertNotNull(((HttpData) decoder.currentPartialHttpData()).content());
-            httpContent.release();
+            assertNotNull(((HttpData) decoder.currentPartialHttpData()).getBuffer());
+            httpContent.close();
         }
         // Last -2 body = content + CR but no delimiter
         byte[] previousLastbody = new byte[bytesLastChunk + 1];
         Arrays.fill(previousLastbody, (byte) 1);
         previousLastbody[bytesLastChunk] = HttpConstants.CR;
-        ByteBuf content2 = Unpooled.wrappedBuffer(previousLastbody, 0, previousLastbody.length);
+        Buffer content2 = Helpers.copiedBuffer(previousLastbody, 0, previousLastbody.length);
         httpContent = new DefaultHttpContent(content2);
         decoder.offer(httpContent);
         assertNotNull(decoder.currentPartialHttpData());
-        httpContent.release();
+        httpContent.close();
         // Last -1 body = LF+delimiter+CR but no LF
-        content2 = Unpooled.wrappedBuffer(bsuffixReal, 0, bsuffixReal.length);
+        content2 = Helpers.copiedBuffer(bsuffixReal, 0, bsuffixReal.length);
         httpContent = new DefaultHttpContent(content2);
         decoder.offer(httpContent);
         assertNull(decoder.currentPartialHttpData());
-        httpContent.release();
+        httpContent.close();
         // Last (LF)
-        content2 = Unpooled.wrappedBuffer(lastbody, 0, lastbody.length);
+        content2 = Helpers.copiedBuffer(lastbody, 0, lastbody.length);
         httpContent = new DefaultHttpContent(content2);
         decoder.offer(httpContent);
         assertNull(decoder.currentPartialHttpData());
-        httpContent.release();
+        httpContent.close();
         // End
-        decoder.offer(new DefaultLastHttpContent());
+        decoder.offer(Helpers.defaultLastHttpContent());
 
         FileUpload data = (FileUpload) decoder.getBodyHttpDatas().get(0);
         assertEquals(data.length(), fileSize);
         assertEquals(inMemory, data.isInMemory());
         if (data.isInMemory()) {
             // To be done only if not inMemory: assertEquals(data.get().length, fileSize);
-            assertFalse(data.getByteBuf().capacity() < fileSize,
+            assertFalse(data.getBuffer().capacity() < fileSize,
                         "Capacity should be at least file size");
         }
         assertTrue(decoder.getCurrentAllocatedCapacity() < fileSize,
                    "Capacity should be less than 1M");
         InterfaceHttpData[] httpDatas = decoder.getBodyHttpDatas().toArray(new InterfaceHttpData[0]);
-        for (InterfaceHttpData httpData : httpDatas) {
-            assertEquals(1, httpData.refCnt(), "Before cleanAllHttpData should be 1");
-        }
         factory.cleanAllHttpData();
-        for (InterfaceHttpData httpData : httpDatas) {
-            assertEquals(inMemory? 1 : 0, httpData.refCnt(), "After cleanAllHttpData should be 1 if in Memory");
-        }
         decoder.destroy();
-        for (InterfaceHttpData httpData : httpDatas) {
-            assertEquals(0, httpData.refCnt(), "RefCnt should be 0");
-        }
     }
 
     @Test

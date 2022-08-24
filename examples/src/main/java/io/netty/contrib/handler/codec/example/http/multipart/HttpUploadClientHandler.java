@@ -15,14 +15,14 @@
  */
 package io.netty.contrib.handler.codec.example.http.multipart;
 
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.SimpleChannelInboundHandler;
-import io.netty.handler.codec.http.HttpContent;
-import io.netty.handler.codec.http.HttpUtil;
-import io.netty.handler.codec.http.HttpObject;
-import io.netty.handler.codec.http.HttpResponse;
-import io.netty.handler.codec.http.LastHttpContent;
-import io.netty.util.CharsetUtil;
+import io.netty5.util.CharsetUtil;
+import io.netty5.channel.ChannelHandlerContext;
+import io.netty5.channel.SimpleChannelInboundHandler;
+import io.netty5.handler.codec.http.HttpContent;
+import io.netty5.handler.codec.http.HttpObject;
+import io.netty5.handler.codec.http.HttpResponse;
+import io.netty5.handler.codec.http.HttpUtil;
+import io.netty5.handler.codec.http.LastHttpContent;
 
 /**
  * Handler that just dumps the contents of the response from the server
@@ -32,7 +32,7 @@ public class HttpUploadClientHandler extends SimpleChannelInboundHandler<HttpObj
     private boolean readingChunks;
 
     @Override
-    public void channelRead0(ChannelHandlerContext ctx, HttpObject msg) {
+    public void messageReceived(ChannelHandlerContext ctx, HttpObject msg) {
         if (msg instanceof HttpResponse) {
             HttpResponse response = (HttpResponse) msg;
 
@@ -56,7 +56,7 @@ public class HttpUploadClientHandler extends SimpleChannelInboundHandler<HttpObj
         }
         if (msg instanceof HttpContent) {
             HttpContent chunk = (HttpContent) msg;
-            System.err.println(chunk.content().toString(CharsetUtil.UTF_8));
+            System.err.println(chunk.payload().toString(CharsetUtil.UTF_8));
 
             if (chunk instanceof LastHttpContent) {
                 if (readingChunks) {
@@ -66,13 +66,13 @@ public class HttpUploadClientHandler extends SimpleChannelInboundHandler<HttpObj
                 }
                 readingChunks = false;
             } else {
-                System.err.println(chunk.content().toString(CharsetUtil.UTF_8));
+                System.err.println(chunk.payload().toString(CharsetUtil.UTF_8));
             }
         }
     }
 
     @Override
-    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+    public void channelExceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
         cause.printStackTrace();
         ctx.channel().close();
     }

@@ -24,7 +24,7 @@
 
   <groupId>io.netty.contrib</groupId>
   <artifactId>netty-codec-multipart-parent</artifactId>
-  <version>5.0.0.Final-SNAPSHOT</version>
+  <version>5.0.0.Alpha2-SNAPSHOT</version>
   <name>Netty/Codec/Multipart Parent</name>
   <packaging>pom</packaging>
   <url>https://netty.io/</url>
@@ -66,8 +66,8 @@
   </developers>
 
   <properties>
-    <netty.version>4.1.80.Final-SNAPSHOT</netty.version>
-    <netty.build.version>29</netty.build.version>
+    <netty.version>5.0.0.Alpha5-SNAPSHOT</netty.version>
+    <netty.build.version>30</netty.build.version>
     <project.scm.id>github</project.scm.id>
     <release.gpg.keyname />
     <release.gpg.passphrase />
@@ -92,7 +92,7 @@
       </plugin>
       <plugin>
         <artifactId>maven-checkstyle-plugin</artifactId>
-        <version>3.1.0</version>
+        <version>3.1.2</version>
         <executions>
           <execution>
             <id>check-style</id>

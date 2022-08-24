@@ -15,15 +15,15 @@
  */
 package io.netty.contrib.handler.codec.http.multipart;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
-import io.netty.handler.codec.http.DefaultHttpContent;
-import io.netty.handler.codec.http.DefaultHttpRequest;
-import io.netty.handler.codec.http.DefaultLastHttpContent;
-import io.netty.handler.codec.http.HttpMethod;
-import io.netty.handler.codec.http.HttpRequest;
-import io.netty.handler.codec.http.HttpVersion;
-import io.netty.util.CharsetUtil;
+import io.netty5.buffer.api.Buffer;
+import io.netty5.buffer.api.DefaultBufferAllocators;
+import io.netty5.handler.codec.http.DefaultHttpContent;
+import io.netty5.handler.codec.http.DefaultHttpRequest;
+import io.netty5.handler.codec.http.DefaultLastHttpContent;
+import io.netty5.handler.codec.http.HttpMethod;
+import io.netty5.handler.codec.http.HttpRequest;
+import io.netty5.handler.codec.http.HttpVersion;
+import io.netty5.util.CharsetUtil;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -37,8 +37,8 @@ class HttpPostStandardRequestDecoderTest {
         HttpRequest request = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/upload");
 
         HttpPostStandardRequestDecoder decoder = new HttpPostStandardRequestDecoder(httpDiskDataFactory(), request);
-        ByteBuf buf = Unpooled.wrappedBuffer(requestBody.getBytes(CharsetUtil.UTF_8));
-        DefaultHttpContent httpContent = new DefaultLastHttpContent(buf);
+        Buffer buf = DefaultBufferAllocators.preferredAllocator().copyOf(requestBody.getBytes(CharsetUtil.UTF_8));
+        DefaultLastHttpContent httpContent = new DefaultLastHttpContent(buf);
         decoder.offer(httpContent);
 
         assertEquals(2, decoder.getBodyHttpDatas().size());
@@ -54,8 +54,8 @@ class HttpPostStandardRequestDecoderTest {
         HttpRequest request = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/upload");
 
         HttpPostStandardRequestDecoder decoder = new HttpPostStandardRequestDecoder(httpDiskDataFactory(), request);
-        ByteBuf buf = Unpooled.wrappedBuffer(requestBody.getBytes(CharsetUtil.UTF_8));
-        DefaultHttpContent httpContent = new DefaultLastHttpContent(buf);
+        Buffer buf = DefaultBufferAllocators.preferredAllocator().copyOf(requestBody.getBytes(CharsetUtil.UTF_8));
+        DefaultLastHttpContent httpContent = new DefaultLastHttpContent(buf);
         decoder.offer(httpContent);
 
         assertEquals(1, decoder.getBodyHttpDatas().size());
@@ -70,8 +70,8 @@ class HttpPostStandardRequestDecoderTest {
         HttpRequest request = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/upload");
 
         HttpPostStandardRequestDecoder decoder = new HttpPostStandardRequestDecoder(httpDiskDataFactory(), request);
-        ByteBuf buf = Unpooled.wrappedBuffer(requestBody.getBytes(CharsetUtil.UTF_8));
-        DefaultHttpContent httpContent = new DefaultLastHttpContent(buf);
+        Buffer buf = DefaultBufferAllocators.preferredAllocator().copyOf(requestBody.getBytes(CharsetUtil.UTF_8));
+        DefaultLastHttpContent httpContent = new DefaultLastHttpContent(buf);
         decoder.offer(httpContent);
 
         assertEquals(0, decoder.getBodyHttpDatas().size());

@@ -15,16 +15,17 @@
  */
 package io.netty.contrib.handler.codec.example.http.multipart;
 
-import io.netty.bootstrap.ServerBootstrap;
-import io.netty.channel.Channel;
-import io.netty.channel.EventLoopGroup;
-import io.netty.channel.nio.NioEventLoopGroup;
-import io.netty.channel.socket.nio.NioServerSocketChannel;
-import io.netty.handler.logging.LogLevel;
-import io.netty.handler.logging.LoggingHandler;
-import io.netty.handler.ssl.SslContext;
-import io.netty.handler.ssl.SslContextBuilder;
-import io.netty.handler.ssl.util.SelfSignedCertificate;
+import io.netty5.bootstrap.ServerBootstrap;
+import io.netty5.channel.Channel;
+import io.netty5.channel.EventLoopGroup;
+import io.netty5.channel.MultithreadEventLoopGroup;
+import io.netty5.channel.nio.NioHandler;
+import io.netty5.channel.socket.nio.NioServerSocketChannel;
+import io.netty5.handler.logging.LogLevel;
+import io.netty5.handler.logging.LoggingHandler;
+import io.netty5.handler.ssl.SslContext;
+import io.netty5.handler.ssl.SslContextBuilder;
+import io.netty5.handler.ssl.util.SelfSignedCertificate;
 
 /**
  * An HTTP server showing how to use the HTTP multipart package for file uploads and decoding post data.
@@ -44,8 +45,9 @@ public final class HttpUploadServer {
             sslCtx = null;
         }
 
-        EventLoopGroup bossGroup = new NioEventLoopGroup(1);
-        EventLoopGroup workerGroup = new NioEventLoopGroup();
+        EventLoopGroup bossGroup = new MultithreadEventLoopGroup(NioHandler.newFactory());
+        EventLoopGroup workerGroup = new MultithreadEventLoopGroup(NioHandler.newFactory());
+
         try {
             ServerBootstrap b = new ServerBootstrap();
             b.group(bossGroup, workerGroup);
@@ -53,12 +55,12 @@ public final class HttpUploadServer {
             b.handler(new LoggingHandler(LogLevel.INFO));
             b.childHandler(new HttpUploadServerInitializer(sslCtx));
 
-            Channel ch = b.bind(PORT).sync().channel();
+            Channel ch = b.bind(PORT).asStage().get();
 
             System.err.println("Open your web browser and navigate to " +
                     (SSL? "https" : "http") + "://127.0.0.1:" + PORT + '/');
 
-            ch.closeFuture().sync();
+            ch.closeFuture().asStage().sync();
         } finally {
             bossGroup.shutdownGracefully();
             workerGroup.shutdownGracefully();
