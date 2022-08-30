@@ -27,7 +27,7 @@ import io.netty5.handler.codec.http.HttpHeaderNames;
 import io.netty5.handler.codec.http.HttpMethod;
 import io.netty5.handler.codec.http.HttpVersion;
 import io.netty5.microbench.util.AbstractMicrobenchmark;
-import io.netty5.util.CharsetUtil;
+import java.nio.charset.StandardCharsets;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Fork;
 import org.openjdk.jmh.annotations.Measurement;
@@ -75,12 +75,12 @@ public class HttpPostMultipartRequestDecoderBenchmark
                     "Content-Disposition: form-data; name=\"msg_id\"\n\n15200\n--" +
                     BOUNDARY +
                     "\nContent-Disposition: form-data; name=\"msg1\"; filename=\"file1.txt\"\n\n" +
-                    data).getBytes(CharsetUtil.UTF_8);
-            byte[] bodyPartBigBytes = data.getBytes(CharsetUtil.UTF_8);
+                    data).getBytes(StandardCharsets.UTF_8);
+            byte[] bodyPartBigBytes = data.getBytes(StandardCharsets.UTF_8);
             byte[] intermediaryBytes = ("\n--" + BOUNDARY +
                     "\nContent-Disposition: form-data; name=\"msg2\"; filename=\"file2.txt\"\n\n" +
-                    data).getBytes(CharsetUtil.UTF_8);
-            byte[] finalBigBytes = ("\n" + "--" + BOUNDARY + "--\n").getBytes(CharsetUtil.UTF_8);
+                    data).getBytes(StandardCharsets.UTF_8);
+            byte[] finalBigBytes = ("\n" + "--" + BOUNDARY + "--\n").getBytes(StandardCharsets.UTF_8);
 
             bodyStartBytesSupplier = BufferAllocator.onHeapUnpooled().constBufferSupplier(bodyStartBytes);
             finalBigBytesSupplier = BufferAllocator.onHeapUnpooled().constBufferSupplier(finalBigBytes);

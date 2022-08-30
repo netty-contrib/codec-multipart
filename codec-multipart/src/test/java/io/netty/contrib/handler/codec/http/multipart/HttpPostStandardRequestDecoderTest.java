@@ -23,7 +23,7 @@ import io.netty5.handler.codec.http.DefaultLastHttpContent;
 import io.netty5.handler.codec.http.HttpMethod;
 import io.netty5.handler.codec.http.HttpRequest;
 import io.netty5.handler.codec.http.HttpVersion;
-import io.netty5.util.CharsetUtil;
+import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -37,7 +37,7 @@ class HttpPostStandardRequestDecoderTest {
         HttpRequest request = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/upload");
 
         HttpPostStandardRequestDecoder decoder = new HttpPostStandardRequestDecoder(httpDiskDataFactory(), request);
-        Buffer buf = DefaultBufferAllocators.preferredAllocator().copyOf(requestBody.getBytes(CharsetUtil.UTF_8));
+        Buffer buf = DefaultBufferAllocators.preferredAllocator().copyOf(requestBody.getBytes(StandardCharsets.UTF_8));
         DefaultLastHttpContent httpContent = new DefaultLastHttpContent(buf);
         decoder.offer(httpContent);
 
@@ -54,7 +54,7 @@ class HttpPostStandardRequestDecoderTest {
         HttpRequest request = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/upload");
 
         HttpPostStandardRequestDecoder decoder = new HttpPostStandardRequestDecoder(httpDiskDataFactory(), request);
-        Buffer buf = DefaultBufferAllocators.preferredAllocator().copyOf(requestBody.getBytes(CharsetUtil.UTF_8));
+        Buffer buf = DefaultBufferAllocators.preferredAllocator().copyOf(requestBody.getBytes(StandardCharsets.UTF_8));
         DefaultLastHttpContent httpContent = new DefaultLastHttpContent(buf);
         decoder.offer(httpContent);
 
@@ -70,7 +70,7 @@ class HttpPostStandardRequestDecoderTest {
         HttpRequest request = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/upload");
 
         HttpPostStandardRequestDecoder decoder = new HttpPostStandardRequestDecoder(httpDiskDataFactory(), request);
-        Buffer buf = DefaultBufferAllocators.preferredAllocator().copyOf(requestBody.getBytes(CharsetUtil.UTF_8));
+        Buffer buf = DefaultBufferAllocators.preferredAllocator().copyOf(requestBody.getBytes(StandardCharsets.UTF_8));
         DefaultLastHttpContent httpContent = new DefaultLastHttpContent(buf);
         decoder.offer(httpContent);
 

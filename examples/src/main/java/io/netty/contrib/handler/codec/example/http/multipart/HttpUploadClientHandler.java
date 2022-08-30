@@ -15,7 +15,7 @@
  */
 package io.netty.contrib.handler.codec.example.http.multipart;
 
-import io.netty5.util.CharsetUtil;
+import java.nio.charset.StandardCharsets;
 import io.netty5.channel.ChannelHandlerContext;
 import io.netty5.channel.SimpleChannelInboundHandler;
 import io.netty5.handler.codec.http.HttpContent;
@@ -56,7 +56,7 @@ public class HttpUploadClientHandler extends SimpleChannelInboundHandler<HttpObj
         }
         if (msg instanceof HttpContent) {
             HttpContent chunk = (HttpContent) msg;
-            System.err.println(chunk.payload().toString(CharsetUtil.UTF_8));
+            System.err.println(chunk.payload().toString(StandardCharsets.UTF_8));
 
             if (chunk instanceof LastHttpContent) {
                 if (readingChunks) {
@@ -66,7 +66,7 @@ public class HttpUploadClientHandler extends SimpleChannelInboundHandler<HttpObj
                 }
                 readingChunks = false;
             } else {
-                System.err.println(chunk.payload().toString(CharsetUtil.UTF_8));
+                System.err.println(chunk.payload().toString(StandardCharsets.UTF_8));
             }
         }
     }

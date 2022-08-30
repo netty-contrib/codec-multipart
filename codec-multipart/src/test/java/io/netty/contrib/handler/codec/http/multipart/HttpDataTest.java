@@ -15,7 +15,7 @@
  */
 package io.netty.contrib.handler.codec.http.multipart;
 
-import io.netty5.util.CharsetUtil;
+import java.nio.charset.StandardCharsets;
 import io.netty5.buffer.api.Buffer;
 import io.netty5.buffer.api.DefaultBufferAllocators;
 import org.assertj.core.api.ThrowableAssert;
@@ -48,11 +48,11 @@ class HttpDataTest {
     static HttpData[] data() {
         return new HttpData[]{
                 new MemoryAttribute("test", 10),
-                new MemoryFileUpload("test", "", "text/plain", null, CharsetUtil.UTF_8, 10),
+                new MemoryFileUpload("test", "", "text/plain", null, StandardCharsets.UTF_8, 10),
                 new MixedAttribute("test", 10, -1),
-                new MixedFileUpload("test", "", "text/plain", null, CharsetUtil.UTF_8, 10, -1),
+                new MixedFileUpload("test", "", "text/plain", null, StandardCharsets.UTF_8, 10, -1),
                 new DiskAttribute("test", 10),
-                new DiskFileUpload("test", "", "text/plain", null, CharsetUtil.UTF_8, 10)
+                new DiskFileUpload("test", "", "text/plain", null, StandardCharsets.UTF_8, 10)
         };
     }
 
@@ -71,12 +71,12 @@ class HttpDataTest {
 
     @ParameterizedHttpDataTest
     void testCompletedFlagPreservedAfterRetainDuplicate(HttpData httpData) throws IOException {
-        httpData.addContent(Helpers.copiedBuffer("foo".getBytes(CharsetUtil.UTF_8)), false);
+        httpData.addContent(Helpers.copiedBuffer("foo".getBytes(StandardCharsets.UTF_8)), false);
         assertThat(httpData.isCompleted()).isFalse();
         HttpData duplicate = httpData.replace(httpData.content().split());
         assertThat(duplicate.isCompleted()).isFalse();
         duplicate.close();
-        httpData.addContent(Helpers.copiedBuffer("bar".getBytes(CharsetUtil.UTF_8)), true);
+        httpData.addContent(Helpers.copiedBuffer("bar".getBytes(StandardCharsets.UTF_8)), true);
         assertThat(httpData.isCompleted()).isTrue();
         duplicate = httpData.replace(httpData.content().split());
         assertThat(duplicate.isCompleted()).isTrue();
@@ -86,14 +86,14 @@ class HttpDataTest {
     @Test
     void testAddContentExceedsDefinedSizeDiskFileUpload() {
         doTestAddContentExceedsSize(
-                new DiskFileUpload("test", "", "application/json", null, CharsetUtil.UTF_8, 10),
+                new DiskFileUpload("test", "", "application/json", null, StandardCharsets.UTF_8, 10),
                 "Out of size: 64 > 10");
     }
 
     @Test
     void testAddContentExceedsDefinedSizeMemoryFileUpload() {
         doTestAddContentExceedsSize(
-                new MemoryFileUpload("test", "", "application/json", null, CharsetUtil.UTF_8, 10),
+                new MemoryFileUpload("test", "", "application/json", null, StandardCharsets.UTF_8, 10),
                 "Out of size: 64 > 10");
     }
 
@@ -138,7 +138,7 @@ class HttpDataTest {
 
     @Test
     void testMemoryFileUploadSend() throws IOException {
-        try (MemoryFileUpload mem = new MemoryFileUpload("test", "filename", "text/plain", "BINARY", CharsetUtil.UTF_8, 10)) {
+        try (MemoryFileUpload mem = new MemoryFileUpload("test", "filename", "text/plain", "BINARY", StandardCharsets.UTF_8, 10)) {
             mem.addContent(Helpers.copiedBuffer("content", Charset.defaultCharset()), false);
             mem.setMaxSize(100);
             assertThat(mem.isCompleted()).isFalse();
@@ -150,7 +150,7 @@ class HttpDataTest {
                 assertThat(memSend.getString()).isEqualTo("content");
                 assertThat(memSend.getHttpDataType()).isEqualTo(InterfaceHttpData.HttpDataType.FileUpload);
                 assertThat(memSend.isInMemory()).isTrue();
-                assertThat(memSend.getCharset()).isEqualTo(CharsetUtil.UTF_8);
+                assertThat(memSend.getCharset()).isEqualTo(StandardCharsets.UTF_8);
                 assertThat(memSend.definedLength()).isEqualTo(10);
                 assertThat(memSend.getMaxSize()).isEqualTo(100);
                 assertThat(memSend.getName()).isEqualTo("test");
@@ -165,7 +165,7 @@ class HttpDataTest {
 
     @Test
     void testMixedAttributeSend() throws IOException {
-        try (MixedAttribute data = new MixedAttribute("test", 10, 100, CharsetUtil.UTF_8, "/tmp", true)) {
+        try (MixedAttribute data = new MixedAttribute("test", 10, 100, StandardCharsets.UTF_8, "/tmp", true)) {
             data.addContent(Helpers.copiedBuffer("content", Charset.defaultCharset()), false);
             data.setMaxSize(1000);
             assertThat(data.isCompleted()).isFalse();
@@ -177,7 +177,7 @@ class HttpDataTest {
                 assertThat(send.getValue()).isEqualTo("content");
                 assertThat(send.getHttpDataType()).isEqualTo(InterfaceHttpData.HttpDataType.Attribute);
                 assertThat(send.isInMemory()).isTrue();
-                assertThat(send.getCharset()).isEqualTo(CharsetUtil.UTF_8);
+                assertThat(send.getCharset()).isEqualTo(StandardCharsets.UTF_8);
                 assertThat(send.definedLength()).isEqualTo(10);
                 assertThat(send.getMaxSize()).isEqualTo(1000);
                 assertThat(send.limitSize).isEqualTo(100);
@@ -191,7 +191,7 @@ class HttpDataTest {
     @Test
     void testMixedFileUploadSend() throws IOException {
         try (MixedFileUpload data = new MixedFileUpload("test", "filename", "text/plain", "BINARY",
-                CharsetUtil.UTF_8, 10, 100, "/tmp", true)) {
+                StandardCharsets.UTF_8, 10, 100, "/tmp", true)) {
             data.addContent(Helpers.copiedBuffer("content", Charset.defaultCharset()), false);
             data.setMaxSize(1000);
             assertThat(data.isCompleted()).isFalse();
@@ -242,7 +242,7 @@ class HttpDataTest {
     @Test
     void testDiskFileUploadSend() throws IOException {
 
-        try (DiskFileUpload data = new DiskFileUpload("test", "", "text/plain", null, CharsetUtil.UTF_8, 10, "/tmp", true)) {
+        try (DiskFileUpload data = new DiskFileUpload("test", "", "text/plain", null, StandardCharsets.UTF_8, 10, "/tmp", true)) {
             data.addContent(Helpers.copiedBuffer("content", Charset.defaultCharset()), false);
             data.setMaxSize(1000);
             assertThat(data.isCompleted()).isFalse();

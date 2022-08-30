@@ -18,7 +18,7 @@ package io.netty.contrib.handler.codec.http.multipart;
 import io.netty5.buffer.api.Buffer;
 import io.netty5.buffer.api.DefaultBufferAllocators;
 import io.netty5.buffer.api.Owned;
-import io.netty5.buffer.api.internal.Statics;
+import io.netty5.buffer.api.internal.InternalBufferUtils;
 import io.netty5.channel.ChannelException;
 import io.netty5.handler.codec.http.HttpConstants;
 import io.netty5.util.Send;
@@ -167,6 +167,6 @@ public class MemoryAttribute extends AbstractMemoryHttpData implements Attribute
 
     @Override
     protected RuntimeException createResourceClosedException() {
-        return Statics.bufferIsClosed(getBuffer());
+        return InternalBufferUtils.bufferIsClosed(getBuffer());
     }
 }

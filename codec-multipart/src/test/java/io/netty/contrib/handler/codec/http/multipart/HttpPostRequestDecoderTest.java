@@ -30,7 +30,7 @@ import io.netty5.handler.codec.http.HttpMethod;
 import io.netty5.handler.codec.http.HttpRequest;
 import io.netty5.handler.codec.http.HttpVersion;
 import io.netty5.handler.codec.http.LastHttpContent;
-import io.netty5.util.CharsetUtil;
+import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
 
@@ -88,7 +88,7 @@ public class HttpPostRequestDecoderTest {
             // Create decoder instance to test.
             final HttpPostRequestDecoder decoder = new HttpPostRequestDecoder(inMemoryFactory, req);
 
-            Buffer buf = Helpers.copiedBuffer(body, CharsetUtil.UTF_8);
+            Buffer buf = Helpers.copiedBuffer(body, StandardCharsets.UTF_8);
             decoder.offer(new DefaultHttpContent(buf));
             decoder.offer(new DefaultHttpContent(DefaultBufferAllocators.preferredAllocator().allocate(0)));
 
@@ -99,7 +99,7 @@ public class HttpPostRequestDecoderTest {
             MemoryFileUpload upload = (MemoryFileUpload) decoder.next();
 
             // Validate data has been parsed correctly as it was passed into request.
-            assertEquals(data, upload.getString(CharsetUtil.UTF_8),
+            assertEquals(data, upload.getString(StandardCharsets.UTF_8),
                     "Invalid decoded data [data=" + data.replaceAll("\r", "\\\\r") + ", upload=" + upload + ']');
             upload.close();
             decoder.destroy();
@@ -131,7 +131,7 @@ public class HttpPostRequestDecoderTest {
                             data + "\r\n" +
                             "--" + boundary + "--\r\n";
 
-            req.payload().writeBytes(body.getBytes(CharsetUtil.UTF_8));
+            req.payload().writeBytes(body.getBytes(StandardCharsets.UTF_8));
         }
         // Create decoder instance to test.
         final HttpPostRequestDecoder decoder = new HttpPostRequestDecoder(inMemoryFactory, req);
@@ -171,7 +171,7 @@ public class HttpPostRequestDecoderTest {
                             datas[i] + "\r\n" +
                             "--" + boundary + "--\r\n";
 
-            req.payload().writeBytes(body.getBytes(CharsetUtil.UTF_8));
+            req.payload().writeBytes(body.getBytes(StandardCharsets.UTF_8));
             // Create decoder instance to test.
             final HttpPostRequestDecoder decoder = new HttpPostRequestDecoder(inMemoryFactory, req);
             assertFalse(decoder.getBodyHttpDatas().isEmpty());
@@ -181,7 +181,7 @@ public class HttpPostRequestDecoderTest {
             Attribute attribute = (Attribute) httpdata;
             byte[] datar = attribute.get();
             assertNotNull(datar);
-            assertEquals(datas[i].getBytes(CharsetUtil.UTF_8).length, datar.length);
+            assertEquals(datas[i].getBytes(StandardCharsets.UTF_8).length, datar.length);
 
             decoder.destroy();
             req.close();
@@ -212,7 +212,7 @@ public class HttpPostRequestDecoderTest {
                             data + "\r\n" +
                             "--" + boundary + "--\r\n";
 
-            req.payload().writeBytes(body.getBytes(CharsetUtil.UTF_8));
+            req.payload().writeBytes(body.getBytes(StandardCharsets.UTF_8));
         }
         // Create decoder instance to test.
         final HttpPostRequestDecoder decoder = new HttpPostRequestDecoder(inMemoryFactory, req);
@@ -373,7 +373,7 @@ public class HttpPostRequestDecoderTest {
                         data + "\r\n" +
                         "--" + boundary + "--\r\n";
 
-        req.payload().writeBytes(body.getBytes(CharsetUtil.UTF_8.name()));
+        req.payload().writeBytes(body.getBytes(StandardCharsets.UTF_8.name()));
         // Create decoder instance to test.
         final HttpPostRequestDecoder decoder = new HttpPostRequestDecoder(inMemoryFactory, req);
         assertFalse(decoder.getBodyHttpDatas().isEmpty());
@@ -399,7 +399,7 @@ public class HttpPostRequestDecoderTest {
                         data + "\r\n" +
                         "--" + boundary + "--\r\n";
 
-        req.payload().writeBytes(body.getBytes(CharsetUtil.UTF_8.name()));
+        req.payload().writeBytes(body.getBytes(StandardCharsets.UTF_8.name()));
         // Create decoder instance to test.
         final HttpPostRequestDecoder decoder = new HttpPostRequestDecoder(inMemoryFactory, req);
         assertFalse(decoder.getBodyHttpDatas().isEmpty());
@@ -433,7 +433,7 @@ public class HttpPostRequestDecoderTest {
                             data + "\r\n" +
                             "--" + boundary + "--\r\n";
 
-            req.payload().writeBytes(body.getBytes(CharsetUtil.UTF_8));
+            req.payload().writeBytes(body.getBytes(StandardCharsets.UTF_8));
         }
         // Create decoder instance to test without any exception.
         final HttpPostRequestDecoder decoder = new HttpPostRequestDecoder(inMemoryFactory, req);
@@ -493,7 +493,7 @@ public class HttpPostRequestDecoderTest {
                         data + "\r\n" +
                         "--" + boundary + "--\r\n";
 
-        req.payload().writeBytes(body.getBytes(CharsetUtil.UTF_8));
+        req.payload().writeBytes(body.getBytes(StandardCharsets.UTF_8));
         // Create decoder instance to test.
         try {
             new HttpPostRequestDecoder(inMemoryFactory, req);
@@ -526,7 +526,7 @@ public class HttpPostRequestDecoderTest {
                         "\r\n" +
                         "--" + boundary + "--\r\n";
 
-        req.payload().writeBytes(body.getBytes(CharsetUtil.UTF_8));
+        req.payload().writeBytes(body.getBytes(StandardCharsets.UTF_8));
         // Create decoder instance to test.
         try {
             new HttpPostRequestDecoder(inMemoryFactory, req);
@@ -541,7 +541,7 @@ public class HttpPostRequestDecoderTest {
     @Test
     public void testFormEncodeIncorrect() throws Exception {
         LastHttpContent content = new DefaultLastHttpContent(
-                Helpers.copiedBuffer("project=netty&=netty&project=netty", CharsetUtil.US_ASCII));
+                Helpers.copiedBuffer("project=netty&=netty&project=netty", StandardCharsets.US_ASCII));
         DefaultHttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/");
         HttpPostRequestDecoder decoder = new HttpPostRequestDecoder(req);
         try {
@@ -708,7 +708,7 @@ public class HttpPostRequestDecoderTest {
                         data + "\r\n" +
                         "--" + boundary + "--\r\n";
 
-        req.payload().writeBytes(body.getBytes(CharsetUtil.UTF_8.name()));
+        req.payload().writeBytes(body.getBytes(StandardCharsets.UTF_8.name()));
         // Create decoder instance to test.
         final HttpPostRequestDecoder decoder = new HttpPostRequestDecoder(inMemoryFactory, req);
         assertFalse(decoder.getBodyHttpDatas().isEmpty());
@@ -743,7 +743,7 @@ public class HttpPostRequestDecoderTest {
         HttpPostRequestDecoder decoder =
                 new HttpPostRequestDecoder(new DefaultHttpDataFactory(DefaultHttpDataFactory.MINSIZE),
                         req,
-                        CharsetUtil.UTF_8);
+                        StandardCharsets.UTF_8);
 
         assertTrue(decoder.isMultipart());
         assertFalse(decoder.getBodyHttpDatas().isEmpty());
@@ -763,7 +763,7 @@ public class HttpPostRequestDecoderTest {
     @Test
     public void testNotLeak() {
         final FullHttpRequest request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/",
-                Helpers.copiedBuffer("a=1&=2&b=3", CharsetUtil.US_ASCII));
+                Helpers.copiedBuffer("a=1&=2&b=3", StandardCharsets.US_ASCII));
         try {
             assertThrows(HttpPostRequestDecoder.ErrorDataDecoderException.class, new Executable() {
                 @Override
@@ -797,7 +797,7 @@ public class HttpPostRequestDecoderTest {
     }
 
     private static void testNotLeakWhenWrapIllegalArgumentException(Buffer buf) {
-        buf.writeCharSequence("a=b&foo=%22bar%22&==", CharsetUtil.US_ASCII);
+        buf.writeCharSequence("a=b&foo=%22bar%22&==", StandardCharsets.US_ASCII);
         FullHttpRequest request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/", buf);
         try {
             new HttpPostStandardRequestDecoder(request).destroy();
@@ -1002,7 +1002,7 @@ public class HttpPostRequestDecoderTest {
         byte[] bodyBytes = ("aaaa/bbbb=aaaaaaaaaa" +
                 "aaaaaaaaaaaaaaaaaaaaaaaaaa" +
                 "aaaaaaaaaaaaaaaaaaaaaaaaaa" +
-                "aaaaaaaaaaaaaaaaaaa").getBytes(CharsetUtil.US_ASCII);
+                "aaaaaaaaaaaaaaaaaaa").getBytes(StandardCharsets.US_ASCII);
         Buffer content = DefaultBufferAllocators.offHeapAllocator().allocate(bodyBytes.length);
         content.writeBytes(bodyBytes);
 

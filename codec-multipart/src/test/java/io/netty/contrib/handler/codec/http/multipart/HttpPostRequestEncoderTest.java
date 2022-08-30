@@ -17,7 +17,7 @@ package io.netty.contrib.handler.codec.http.multipart;
 
 import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestEncoder.EncoderMode;
 import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestEncoder.ErrorDataEncoderException;
-import io.netty5.util.CharsetUtil;
+import java.nio.charset.StandardCharsets;
 import io.netty5.util.internal.StringUtil;
 import io.netty5.buffer.api.Buffer;
 import io.netty5.buffer.api.BufferAllocator;
@@ -246,7 +246,7 @@ public class HttpPostRequestEncoderTest {
         DefaultHttpDataFactory factory = new DefaultHttpDataFactory(DefaultHttpDataFactory.MINSIZE);
 
         HttpPostRequestEncoder encoder = new HttpPostRequestEncoder(factory,
-                request, true, CharsetUtil.UTF_8, EncoderMode.HTML5);
+                request, true, StandardCharsets.UTF_8, EncoderMode.HTML5);
         File file1 = new File(getClass().getResource("/file-01.txt").toURI());
         File file2 = new File(getClass().getResource("/file-02.txt").toURI());
         encoder.addBodyAttribute("foo", "bar");
@@ -290,7 +290,7 @@ public class HttpPostRequestEncoderTest {
         DefaultHttpDataFactory factory = new DefaultHttpDataFactory(DefaultHttpDataFactory.MINSIZE);
 
         HttpPostRequestEncoder encoder = new HttpPostRequestEncoder(factory,
-                request, true, CharsetUtil.UTF_8, EncoderMode.HTML5);
+                request, true, StandardCharsets.UTF_8, EncoderMode.HTML5);
         File file1 = new File(getClass().getResource("/file-01.txt").toURI());
         encoder.addBodyAttribute("foo", "bar");
         encoder.addBodyFileUpload("quux", file1, "text/plain", false);
@@ -366,7 +366,7 @@ public class HttpPostRequestEncoderTest {
         }
 
         Buffer content = DefaultBufferAllocators.onHeapAllocator().compose(Stream.of(buffers).map(b -> b.send()).collect(Collectors.toList()));
-        String contentStr = content.toString(CharsetUtil.UTF_8);
+        String contentStr = content.toString(StandardCharsets.UTF_8);
         content.close();
         return contentStr;
     }
@@ -380,13 +380,13 @@ public class HttpPostRequestEncoderTest {
                 HttpConstants.DEFAULT_CHARSET, HttpPostRequestEncoder.EncoderMode.RFC1738);
 
         MemoryFileUpload first = new MemoryFileUpload("resources", "", "application/json", null,
-                CharsetUtil.UTF_8, -1);
+                StandardCharsets.UTF_8, -1);
         first.setMaxSize(-1);
         first.setContent(new ByteArrayInputStream(new byte[7955]));
         encoder.addBodyHttpData(first);
 
         MemoryFileUpload second = new MemoryFileUpload("resources2", "", "application/json", null,
-                CharsetUtil.UTF_8, -1);
+                StandardCharsets.UTF_8, -1);
         second.setMaxSize(-1);
         second.setContent(new ByteArrayInputStream(new byte[7928]));
         encoder.addBodyHttpData(second);

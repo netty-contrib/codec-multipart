@@ -25,7 +25,7 @@ import java.nio.charset.Charset;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static io.netty5.util.CharsetUtil.US_ASCII;
+import static java.nio.charset.StandardCharsets.US_ASCII;
 
 /**
  * Various helper methods used by multipart implementation classes.
