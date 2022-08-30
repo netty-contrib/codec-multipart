@@ -15,7 +15,7 @@
  */
 package io.netty.contrib.handler.codec.http.multipart;
 
-import io.netty5.util.CharsetUtil;
+import java.nio.charset.StandardCharsets;
 import io.netty5.buffer.api.Buffer;
 import io.netty5.buffer.api.DefaultBufferAllocators;
 import io.netty5.handler.codec.http.DefaultFullHttpRequest;
@@ -75,7 +75,7 @@ public class HttpPostMultiPartRequestDecoderTest {
                         "--861fbeab-cd20-470c-9609-d40a0f704466--\n";
 
         FullHttpRequest req = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/upload",
-                Helpers.copiedBuffer(content, CharsetUtil.US_ASCII));
+                Helpers.copiedBuffer(content, StandardCharsets.US_ASCII));
         req.headers().set("content-type", "multipart/form-data; boundary=861fbeab-cd20-470c-9609-d40a0f704466");
         req.headers().set("content-length", content.length());
 
@@ -93,7 +93,7 @@ public class HttpPostMultiPartRequestDecoderTest {
     public void testDelimiterExceedLeftSpaceInCurrentBuffer() throws IOException {
         String delimiter = "--861fbeab-cd20-470c-9609-d40a0f704466";
         String suffix = '\n' + delimiter + "--\n";
-        byte[] bsuffix = suffix.getBytes(CharsetUtil.UTF_8);
+        byte[] bsuffix = suffix.getBytes(StandardCharsets.UTF_8);
         int partOfDelimiter = bsuffix.length / 2;
         int bytesLastChunk = 355 - partOfDelimiter; // to try to have an out of bound since content is > delimiter
         byte[] bsuffix1 = Arrays.copyOf(bsuffix, partOfDelimiter);
@@ -109,7 +109,7 @@ public class HttpPostMultiPartRequestDecoderTest {
         // Factory using Memory mode
         HttpDataFactory factory = new DefaultHttpDataFactory(false);
         HttpPostMultipartRequestDecoder decoder = new HttpPostMultipartRequestDecoder(factory, request);
-        Buffer buf = Helpers.copiedBuffer(prefix.getBytes(CharsetUtil.UTF_8));
+        Buffer buf = Helpers.copiedBuffer(prefix.getBytes(StandardCharsets.UTF_8));
         DefaultHttpContent httpContent = new DefaultHttpContent(buf);
         decoder.offer(httpContent);
         assertNotNull((HttpData) decoder.currentPartialHttpData());
@@ -163,7 +163,7 @@ public class HttpPostMultiPartRequestDecoderTest {
         request.headers().set("content-length", prefix.length() + fileSize + suffix.length());
 
         HttpPostMultipartRequestDecoder decoder = new HttpPostMultipartRequestDecoder(factory, request);
-        Buffer buf = Helpers.copiedBuffer(prefix.getBytes(CharsetUtil.UTF_8));
+        Buffer buf = Helpers.copiedBuffer(prefix.getBytes(StandardCharsets.UTF_8));
         DefaultHttpContent httpContent = new DefaultHttpContent(buf);
         decoder.offer(httpContent);
         assertNotNull(((HttpData) decoder.currentPartialHttpData()).getBuffer());
@@ -182,9 +182,9 @@ public class HttpPostMultiPartRequestDecoderTest {
             httpContent.close();
         }
 
-        byte[] bsuffix1 = suffix1.getBytes(CharsetUtil.UTF_8);
+        byte[] bsuffix1 = suffix1.getBytes(StandardCharsets.UTF_8);
         byte[] previousLastbody = new byte[bytesLastChunk - bsuffix1.length];
-        byte[] bdelimiter = delimiter.getBytes(CharsetUtil.UTF_8);
+        byte[] bdelimiter = delimiter.getBytes(StandardCharsets.UTF_8);
         byte[] lastbody = new byte[2 * bsuffix1.length];
         Arrays.fill(previousLastbody, (byte) 1);
         previousLastbody[0] = HttpConstants.CR;
@@ -210,7 +210,7 @@ public class HttpPostMultiPartRequestDecoderTest {
         decoder.offer(httpContent);
         assertNotNull(((HttpData) decoder.currentPartialHttpData()).getBuffer());
         httpContent.close();
-        content2 = Helpers.copiedBuffer(suffix2.getBytes(CharsetUtil.UTF_8));
+        content2 = Helpers.copiedBuffer(suffix2.getBytes(StandardCharsets.UTF_8));
         httpContent = new DefaultHttpContent(content2);
         decoder.offer(httpContent);
         assertNull(decoder.currentPartialHttpData());
@@ -283,7 +283,7 @@ public class HttpPostMultiPartRequestDecoderTest {
                 "\r\n\u0001\u0002\u0003\u0004\r\n--861fbeab-cd20-470c-9609-d40a0f704466--\r\n\",\n";
 
         FullHttpRequest req = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/upload",
-                Helpers.copiedBuffer(content, CharsetUtil.US_ASCII));
+                Helpers.copiedBuffer(content, StandardCharsets.US_ASCII));
         req.headers().set("content-type", "multipart/form-data; boundary=861fbeab-cd20-470c-9609-d40a0f704466");
         req.headers().set("content-length", content.length());
 
@@ -315,13 +315,13 @@ public class HttpPostMultiPartRequestDecoderTest {
         HttpPostMultipartRequestDecoder decoder = new HttpPostMultipartRequestDecoder(factory, request);
         decoder.setDiscardThreshold(maxMemory);
         for (int rank = 0; rank < nbItems; rank++) {
-            byte[] bp1 = prefix1.getBytes(CharsetUtil.UTF_8);
-            byte[] bp2 = prefix2.getBytes(CharsetUtil.UTF_8);
+            byte[] bp1 = prefix1.getBytes(StandardCharsets.UTF_8);
+            byte[] bp2 = prefix2.getBytes(StandardCharsets.UTF_8);
             byte[] prefix = new byte[bp1.length + 2 + bp2.length];
             for (int i = 0; i < bp1.length; i++) {
                 prefix[i] = bp1[i];
             }
-            byte[] brank = Integer.toString(10 + rank).getBytes(CharsetUtil.UTF_8);
+            byte[] brank = Integer.toString(10 + rank).getBytes(StandardCharsets.UTF_8);
             prefix[bp1.length] = brank[0];
             prefix[bp1.length + 1] = brank[1];
             for (int i = 0; i < bp2.length; i++) {
@@ -338,7 +338,7 @@ public class HttpPostMultiPartRequestDecoderTest {
             decoder.offer(httpContent);
             httpContent.close();
         }
-        byte[] lastbody = suffix.getBytes(CharsetUtil.UTF_8);
+        byte[] lastbody = suffix.getBytes(StandardCharsets.UTF_8);
         Buffer content2 = Helpers.copiedBuffer(lastbody, 0, lastbody.length);
         DefaultHttpContent httpContent = new DefaultHttpContent(content2);
         decoder.offer(httpContent);
@@ -379,7 +379,7 @@ public class HttpPostMultiPartRequestDecoderTest {
                         "\n";
 
         String suffix = "--861fbeab-cd20-470c-9609-d40a0f704466--";
-        byte[] bsuffix = suffix.getBytes(CharsetUtil.UTF_8);
+        byte[] bsuffix = suffix.getBytes(StandardCharsets.UTF_8);
         byte[] bsuffixReal = new byte[bsuffix.length + 2];
         for (int i = 0; i < bsuffix.length; i++) {
             bsuffixReal[1 + i] = bsuffix[i];
@@ -394,7 +394,7 @@ public class HttpPostMultiPartRequestDecoderTest {
         request.headers().set("content-length", prefix.length() + fileSize + suffix.length() + 4);
 
         HttpPostMultipartRequestDecoder decoder = new HttpPostMultipartRequestDecoder(factory, request);
-        Buffer buf = Helpers.copiedBuffer(prefix.getBytes(CharsetUtil.UTF_8));
+        Buffer buf = Helpers.copiedBuffer(prefix.getBytes(StandardCharsets.UTF_8));
         DefaultHttpContent httpContent = new DefaultHttpContent(buf);
         decoder.offer(httpContent);
         assertNotNull(((HttpData) decoder.currentPartialHttpData()).getBuffer());

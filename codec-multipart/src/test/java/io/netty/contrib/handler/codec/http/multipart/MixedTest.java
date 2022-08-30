@@ -17,7 +17,7 @@ package io.netty.contrib.handler.codec.http.multipart;
 
 import io.netty5.buffer.api.Buffer;
 import io.netty5.buffer.api.DefaultBufferAllocators;
-import io.netty5.util.CharsetUtil;
+import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
@@ -44,7 +44,7 @@ public class MixedTest {
 
     @Test
     public void mixedFileUploadClosed() throws IOException {
-        MixedFileUpload upload = new MixedFileUpload("foo", "foo", "foo", "UTF-8", CharsetUtil.UTF_8, 0, 100);
+        MixedFileUpload upload = new MixedFileUpload("foo", "foo", "foo", "UTF-8", StandardCharsets.UTF_8, 0, 100);
         byte[] bytes1 = new byte[90];
         Buffer buf1 = DefaultBufferAllocators.onHeapAllocator().allocate(bytes1.length);
         buf1.writeBytes(bytes1);

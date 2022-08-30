@@ -25,7 +25,7 @@ import io.netty.contrib.handler.codec.http.multipart.HttpDataFactory;
 import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestDecoder;
 import io.netty.contrib.handler.codec.http.multipart.InterfaceHttpData;
 import io.netty.contrib.handler.codec.http.multipart.InterfaceHttpData.HttpDataType;
-import io.netty5.util.CharsetUtil;
+import java.nio.charset.StandardCharsets;
 import io.netty5.buffer.api.Buffer;
 import io.netty5.channel.Channel;
 import io.netty5.channel.ChannelFutureListeners;
@@ -307,7 +307,7 @@ public class HttpUploadServerHandler extends SimpleChannelInboundHandler<HttpObj
     private void writeResponse(ChannelHandlerContext ctx, boolean forceClose) {
         Channel channel = ctx.channel();
         // Convert the response content to a ChannelBuffer.
-        Buffer buf = channel.bufferAllocator().copyOf(responseContent.toString(), CharsetUtil.UTF_8);
+        Buffer buf = channel.bufferAllocator().copyOf(responseContent.toString(), StandardCharsets.UTF_8);
         responseContent.setLength(0);
 
         // Decide whether to close the connection or not.
@@ -418,7 +418,7 @@ public class HttpUploadServerHandler extends SimpleChannelInboundHandler<HttpObj
         responseContent.append("</body>");
         responseContent.append("</html>");
 
-        Buffer buf = ctx.bufferAllocator().copyOf(responseContent.toString(), CharsetUtil.UTF_8);
+        Buffer buf = ctx.bufferAllocator().copyOf(responseContent.toString(), StandardCharsets.UTF_8);
         // Build the response object.
         FullHttpResponse response = new DefaultFullHttpResponse(
                 HttpVersion.HTTP_1_1, HttpResponseStatus.OK, buf);

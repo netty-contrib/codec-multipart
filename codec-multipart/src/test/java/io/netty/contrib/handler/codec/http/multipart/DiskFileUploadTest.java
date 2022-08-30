@@ -16,7 +16,7 @@
 package io.netty.contrib.handler.codec.http.multipart;
 
 import io.netty5.buffer.BufferInputStream;
-import io.netty5.util.CharsetUtil;
+import java.nio.charset.StandardCharsets;
 import io.netty5.util.internal.PlatformDependent;
 import io.netty5.buffer.BufferUtil;
 import io.netty5.buffer.api.Buffer;
@@ -140,7 +140,7 @@ public class DiskFileUploadTest {
     public void testSetContentFromByteBuf() throws Exception {
         try (DiskFileUpload f1 = new DiskFileUpload("file2", "file2", "application/json", null, null, 0)) {
             String json = "{\"hello\":\"world\"}";
-            byte[] bytes = json.getBytes(CharsetUtil.UTF_8);
+            byte[] bytes = json.getBytes(StandardCharsets.UTF_8);
             f1.setContent(Helpers.copiedBuffer(bytes));
             assertEquals(json, f1.getString());
             assertArrayEquals(bytes, f1.get());
@@ -154,7 +154,7 @@ public class DiskFileUploadTest {
     public void testSetContentFromInputStream() throws Exception {
         String json = "{\"hello\":\"world\",\"foo\":\"bar\"}";
         try (DiskFileUpload f1 = new DiskFileUpload("file3", "file3", "application/json", null, null, 0)) {
-            byte[] bytes = json.getBytes(CharsetUtil.UTF_8);
+            byte[] bytes = json.getBytes(StandardCharsets.UTF_8);
 
             try (Buffer buf = Helpers.copiedBuffer(bytes);
                  InputStream is = new BufferInputStream(buf.send())) {
@@ -223,7 +223,7 @@ public class DiskFileUploadTest {
     @Test
     public void testDelete() throws Exception {
         String json = "{\"foo\":\"bar\"}";
-        byte[] bytes = json.getBytes(CharsetUtil.UTF_8);
+        byte[] bytes = json.getBytes(StandardCharsets.UTF_8);
         File tmpFile = null;
         DiskFileUpload f1 = new DiskFileUpload("file4", "file4", "application/json", null, null, 0);
         try (f1) {
