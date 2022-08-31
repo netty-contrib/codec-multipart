@@ -219,7 +219,7 @@ public class HttpPostRequestDecoder implements InterfaceHttpPostRequestDecoder {
     }
 
     @Override
-    public InterfaceHttpPostRequestDecoder offer(HttpContent content) {
+    public InterfaceHttpPostRequestDecoder offer(HttpContent<?> content) {
         return decoder.offer(content);
     }
 

@@ -55,7 +55,7 @@ public class HttpUploadClientHandler extends SimpleChannelInboundHandler<HttpObj
             }
         }
         if (msg instanceof HttpContent) {
-            HttpContent chunk = (HttpContent) msg;
+            HttpContent<?> chunk = (HttpContent<?>) msg;
             System.err.println(chunk.payload().toString(StandardCharsets.UTF_8));
 
             if (chunk instanceof LastHttpContent) {

@@ -141,10 +141,10 @@ public class MemoryFileUpload extends AbstractMemoryHttpData implements FileUplo
 
     @Override
     protected Owned<AbstractHttpData> prepareSend() {
-        Send send = getBuffer().send();
+        Send<Buffer> send = getBuffer().send();
 
         return drop -> {
-            Buffer received = (Buffer) send.receive();
+            Buffer received = send.receive();
             MemoryFileUpload upload = new MemoryFileUpload(
                     getName(), getFilename(), getContentType(), getContentTransferEncoding(), getCharset(), size);
             upload.setContentInternal(received, received.readableBytes());
