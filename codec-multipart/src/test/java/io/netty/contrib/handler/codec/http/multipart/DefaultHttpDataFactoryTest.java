@@ -29,7 +29,7 @@ import static io.netty5.handler.codec.http.HttpMethod.POST;
 import static io.netty5.handler.codec.http.HttpVersion.HTTP_1_1;
 import static org.junit.jupiter.api.Assertions.*;
 
-public class DefaultHttpDataFactoryTest {
+public class DefaultHttpDataFactoryTest extends AbstractTest {
     // req1 equals req2
     private static final HttpRequest req1 = new DefaultHttpRequest(HTTP_1_1, POST, "/form");
     private static final HttpRequest req2 = new DefaultHttpRequest(HTTP_1_1, POST, "/form");

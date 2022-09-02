@@ -32,7 +32,7 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * Test DeleteFileOnExitHook
  */
-public class DeleteFileOnExitHookTest {
+public class DeleteFileOnExitHookTest extends AbstractTest {
     private static final HttpRequest REQUEST = new DefaultHttpRequest(HTTP_1_1, POST, "/form");
     private static final String HOOK_TEST_TMP = "target/DeleteFileOnExitHookTest/tmp";
     private FileUpload fu;

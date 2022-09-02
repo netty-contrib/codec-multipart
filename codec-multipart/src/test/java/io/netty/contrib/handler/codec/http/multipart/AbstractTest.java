@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 The Netty Project
+ * Copyright 20202 The Netty Project
  *
  * The Netty Project licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -15,16 +15,20 @@
  */
 package io.netty.contrib.handler.codec.http.multipart;
 
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.AfterAll;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import java.util.stream.IntStream;
 
-public class MemoryFileUploadTest extends AbstractTest {
-    @Test
-    public final void testMemoryFileUploadEquals() {
-        try (MemoryFileUpload f1 =
-                new MemoryFileUpload("m1", "m1", "application/json", null, null, 100)) {
-            assertEquals(f1, f1);
+/**
+ * Abstract base class extended by all other tests.
+ */
+public class AbstractTest {
+
+    @AfterAll
+    static void afterAll() {
+        if (Boolean.getBoolean("io.netty5.buffer.leakDetectionEnabled")) {
+            IntStream.range(0, 10).forEach(i -> System.gc());
         }
     }
+
 }

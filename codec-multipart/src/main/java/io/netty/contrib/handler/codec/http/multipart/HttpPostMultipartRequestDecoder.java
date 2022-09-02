@@ -21,6 +21,7 @@ import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestDecoder.Erro
 import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestDecoder.MultiPartStatus;
 import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestDecoder.NotEnoughDataDecoderException;
 import java.nio.charset.StandardCharsets;
+import io.netty5.util.AsciiString;
 import io.netty5.util.internal.PlatformDependent;
 import io.netty5.util.internal.StringUtil;
 import io.netty5.buffer.Buffer;
@@ -559,7 +560,7 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
             }
             Attribute finalAttribute = currentAttribute;
             currentAttribute = null;
-            currentFieldAttributes = null;
+            clearCurrentFieldAttributes();
             // ready to load the next one
             currentStatus = MultiPartStatus.HEADERDELIMITER;
             return finalAttribute;
@@ -651,7 +652,7 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
             if (currentStatus == MultiPartStatus.HEADERDELIMITER) {
                 // MIXEDCLOSEDELIMITER
                 // end of the Mixed part
-                currentFieldAttributes = null;
+                clearCurrentFieldAttributes();
                 return decodeMultipart(MultiPartStatus.HEADERDELIMITER);
             }
             return null;
@@ -669,6 +670,7 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
     private InterfaceHttpData findMultipartDisposition() {
         int readerIndex = undecodedChunk.readerOffset();
         if (currentStatus == MultiPartStatus.DISPOSITION) {
+            cleanMixedAttributes();
             currentFieldAttributes = new TreeMap<CharSequence, Attribute>(CaseIgnoringComparator.INSTANCE);
         }
         // read many lines until empty line with newline found! Store all data
@@ -702,7 +704,7 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
                         } catch (IllegalArgumentException e) {
                             throw new ErrorDataDecoderException(e);
                         }
-                        currentFieldAttributes.put(attribute.getName(), attribute);
+                        putCurrentFieldAttribute(attribute.getName(), attribute);
                     }
                 }
             } else if (HttpHeaderNames.CONTENT_TRANSFER_ENCODING.contentEqualsIgnoreCase(contents[0])) {
@@ -716,7 +718,7 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
                     throw new ErrorDataDecoderException(e);
                 }
 
-                currentFieldAttributes.put(HttpHeaderNames.CONTENT_TRANSFER_ENCODING, attribute);
+                putCurrentFieldAttribute(HttpHeaderNames.CONTENT_TRANSFER_ENCODING, attribute);
             } else if (HttpHeaderNames.CONTENT_LENGTH.contentEqualsIgnoreCase(contents[0])) {
                 Attribute attribute;
                 try {
@@ -728,7 +730,7 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
                     throw new ErrorDataDecoderException(e);
                 }
 
-                currentFieldAttributes.put(HttpHeaderNames.CONTENT_LENGTH, attribute);
+                putCurrentFieldAttribute(HttpHeaderNames.CONTENT_LENGTH, attribute);
             } else if (HttpHeaderNames.CONTENT_TYPE.contentEqualsIgnoreCase(contents[0])) {
                 // Take care of possible "multipart/mixed"
                 if (HttpHeaderValues.MULTIPART_MIXED.contentEqualsIgnoreCase(contents[1])) {
@@ -753,7 +755,7 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
                             } catch (IllegalArgumentException e) {
                                 throw new ErrorDataDecoderException(e);
                             }
-                            currentFieldAttributes.put(HttpHeaderValues.CHARSET, attribute);
+                            putCurrentFieldAttribute(HttpHeaderValues.CHARSET, attribute);
                         } else if (contents[i].contains("=")) {
                             String name = StringUtil.substringBefore(contents[i], '=');
                             String values = StringUtil.substringAfter(contents[i], '=');
@@ -765,7 +767,7 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
                             } catch (IllegalArgumentException e) {
                                 throw new ErrorDataDecoderException(e);
                             }
-                            currentFieldAttributes.put(name, attribute);
+                            putCurrentFieldAttribute(name, attribute);
                         } else {
                             Attribute attribute;
                             try {
@@ -776,7 +778,7 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
                             } catch (IllegalArgumentException e) {
                                 throw new ErrorDataDecoderException(e);
                             }
-                            currentFieldAttributes.put(attribute.getName(), attribute);
+                            putCurrentFieldAttribute(attribute.getName(), attribute);
                         }
                     }
                 }
@@ -807,6 +809,15 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
                 throw new ErrorDataDecoderException("Filename not found");
             }
         }
+    }
+
+    private void putCurrentFieldAttribute(CharSequence name, Attribute attribute) {
+        currentFieldAttributes.compute(attribute.getName(), (key, old) -> {
+            if (old != null) {
+                old.close();
+            }
+            return attribute;
+        });
     }
 
     private static final String FILENAME_ENCODED = HttpHeaderValues.FILENAME.toString() + '*';
@@ -926,7 +937,7 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
             // ready to load the next one
             if (currentStatus == MultiPartStatus.FILEUPLOAD) {
                 currentStatus = MultiPartStatus.HEADERDELIMITER;
-                currentFieldAttributes = null;
+               clearCurrentFieldAttributes();
             } else {
                 currentStatus = MultiPartStatus.MIXEDDELIMITER;
                 cleanMixedAttributes();
@@ -965,6 +976,8 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
             }
             undecodedChunk = null;
         }
+
+        clearCurrentFieldAttributes();
     }
 
     /**
@@ -992,11 +1005,35 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
      * Mixed mode
      */
     private void cleanMixedAttributes() {
-        currentFieldAttributes.remove(HttpHeaderValues.CHARSET);
-        currentFieldAttributes.remove(HttpHeaderNames.CONTENT_LENGTH);
-        currentFieldAttributes.remove(HttpHeaderNames.CONTENT_TRANSFER_ENCODING);
-        currentFieldAttributes.remove(HttpHeaderNames.CONTENT_TYPE);
-        currentFieldAttributes.remove(HttpHeaderValues.FILENAME);
+        if (currentFieldAttributes != null) {
+            cleanMixedAttributes(HttpHeaderValues.CHARSET);
+            cleanMixedAttributes(HttpHeaderNames.CONTENT_LENGTH);
+            cleanMixedAttributes(HttpHeaderNames.CONTENT_TRANSFER_ENCODING);
+            cleanMixedAttributes(HttpHeaderNames.CONTENT_TYPE);
+            cleanMixedAttributes(HttpHeaderValues.FILENAME);
+        }
+    }
+
+    private void cleanMixedAttributes(AsciiString attributeKey) {
+        currentFieldAttributes.computeIfPresent(attributeKey, (charSequence, attribute) -> {
+            attribute.close();
+            return null;
+        });
+    }
+
+    /**
+     * Clear all attributes from the currentFieldAttributes, and reset the map to null.
+     * Make sure any attributes are properly closed.
+     */
+    private void clearCurrentFieldAttributes() {
+        if (currentFieldAttributes != null) {
+            currentFieldAttributes.forEach((charSequence, attribute) -> {
+                if (attribute.isAccessible()) {
+                    attribute.close();
+                }
+            });
+            currentFieldAttributes = null;
+        }
     }
 
     /**

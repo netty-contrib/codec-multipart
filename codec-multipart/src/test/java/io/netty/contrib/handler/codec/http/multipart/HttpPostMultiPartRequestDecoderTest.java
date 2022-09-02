@@ -21,6 +21,7 @@ import io.netty5.buffer.DefaultBufferAllocators;
 import io.netty5.handler.codec.http.DefaultFullHttpRequest;
 import io.netty5.handler.codec.http.DefaultHttpContent;
 import io.netty5.handler.codec.http.DefaultHttpRequest;
+import io.netty5.handler.codec.http.DefaultLastHttpContent;
 import io.netty5.handler.codec.http.FullHttpRequest;
 import io.netty5.handler.codec.http.HttpConstants;
 import io.netty5.handler.codec.http.HttpHeaderNames;
@@ -30,11 +31,13 @@ import io.netty5.handler.codec.http.HttpVersion;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class HttpPostMultiPartRequestDecoderTest {
+public class HttpPostMultiPartRequestDecoderTest extends AbstractTest {
 
     @Test
     public void testDecodeFullHttpRequestWithNoContentTypeHeader() {
@@ -130,11 +133,12 @@ public class HttpPostMultiPartRequestDecoderTest {
         decoder.offer(httpContent);
         assertNull((HttpData) decoder.currentPartialHttpData());
         httpContent.close();
-        decoder.offer(Helpers.defaultLastHttpContent());
-        FileUpload data = (FileUpload) decoder.getBodyHttpDatas().get(0);
-        assertEquals(data.length(), bytesLastChunk);
-        assertEquals(true, data.isInMemory());
-
+        try(DefaultLastHttpContent last = Helpers.defaultLastHttpContent()) {
+            decoder.offer(last);
+            FileUpload data = (FileUpload) decoder.getBodyHttpDatas().get(0);
+            assertEquals(data.length(), bytesLastChunk);
+            assertEquals(true, data.isInMemory());
+        }
         factory.cleanAllHttpData();
         decoder.destroy();
     }
@@ -145,7 +149,7 @@ public class HttpPostMultiPartRequestDecoderTest {
         int bytesPerChunk = 100000;
         int bytesLastChunk = 10000;
         int fileSize = bytesPerChunk * nbChunks + bytesLastChunk; // set Xmx to a number lower than this and it crashes
-
+        List<Buffer> partialBuffers = new ArrayList<>();
         String delimiter = "--861fbeab-cd20-470c-9609-d40a0f704466";
         String prefix = delimiter + "\n" +
                 "Content-Disposition: form-data; name=\"image\"; filename=\"guangzhou.jpeg\"\n" +
@@ -166,7 +170,9 @@ public class HttpPostMultiPartRequestDecoderTest {
         Buffer buf = Helpers.copiedBuffer(prefix.getBytes(StandardCharsets.UTF_8));
         DefaultHttpContent httpContent = new DefaultHttpContent(buf);
         decoder.offer(httpContent);
-        assertNotNull(((HttpData) decoder.currentPartialHttpData()).getBuffer());
+        Buffer partial = ((HttpData) decoder.currentPartialHttpData()).getBuffer();
+        assertNotNull(partial);
+        partialBuffers.add(partial);
         httpContent.close();
 
         byte[] body = new byte[bytesPerChunk];
@@ -178,7 +184,9 @@ public class HttpPostMultiPartRequestDecoderTest {
             Buffer content = Helpers.copiedBuffer(body, 0, bytesPerChunk);
             httpContent = new DefaultHttpContent(content);
             decoder.offer(httpContent); // **OutOfMemory previously here**
-            assertNotNull(((HttpData) decoder.currentPartialHttpData()).getBuffer());
+            partial = ((HttpData) decoder.currentPartialHttpData()).getBuffer();
+            assertNotNull(partial);
+            partialBuffers.add(partial);
             httpContent.close();
         }
 
@@ -203,20 +211,25 @@ public class HttpPostMultiPartRequestDecoderTest {
         Buffer content2 = Helpers.copiedBuffer(previousLastbody, 0, previousLastbody.length);
         httpContent = new DefaultHttpContent(content2);
         decoder.offer(httpContent);
-        assertNotNull(((HttpData) decoder.currentPartialHttpData()).getBuffer());
+        partial = ((HttpData) decoder.currentPartialHttpData()).getBuffer();
+        assertNotNull(partial);
+        partialBuffers.add(partial);
         httpContent.close();
         content2 = Helpers.copiedBuffer(lastbody, 0, lastbody.length);
         httpContent = new DefaultHttpContent(content2);
         decoder.offer(httpContent);
-        assertNotNull(((HttpData) decoder.currentPartialHttpData()).getBuffer());
+        partial = ((HttpData) decoder.currentPartialHttpData()).getBuffer();
+        assertNotNull(partial);
+        partialBuffers.add(partial);
         httpContent.close();
         content2 = Helpers.copiedBuffer(suffix2.getBytes(StandardCharsets.UTF_8));
         httpContent = new DefaultHttpContent(content2);
         decoder.offer(httpContent);
         assertNull(decoder.currentPartialHttpData());
         httpContent.close();
-        decoder.offer(Helpers.defaultLastHttpContent());
-
+        try(DefaultLastHttpContent last = Helpers.defaultLastHttpContent()) {
+            decoder.offer(last);
+        }
         FileUpload data = (FileUpload) decoder.getBodyHttpDatas().get(0);
         assertEquals(data.length(), fileSize);
         assertEquals(inMemory, data.isInMemory());
@@ -229,6 +242,11 @@ public class HttpPostMultiPartRequestDecoderTest {
                 "Capacity should be less than 1M");
         factory.cleanAllHttpData();
         decoder.destroy();
+        for (Buffer partialBuffer : partialBuffers) {
+            if (partialBuffer.isAccessible()) {
+                partialBuffer.close();
+            }
+        }
     }
 
     @Test
@@ -282,15 +300,16 @@ public class HttpPostMultiPartRequestDecoderTest {
                 "content-type: audio/ogg; codecs=opus; charset=UTF8\r\ncontent-transfer-encoding: binary\r\n" +
                 "\r\n\u0001\u0002\u0003\u0004\r\n--861fbeab-cd20-470c-9609-d40a0f704466--\r\n\",\n";
 
-        FullHttpRequest req = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/upload",
-                Helpers.copiedBuffer(content, StandardCharsets.US_ASCII));
-        req.headers().set("content-type", "multipart/form-data; boundary=861fbeab-cd20-470c-9609-d40a0f704466");
-        req.headers().set("content-length", String.valueOf(content.length()));
+        try (FullHttpRequest req = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/upload",
+                Helpers.copiedBuffer(content, StandardCharsets.US_ASCII))) {
+            req.headers().set("content-type", "multipart/form-data; boundary=861fbeab-cd20-470c-9609-d40a0f704466");
+            req.headers().set("content-length", String.valueOf(content.length()));
 
-        HttpPostMultipartRequestDecoder test = new HttpPostMultipartRequestDecoder(req);
-        FileUpload httpData = (FileUpload) test.getBodyHttpDatas("file").get(0);
-        assertEquals("audio/ogg", httpData.getContentType());
-        test.destroy();
+            HttpPostMultipartRequestDecoder test = new HttpPostMultipartRequestDecoder(req);
+            FileUpload httpData = (FileUpload) test.getBodyHttpDatas("file").get(0);
+            assertEquals("audio/ogg", httpData.getContentType());
+            test.destroy();
+        }
     }
 
     private static void commonNotBadReleaseBuffersDuringDecoding(HttpDataFactory factory, boolean inMemory)
@@ -343,7 +362,9 @@ public class HttpPostMultiPartRequestDecoderTest {
         DefaultHttpContent httpContent = new DefaultHttpContent(content2);
         decoder.offer(httpContent);
         httpContent.close();
-        decoder.offer(Helpers.defaultLastHttpContent());
+        try (DefaultLastHttpContent last = Helpers.defaultLastHttpContent()) {
+            decoder.offer(last);
+        }
 
         for (int rank = 0; rank < nbItems; rank++) {
             FileUpload data = (FileUpload) decoder.getBodyHttpData("image" + (10 + rank));
@@ -366,6 +387,7 @@ public class HttpPostMultiPartRequestDecoderTest {
     // Issue #11668
     private static void commonTestFileDelimiterLFLastChunk(HttpDataFactory factory, boolean inMemory)
             throws IOException {
+        List<Buffer> partialBuffers = new ArrayList<>();
         int nbChunks = 2;
         int bytesPerChunk = 100000;
         int bytesLastChunk = 10000;
@@ -397,7 +419,9 @@ public class HttpPostMultiPartRequestDecoderTest {
         Buffer buf = Helpers.copiedBuffer(prefix.getBytes(StandardCharsets.UTF_8));
         DefaultHttpContent httpContent = new DefaultHttpContent(buf);
         decoder.offer(httpContent);
-        assertNotNull(((HttpData) decoder.currentPartialHttpData()).getBuffer());
+        Buffer partial = ((HttpData) decoder.currentPartialHttpData()).getBuffer();
+        assertNotNull(partial);
+        partialBuffers.add(partial);
         httpContent.close();
 
         byte[] body = new byte[bytesPerChunk];
@@ -409,7 +433,9 @@ public class HttpPostMultiPartRequestDecoderTest {
             Buffer content = Helpers.copiedBuffer(body, 0, bytesPerChunk);
             httpContent = new DefaultHttpContent(content);
             decoder.offer(httpContent); // **OutOfMemory previously here**
-            assertNotNull(((HttpData) decoder.currentPartialHttpData()).getBuffer());
+            partial = ((HttpData) decoder.currentPartialHttpData()).getBuffer();
+            assertNotNull(partial);
+            partialBuffers.add(partial);
             httpContent.close();
         }
         // Last -2 body = content + CR but no delimiter
@@ -434,7 +460,9 @@ public class HttpPostMultiPartRequestDecoderTest {
         assertNull(decoder.currentPartialHttpData());
         httpContent.close();
         // End
-        decoder.offer(Helpers.defaultLastHttpContent());
+        try (DefaultLastHttpContent last = Helpers.defaultLastHttpContent()) {
+            decoder.offer(last);
+        }
 
         FileUpload data = (FileUpload) decoder.getBodyHttpDatas().get(0);
         assertEquals(data.length(), fileSize);
@@ -449,6 +477,11 @@ public class HttpPostMultiPartRequestDecoderTest {
         InterfaceHttpData[] httpDatas = decoder.getBodyHttpDatas().toArray(new InterfaceHttpData[0]);
         factory.cleanAllHttpData();
         decoder.destroy();
+        partialBuffers.forEach(buffer -> {
+            if (buffer.isAccessible()) {
+                buffer.close();
+            }
+        });
     }
 
     @Test

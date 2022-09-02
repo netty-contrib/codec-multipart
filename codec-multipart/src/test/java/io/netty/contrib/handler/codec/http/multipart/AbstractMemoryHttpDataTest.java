@@ -36,7 +36,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.jupiter.api.Assertions.*;
 
 /** {@link AbstractMemoryHttpData} test cases. */
-public class AbstractMemoryHttpDataTest {
+public class AbstractMemoryHttpDataTest extends AbstractTest {
 
     @Test
     public void testSetContentFromFile() throws Exception {
@@ -112,6 +112,8 @@ public class AbstractMemoryHttpDataTest {
             buf = Helpers.copiedBuffer(contentStr.getBytes(UTF_8));
             Buffer buf2 = test.getBuffer();
             assertTrue(BufferUtil.equals(buf, buf.readerOffset(), buf2, buf2.readerOffset(), buf2.readableBytes()));
+            buf.close();
+            buf2.close();
         } finally {
             is.close();
         }
@@ -131,12 +133,12 @@ public class AbstractMemoryHttpDataTest {
             data.setContent(new ByteArrayInputStream(bytes));
 
             // Validate stored data.
-            Buffer buffer = data.getBuffer();
-
-            assertEquals(0, buffer.readerOffset());
-            assertEquals(bytes.length, buffer.writerOffset());
-            assertArrayEquals(bytes, BufferUtil.getBytes(buffer));
-            assertArrayEquals(bytes, data.get());
+            try (Buffer buffer = data.getBuffer()) {
+                assertEquals(0, buffer.readerOffset());
+                assertEquals(bytes.length, buffer.writerOffset());
+                assertArrayEquals(bytes, BufferUtil.getBytes(buffer));
+                assertArrayEquals(bytes, data.get());
+            }
         }
     }
 

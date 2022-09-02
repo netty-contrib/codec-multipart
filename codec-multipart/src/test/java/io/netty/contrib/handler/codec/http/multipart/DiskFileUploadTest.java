@@ -33,7 +33,7 @@ import java.util.concurrent.ThreadLocalRandom;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class DiskFileUploadTest {
+public class DiskFileUploadTest extends AbstractTest {
     @Test
     public void testSpecificCustomBaseDir() throws IOException {
         File baseDir = new File("target/DiskFileUploadTest/testSpecificCustomBaseDir");
@@ -197,6 +197,7 @@ public class DiskFileUploadTest {
             assertEquals(buf.readerOffset(), 0);
             assertEquals(buf.writerOffset(), bytes.length);
             assertArrayEquals(bytes, BufferUtil.getBytes(buf));
+            buf.close(); // disk file upload always return an allocated buffer from its getBuffer() method
         }
     }
 

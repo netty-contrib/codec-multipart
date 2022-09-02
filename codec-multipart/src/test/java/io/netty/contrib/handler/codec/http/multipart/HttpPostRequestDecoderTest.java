@@ -23,6 +23,7 @@ import io.netty5.handler.codec.http.DefaultFullHttpRequest;
 import io.netty5.handler.codec.http.DefaultHttpContent;
 import io.netty5.handler.codec.http.DefaultHttpRequest;
 import io.netty5.handler.codec.http.DefaultLastHttpContent;
+import io.netty5.handler.codec.http.EmptyLastHttpContent;
 import io.netty5.handler.codec.http.FullHttpRequest;
 import io.netty5.handler.codec.http.HttpHeaderNames;
 import io.netty5.handler.codec.http.HttpHeaderValues;
@@ -45,7 +46,7 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * {@link HttpPostRequestDecoder} test case.
  */
-public class HttpPostRequestDecoderTest {
+public class HttpPostRequestDecoderTest extends AbstractTest {
 
     @Test
     public void testBinaryStreamUploadWithSpace() throws Exception {
@@ -89,8 +90,10 @@ public class HttpPostRequestDecoderTest {
             final HttpPostRequestDecoder decoder = new HttpPostRequestDecoder(inMemoryFactory, req);
 
             Buffer buf = Helpers.copiedBuffer(body, StandardCharsets.UTF_8);
-            decoder.offer(new DefaultHttpContent(buf));
-            decoder.offer(new DefaultHttpContent(DefaultBufferAllocators.preferredAllocator().allocate(0)));
+            DefaultHttpContent contentBody = new DefaultHttpContent(buf);
+            DefaultHttpContent emptyContent = new DefaultHttpContent(DefaultBufferAllocators.preferredAllocator().allocate(0));
+            decoder.offer(contentBody);
+            decoder.offer(emptyContent);
 
             // Validate it's enough chunks to decode upload.
             assertTrue(decoder.hasNext());
@@ -103,7 +106,8 @@ public class HttpPostRequestDecoderTest {
                     "Invalid decoded data [data=" + data.replaceAll("\r", "\\\\r") + ", upload=" + upload + ']');
             upload.close();
             decoder.destroy();
-            buf.close();
+            contentBody.close();
+            emptyContent.close();
         }
     }
 
@@ -186,6 +190,7 @@ public class HttpPostRequestDecoderTest {
             decoder.destroy();
             req.close();
         }
+        inMemoryFactory.cleanAllHttpData();
     }
 
     // See https://github.com/netty/netty/issues/2542
@@ -219,6 +224,7 @@ public class HttpPostRequestDecoderTest {
         assertFalse(decoder.getBodyHttpDatas().isEmpty());
         decoder.destroy();
         req.close();
+        inMemoryFactory.cleanAllHttpData();
     }
 
     // See https://github.com/netty/netty/issues/1848
@@ -266,7 +272,9 @@ public class HttpPostRequestDecoderTest {
         aDecoder.offer(new DefaultHttpContent(aSmallBuf));
         aDecoder.offer(new DefaultHttpContent(aLargeBuf));
 
-        aDecoder.offer(Helpers.emptyLastHttpContent());
+        try (EmptyLastHttpContent last = Helpers.emptyLastHttpContent()) {
+            aDecoder.offer(last);
+        }
 
         assertTrue(aDecoder.hasNext(), "Should have a piece of data");
 
@@ -440,6 +448,7 @@ public class HttpPostRequestDecoderTest {
         assertFalse(decoder.getBodyHttpDatas().isEmpty());
         decoder.destroy();
         req.close();
+        inMemoryFactory.cleanAllHttpData();
     }
 
     @Test
@@ -494,13 +503,18 @@ public class HttpPostRequestDecoderTest {
                         "--" + boundary + "--\r\n";
 
         req.payload().writeBytes(body.getBytes(StandardCharsets.UTF_8));
+        HttpPostRequestDecoder decoder = null;
         // Create decoder instance to test.
         try {
-            new HttpPostRequestDecoder(inMemoryFactory, req);
+            decoder = new HttpPostRequestDecoder(inMemoryFactory, req);
             fail("Was expecting an ErrorDataDecoderException");
         } catch (HttpPostRequestDecoder.ErrorDataDecoderException e) {
             assertTrue(e.getCause() instanceof UnsupportedCharsetException);
         } finally {
+            if (decoder != null) {
+                decoder.destroy();
+            }
+            inMemoryFactory.cleanAllHttpData();
             req.close();
         }
     }
@@ -527,14 +541,19 @@ public class HttpPostRequestDecoderTest {
                         "--" + boundary + "--\r\n";
 
         req.payload().writeBytes(body.getBytes(StandardCharsets.UTF_8));
+        HttpPostRequestDecoder decoder = null;
         // Create decoder instance to test.
         try {
-            new HttpPostRequestDecoder(inMemoryFactory, req);
+            decoder = new HttpPostRequestDecoder(inMemoryFactory, req);
             fail("Was expecting an ErrorDataDecoderException");
         } catch (HttpPostRequestDecoder.ErrorDataDecoderException e) {
             assertTrue(e.getCause() instanceof UnsupportedCharsetException);
         } finally {
             req.close();
+            if (decoder != null) {
+                decoder.destroy();
+            }
+            inMemoryFactory.cleanAllHttpData();
         }
     }
 
@@ -654,6 +673,7 @@ public class HttpPostRequestDecoderTest {
             assertTrue(e.getCause() instanceof ArrayIndexOutOfBoundsException);
         } finally {
             req.close();
+            inMemoryFactory.cleanAllHttpData();
         }
     }
 
@@ -974,8 +994,9 @@ public class HttpPostRequestDecoderTest {
         FullHttpRequest req = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/", content);
         req.headers().add("Content-Type", "multipart/form-data;boundary=be38b42a9ad2713f");
 
+        DefaultHttpDataFactory httpDataFactory = new DefaultHttpDataFactory(false);
         try {
-            HttpPostRequestDecoder decoder = new HttpPostRequestDecoder(new DefaultHttpDataFactory(false), req);
+            HttpPostRequestDecoder decoder = new HttpPostRequestDecoder(httpDataFactory, req);
             assertEquals(2, decoder.getBodyHttpDatas().size());
             InterfaceHttpData data = decoder.getBodyHttpData("title");
             assertTrue(data instanceof MemoryAttribute);
@@ -990,6 +1011,7 @@ public class HttpPostRequestDecoderTest {
             fail("Was not expecting an exception");
         } finally {
             req.close();
+            httpDataFactory.cleanAllHttpData();
         }
     }
 
@@ -1013,13 +1035,18 @@ public class HttpPostRequestDecoderTest {
                         "/",
                         content);
         HttpPostStandardRequestDecoder decoder = null;
+        DefaultHttpDataFactory factory = new DefaultHttpDataFactory(true);
         try {
             decoder = new HttpPostStandardRequestDecoder(
-                    new DefaultHttpDataFactory(true),
+                    factory,
                     req
             );
+            factory.cleanAllHttpData();
             decoder.destroy();
         } catch (HttpPostRequestDecoder.ErrorDataDecoderException e) {
+            if (null != factory) {
+                factory.cleanAllHttpData();
+            }
             if (null != decoder) {
                 decoder.destroy();
             }

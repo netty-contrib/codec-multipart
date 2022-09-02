@@ -23,7 +23,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 
-public class MixedTest {
+public class MixedTest extends AbstractTest {
     @Test
     public void mixAttributeClosed() throws IOException {
         MixedAttribute attribute = new MixedAttribute("foo", 100);

@@ -35,7 +35,7 @@ import java.util.Random;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
-class HttpDataTest {
+class HttpDataTest extends AbstractTest {
     private static final byte[] BYTES = new byte[64];
 
     @Retention(RetentionPolicy.RUNTIME)
@@ -73,14 +73,22 @@ class HttpDataTest {
     void testCompletedFlagPreservedAfterRetainDuplicate(HttpData httpData) throws IOException {
         httpData.addContent(Helpers.copiedBuffer("foo".getBytes(StandardCharsets.UTF_8)), false);
         assertThat(httpData.isCompleted()).isFalse();
-        HttpData duplicate = httpData.replace(httpData.content().split());
+        Buffer content = httpData.content();
+        HttpData duplicate = httpData.replace(content.split());
         assertThat(duplicate.isCompleted()).isFalse();
         duplicate.close();
+        if (! httpData.isInMemory()) {
+            content.close(); // for disk based http data, buffers returned by content() are allocated
+        }
         httpData.addContent(Helpers.copiedBuffer("bar".getBytes(StandardCharsets.UTF_8)), true);
         assertThat(httpData.isCompleted()).isTrue();
-        duplicate = httpData.replace(httpData.content().split());
+        content = httpData.content();
+        duplicate = httpData.replace(content.split());
         assertThat(duplicate.isCompleted()).isTrue();
         duplicate.close();
+        if (! httpData.isInMemory()) {
+            content.close(); // for disk based http data, buffers returned by content() are allocated
+        }
     }
 
     @Test
@@ -92,9 +100,9 @@ class HttpDataTest {
 
     @Test
     void testAddContentExceedsDefinedSizeMemoryFileUpload() {
-        doTestAddContentExceedsSize(
-                new MemoryFileUpload("test", "", "application/json", null, StandardCharsets.UTF_8, 10),
-                "Out of size: 64 > 10");
+        try (MemoryFileUpload memFileUpload = new MemoryFileUpload("test", "", "application/json", null, StandardCharsets.UTF_8, 10)) {
+            doTestAddContentExceedsSize(memFileUpload, "Out of size: 64 > 10");
+        }
     }
 
     @ParameterizedHttpDataTest

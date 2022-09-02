@@ -896,6 +896,7 @@ public class HttpPostRequestEncoder implements ChunkedInput<HttpContent<?>> {
             }
             if (buffer.capacity() == 0) {
                 // end for current InterfaceHttpData, need more data
+                buffer.close();
                 currentData = null;
                 return null;
             }
@@ -965,6 +966,7 @@ public class HttpPostRequestEncoder implements ChunkedInput<HttpContent<?>> {
 
         // End for current InterfaceHttpData, need potentially more data
         if (buffer.capacity() == 0) {
+            buffer.close();
             currentData = null;
             if (currentBuffer == null) {
                 if (delimiter == null) {

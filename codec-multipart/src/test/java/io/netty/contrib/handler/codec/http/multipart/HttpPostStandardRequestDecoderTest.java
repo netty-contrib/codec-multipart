@@ -28,7 +28,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class HttpPostStandardRequestDecoderTest {
+class HttpPostStandardRequestDecoderTest extends AbstractTest {
 
     @Test
     void testDecodeAttributes() {
@@ -38,13 +38,14 @@ class HttpPostStandardRequestDecoderTest {
 
         HttpPostStandardRequestDecoder decoder = new HttpPostStandardRequestDecoder(httpDiskDataFactory(), request);
         Buffer buf = DefaultBufferAllocators.preferredAllocator().copyOf(requestBody.getBytes(StandardCharsets.UTF_8));
-        DefaultLastHttpContent httpContent = new DefaultLastHttpContent(buf);
-        decoder.offer(httpContent);
+        try (DefaultLastHttpContent httpContent = new DefaultLastHttpContent(buf)) {
+            decoder.offer(httpContent);
 
-        assertEquals(2, decoder.getBodyHttpDatas().size());
-        assertMemoryAttribute(decoder.getBodyHttpData("key1"), "value1");
-        assertMemoryAttribute(decoder.getBodyHttpData("key2"), "value2");
-        decoder.destroy();
+            assertEquals(2, decoder.getBodyHttpDatas().size());
+            assertMemoryAttribute(decoder.getBodyHttpData("key1"), "value1");
+            assertMemoryAttribute(decoder.getBodyHttpData("key2"), "value2");
+            decoder.destroy();
+        }
     }
 
     @Test
@@ -55,8 +56,9 @@ class HttpPostStandardRequestDecoderTest {
 
         HttpPostStandardRequestDecoder decoder = new HttpPostStandardRequestDecoder(httpDiskDataFactory(), request);
         Buffer buf = DefaultBufferAllocators.preferredAllocator().copyOf(requestBody.getBytes(StandardCharsets.UTF_8));
-        DefaultLastHttpContent httpContent = new DefaultLastHttpContent(buf);
-        decoder.offer(httpContent);
+        try (DefaultLastHttpContent httpContent = new DefaultLastHttpContent(buf)) {
+            decoder.offer(httpContent);
+        }
 
         assertEquals(1, decoder.getBodyHttpDatas().size());
         assertMemoryAttribute(decoder.getBodyHttpData("key1"), "value1");
@@ -71,8 +73,9 @@ class HttpPostStandardRequestDecoderTest {
 
         HttpPostStandardRequestDecoder decoder = new HttpPostStandardRequestDecoder(httpDiskDataFactory(), request);
         Buffer buf = DefaultBufferAllocators.preferredAllocator().copyOf(requestBody.getBytes(StandardCharsets.UTF_8));
-        DefaultLastHttpContent httpContent = new DefaultLastHttpContent(buf);
-        decoder.offer(httpContent);
+        try (DefaultLastHttpContent httpContent = new DefaultLastHttpContent(buf)) {
+            decoder.offer(httpContent);
+        }
 
         assertEquals(0, decoder.getBodyHttpDatas().size());
         decoder.destroy();

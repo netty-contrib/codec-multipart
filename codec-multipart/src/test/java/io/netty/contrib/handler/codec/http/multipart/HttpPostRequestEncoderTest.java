@@ -43,7 +43,7 @@ import static io.netty5.handler.codec.http.HttpHeaderNames.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 /** {@link HttpPostRequestEncoder} test case. */
-public class HttpPostRequestEncoderTest {
+public class HttpPostRequestEncoderTest extends AbstractTest {
 
     @Test
     public void testAllowedMethods() throws Exception {
@@ -64,290 +64,296 @@ public class HttpPostRequestEncoderTest {
     }
 
     private void shouldThrowExceptionIfNotAllowed(HttpMethod method) throws Exception {
-        DefaultFullHttpRequest request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1,
-                method, "http://localhost", DefaultBufferAllocators.preferredAllocator().allocate(0));
+        try (DefaultFullHttpRequest request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1,
+                method, "http://localhost", DefaultBufferAllocators.preferredAllocator().allocate(0))) {
 
-        HttpPostRequestEncoder encoder = new HttpPostRequestEncoder(request, true);
-        File file1 = new File(getClass().getResource("/file-01.txt").toURI());
-        encoder.addBodyAttribute("foo", "bar");
-        encoder.addBodyFileUpload("quux", file1, "text/plain", false);
+            HttpPostRequestEncoder encoder = new HttpPostRequestEncoder(request, true);
+            File file1 = new File(getClass().getResource("/file-01.txt").toURI());
+            encoder.addBodyAttribute("foo", "bar");
+            encoder.addBodyFileUpload("quux", file1, "text/plain", false);
 
-        String multipartDataBoundary = encoder.multipartDataBoundary;
-        String content = getRequestBody(encoder);
+            String multipartDataBoundary = encoder.multipartDataBoundary;
+            String content = getRequestBody(encoder);
 
-        String expected = "--" + multipartDataBoundary + "\r\n" +
-                CONTENT_DISPOSITION + ": form-data; name=\"foo\"" + "\r\n" +
-                CONTENT_LENGTH + ": 3" + "\r\n" +
-                CONTENT_TYPE + ": text/plain; charset=UTF-8" + "\r\n" +
-                "\r\n" +
-                "bar" +
-                "\r\n" +
-                "--" + multipartDataBoundary + "\r\n" +
-                CONTENT_DISPOSITION + ": form-data; name=\"quux\"; filename=\"file-01.txt\"" + "\r\n" +
-                CONTENT_LENGTH + ": " + file1.length() + "\r\n" +
-                CONTENT_TYPE + ": text/plain" + "\r\n" +
-                CONTENT_TRANSFER_ENCODING + ": binary" + "\r\n" +
-                "\r\n" +
-                "File 01" + StringUtil.NEWLINE +
-                "\r\n" +
-                "--" + multipartDataBoundary + "--" + "\r\n";
+            String expected = "--" + multipartDataBoundary + "\r\n" +
+                    CONTENT_DISPOSITION + ": form-data; name=\"foo\"" + "\r\n" +
+                    CONTENT_LENGTH + ": 3" + "\r\n" +
+                    CONTENT_TYPE + ": text/plain; charset=UTF-8" + "\r\n" +
+                    "\r\n" +
+                    "bar" +
+                    "\r\n" +
+                    "--" + multipartDataBoundary + "\r\n" +
+                    CONTENT_DISPOSITION + ": form-data; name=\"quux\"; filename=\"file-01.txt\"" + "\r\n" +
+                    CONTENT_LENGTH + ": " + file1.length() + "\r\n" +
+                    CONTENT_TYPE + ": text/plain" + "\r\n" +
+                    CONTENT_TRANSFER_ENCODING + ": binary" + "\r\n" +
+                    "\r\n" +
+                    "File 01" + StringUtil.NEWLINE +
+                    "\r\n" +
+                    "--" + multipartDataBoundary + "--" + "\r\n";
 
-        assertEquals(expected, content);
+            assertEquals(expected, content);
+        }
     }
 
     @Test
     public void testSingleFileUploadNoName() throws Exception {
-        DefaultFullHttpRequest request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1,
-                HttpMethod.POST, "http://localhost", DefaultBufferAllocators.preferredAllocator().allocate(0));
+        try (DefaultFullHttpRequest request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1,
+                HttpMethod.POST, "http://localhost", DefaultBufferAllocators.preferredAllocator().allocate(0))) {
 
-        HttpPostRequestEncoder encoder = new HttpPostRequestEncoder(request, true);
-        File file1 = new File(getClass().getResource("/file-01.txt").toURI());
-        encoder.addBodyAttribute("foo", "bar");
-        encoder.addBodyFileUpload("quux", "", file1, "text/plain", false);
+            HttpPostRequestEncoder encoder = new HttpPostRequestEncoder(request, true);
+            File file1 = new File(getClass().getResource("/file-01.txt").toURI());
+            encoder.addBodyAttribute("foo", "bar");
+            encoder.addBodyFileUpload("quux", "", file1, "text/plain", false);
 
-        String multipartDataBoundary = encoder.multipartDataBoundary;
-        String content = getRequestBody(encoder);
+            String multipartDataBoundary = encoder.multipartDataBoundary;
+            String content = getRequestBody(encoder);
 
-        String expected = "--" + multipartDataBoundary + "\r\n" +
-                CONTENT_DISPOSITION + ": form-data; name=\"foo\"" + "\r\n" +
-                CONTENT_LENGTH + ": 3" + "\r\n" +
-                CONTENT_TYPE + ": text/plain; charset=UTF-8" + "\r\n" +
-                "\r\n" +
-                "bar" +
-                "\r\n" +
-                "--" + multipartDataBoundary + "\r\n" +
-                CONTENT_DISPOSITION + ": form-data; name=\"quux\"\r\n" +
-                CONTENT_LENGTH + ": " + file1.length() + "\r\n" +
-                CONTENT_TYPE + ": text/plain" + "\r\n" +
-                CONTENT_TRANSFER_ENCODING + ": binary" + "\r\n" +
-                "\r\n" +
-                "File 01" + StringUtil.NEWLINE +
-                "\r\n" +
-                "--" + multipartDataBoundary + "--" + "\r\n";
+            String expected = "--" + multipartDataBoundary + "\r\n" +
+                    CONTENT_DISPOSITION + ": form-data; name=\"foo\"" + "\r\n" +
+                    CONTENT_LENGTH + ": 3" + "\r\n" +
+                    CONTENT_TYPE + ": text/plain; charset=UTF-8" + "\r\n" +
+                    "\r\n" +
+                    "bar" +
+                    "\r\n" +
+                    "--" + multipartDataBoundary + "\r\n" +
+                    CONTENT_DISPOSITION + ": form-data; name=\"quux\"\r\n" +
+                    CONTENT_LENGTH + ": " + file1.length() + "\r\n" +
+                    CONTENT_TYPE + ": text/plain" + "\r\n" +
+                    CONTENT_TRANSFER_ENCODING + ": binary" + "\r\n" +
+                    "\r\n" +
+                    "File 01" + StringUtil.NEWLINE +
+                    "\r\n" +
+                    "--" + multipartDataBoundary + "--" + "\r\n";
 
-        assertEquals(expected, content);
+            assertEquals(expected, content);
+        }
     }
 
     @Test
     public void testMultiFileUploadInMixedMode() throws Exception {
-        DefaultFullHttpRequest request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1,
-                HttpMethod.POST, "http://localhost", DefaultBufferAllocators.preferredAllocator().allocate(0));
+        try (DefaultFullHttpRequest request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1,
+                HttpMethod.POST, "http://localhost", DefaultBufferAllocators.preferredAllocator().allocate(0))) {
 
-        HttpPostRequestEncoder encoder = new HttpPostRequestEncoder(request, true);
-        File file1 = new File(getClass().getResource("/file-01.txt").toURI());
-        File file2 = new File(getClass().getResource("/file-02.txt").toURI());
-        File file3 = new File(getClass().getResource("/file-03.txt").toURI());
-        encoder.addBodyAttribute("foo", "bar");
-        encoder.addBodyFileUpload("quux", file1, "text/plain", false);
-        encoder.addBodyFileUpload("quux", file2, "text/plain", false);
-        encoder.addBodyFileUpload("quux", file3, "text/plain", false);
+            HttpPostRequestEncoder encoder = new HttpPostRequestEncoder(request, true);
+            File file1 = new File(getClass().getResource("/file-01.txt").toURI());
+            File file2 = new File(getClass().getResource("/file-02.txt").toURI());
+            File file3 = new File(getClass().getResource("/file-03.txt").toURI());
+            encoder.addBodyAttribute("foo", "bar");
+            encoder.addBodyFileUpload("quux", file1, "text/plain", false);
+            encoder.addBodyFileUpload("quux", file2, "text/plain", false);
+            encoder.addBodyFileUpload("quux", file3, "text/plain", false);
 
-        // We have to query the value of these two fields before finalizing
-        // the request, which unsets one of them.
-        String multipartDataBoundary = encoder.multipartDataBoundary;
-        String multipartMixedBoundary = encoder.multipartMixedBoundary;
-        String content = getRequestBody(encoder);
+            // We have to query the value of these two fields before finalizing
+            // the request, which unsets one of them.
+            String multipartDataBoundary = encoder.multipartDataBoundary;
+            String multipartMixedBoundary = encoder.multipartMixedBoundary;
+            String content = getRequestBody(encoder);
 
-        String expected = "--" + multipartDataBoundary + "\r\n" +
-                CONTENT_DISPOSITION + ": form-data; name=\"foo\"" + "\r\n" +
-                CONTENT_LENGTH + ": 3" + "\r\n" +
-                CONTENT_TYPE + ": text/plain; charset=UTF-8" + "\r\n" +
-                "\r\n" +
-                "bar" + "\r\n" +
-                "--" + multipartDataBoundary + "\r\n" +
-                CONTENT_DISPOSITION + ": form-data; name=\"quux\"" + "\r\n" +
-                CONTENT_TYPE + ": multipart/mixed; boundary=" + multipartMixedBoundary + "\r\n" +
-                "\r\n" +
-                "--" + multipartMixedBoundary + "\r\n" +
-                CONTENT_DISPOSITION + ": attachment; filename=\"file-01.txt\"" + "\r\n" +
-                CONTENT_LENGTH + ": " + file1.length() + "\r\n" +
-                CONTENT_TYPE + ": text/plain" + "\r\n" +
-                CONTENT_TRANSFER_ENCODING + ": binary" + "\r\n" +
-                "\r\n" +
-                "File 01" + StringUtil.NEWLINE +
-                "\r\n" +
-                "--" + multipartMixedBoundary + "\r\n" +
-                CONTENT_DISPOSITION + ": attachment; filename=\"file-02.txt\"" + "\r\n" +
-                CONTENT_LENGTH + ": " + file2.length() + "\r\n" +
-                CONTENT_TYPE + ": text/plain" + "\r\n" +
-                CONTENT_TRANSFER_ENCODING + ": binary" + "\r\n" +
-                "\r\n" +
-                "File 02" + StringUtil.NEWLINE +
-                "\r\n" +
-                "--" + multipartMixedBoundary + "\r\n" +
-                CONTENT_DISPOSITION + ": attachment; filename=\"file-03.txt\"" + "\r\n" +
-                CONTENT_LENGTH + ": " + file3.length() + "\r\n" +
-                CONTENT_TYPE + ": text/plain" + "\r\n" +
-                CONTENT_TRANSFER_ENCODING + ": binary" + "\r\n" +
-                "\r\n" +
-                "File 03" + StringUtil.NEWLINE +
-                "\r\n" +
-                "--" + multipartMixedBoundary + "--" + "\r\n" +
-                "--" + multipartDataBoundary + "--" + "\r\n";
+            String expected = "--" + multipartDataBoundary + "\r\n" +
+                    CONTENT_DISPOSITION + ": form-data; name=\"foo\"" + "\r\n" +
+                    CONTENT_LENGTH + ": 3" + "\r\n" +
+                    CONTENT_TYPE + ": text/plain; charset=UTF-8" + "\r\n" +
+                    "\r\n" +
+                    "bar" + "\r\n" +
+                    "--" + multipartDataBoundary + "\r\n" +
+                    CONTENT_DISPOSITION + ": form-data; name=\"quux\"" + "\r\n" +
+                    CONTENT_TYPE + ": multipart/mixed; boundary=" + multipartMixedBoundary + "\r\n" +
+                    "\r\n" +
+                    "--" + multipartMixedBoundary + "\r\n" +
+                    CONTENT_DISPOSITION + ": attachment; filename=\"file-01.txt\"" + "\r\n" +
+                    CONTENT_LENGTH + ": " + file1.length() + "\r\n" +
+                    CONTENT_TYPE + ": text/plain" + "\r\n" +
+                    CONTENT_TRANSFER_ENCODING + ": binary" + "\r\n" +
+                    "\r\n" +
+                    "File 01" + StringUtil.NEWLINE +
+                    "\r\n" +
+                    "--" + multipartMixedBoundary + "\r\n" +
+                    CONTENT_DISPOSITION + ": attachment; filename=\"file-02.txt\"" + "\r\n" +
+                    CONTENT_LENGTH + ": " + file2.length() + "\r\n" +
+                    CONTENT_TYPE + ": text/plain" + "\r\n" +
+                    CONTENT_TRANSFER_ENCODING + ": binary" + "\r\n" +
+                    "\r\n" +
+                    "File 02" + StringUtil.NEWLINE +
+                    "\r\n" +
+                    "--" + multipartMixedBoundary + "\r\n" +
+                    CONTENT_DISPOSITION + ": attachment; filename=\"file-03.txt\"" + "\r\n" +
+                    CONTENT_LENGTH + ": " + file3.length() + "\r\n" +
+                    CONTENT_TYPE + ": text/plain" + "\r\n" +
+                    CONTENT_TRANSFER_ENCODING + ": binary" + "\r\n" +
+                    "\r\n" +
+                    "File 03" + StringUtil.NEWLINE +
+                    "\r\n" +
+                    "--" + multipartMixedBoundary + "--" + "\r\n" +
+                    "--" + multipartDataBoundary + "--" + "\r\n";
 
-        assertEquals(expected, content);
+            assertEquals(expected, content);
+        }
     }
 
     @Test
     public void testMultiFileUploadInMixedModeNoName() throws Exception {
-        DefaultFullHttpRequest request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1,
-                HttpMethod.POST, "http://localhost", DefaultBufferAllocators.preferredAllocator().allocate(0));
+        try(DefaultFullHttpRequest request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1,
+                HttpMethod.POST, "http://localhost", DefaultBufferAllocators.preferredAllocator().allocate(0))) {
 
-        HttpPostRequestEncoder encoder = new HttpPostRequestEncoder(request, true);
-        File file1 = new File(getClass().getResource("/file-01.txt").toURI());
-        File file2 = new File(getClass().getResource("/file-02.txt").toURI());
-        encoder.addBodyAttribute("foo", "bar");
-        encoder.addBodyFileUpload("quux", "", file1, "text/plain", false);
-        encoder.addBodyFileUpload("quux", "", file2, "text/plain", false);
+            HttpPostRequestEncoder encoder = new HttpPostRequestEncoder(request, true);
+            File file1 = new File(getClass().getResource("/file-01.txt").toURI());
+            File file2 = new File(getClass().getResource("/file-02.txt").toURI());
+            encoder.addBodyAttribute("foo", "bar");
+            encoder.addBodyFileUpload("quux", "", file1, "text/plain", false);
+            encoder.addBodyFileUpload("quux", "", file2, "text/plain", false);
 
-        // We have to query the value of these two fields before finalizing
-        // the request, which unsets one of them.
-        String multipartDataBoundary = encoder.multipartDataBoundary;
-        String multipartMixedBoundary = encoder.multipartMixedBoundary;
-        String content = getRequestBody(encoder);
+            // We have to query the value of these two fields before finalizing
+            // the request, which unsets one of them.
+            String multipartDataBoundary = encoder.multipartDataBoundary;
+            String multipartMixedBoundary = encoder.multipartMixedBoundary;
+            String content = getRequestBody(encoder);
 
-        String expected = "--" + multipartDataBoundary + "\r\n" +
-                CONTENT_DISPOSITION + ": form-data; name=\"foo\"" + "\r\n" +
-                CONTENT_LENGTH + ": 3" + "\r\n" +
-                CONTENT_TYPE + ": text/plain; charset=UTF-8" + "\r\n" +
-                "\r\n" +
-                "bar" + "\r\n" +
-                "--" + multipartDataBoundary + "\r\n" +
-                CONTENT_DISPOSITION + ": form-data; name=\"quux\"" + "\r\n" +
-                CONTENT_TYPE + ": multipart/mixed; boundary=" + multipartMixedBoundary + "\r\n" +
-                "\r\n" +
-                "--" + multipartMixedBoundary + "\r\n" +
-                CONTENT_DISPOSITION + ": attachment\r\n" +
-                CONTENT_LENGTH + ": " + file1.length() + "\r\n" +
-                CONTENT_TYPE + ": text/plain" + "\r\n" +
-                CONTENT_TRANSFER_ENCODING + ": binary" + "\r\n" +
-                "\r\n" +
-                "File 01" + StringUtil.NEWLINE +
-                "\r\n" +
-                "--" + multipartMixedBoundary + "\r\n" +
-                CONTENT_DISPOSITION + ": attachment\r\n" +
-                CONTENT_LENGTH + ": " + file2.length() + "\r\n" +
-                CONTENT_TYPE + ": text/plain" + "\r\n" +
-                CONTENT_TRANSFER_ENCODING + ": binary" + "\r\n" +
-                "\r\n" +
-                "File 02" + StringUtil.NEWLINE +
-                "\r\n" +
-                "--" + multipartMixedBoundary + "--" + "\r\n" +
-                "--" + multipartDataBoundary + "--" + "\r\n";
+            String expected = "--" + multipartDataBoundary + "\r\n" +
+                    CONTENT_DISPOSITION + ": form-data; name=\"foo\"" + "\r\n" +
+                    CONTENT_LENGTH + ": 3" + "\r\n" +
+                    CONTENT_TYPE + ": text/plain; charset=UTF-8" + "\r\n" +
+                    "\r\n" +
+                    "bar" + "\r\n" +
+                    "--" + multipartDataBoundary + "\r\n" +
+                    CONTENT_DISPOSITION + ": form-data; name=\"quux\"" + "\r\n" +
+                    CONTENT_TYPE + ": multipart/mixed; boundary=" + multipartMixedBoundary + "\r\n" +
+                    "\r\n" +
+                    "--" + multipartMixedBoundary + "\r\n" +
+                    CONTENT_DISPOSITION + ": attachment\r\n" +
+                    CONTENT_LENGTH + ": " + file1.length() + "\r\n" +
+                    CONTENT_TYPE + ": text/plain" + "\r\n" +
+                    CONTENT_TRANSFER_ENCODING + ": binary" + "\r\n" +
+                    "\r\n" +
+                    "File 01" + StringUtil.NEWLINE +
+                    "\r\n" +
+                    "--" + multipartMixedBoundary + "\r\n" +
+                    CONTENT_DISPOSITION + ": attachment\r\n" +
+                    CONTENT_LENGTH + ": " + file2.length() + "\r\n" +
+                    CONTENT_TYPE + ": text/plain" + "\r\n" +
+                    CONTENT_TRANSFER_ENCODING + ": binary" + "\r\n" +
+                    "\r\n" +
+                    "File 02" + StringUtil.NEWLINE +
+                    "\r\n" +
+                    "--" + multipartMixedBoundary + "--" + "\r\n" +
+                    "--" + multipartDataBoundary + "--" + "\r\n";
 
-        assertEquals(expected, content);
+            assertEquals(expected, content);
+        }
     }
 
     @Test
     public void testSingleFileUploadInHtml5Mode() throws Exception {
-        DefaultFullHttpRequest request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1,
-                HttpMethod.POST, "http://localhost", DefaultBufferAllocators.preferredAllocator().allocate(0));
+        try(DefaultFullHttpRequest request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1,
+                HttpMethod.POST, "http://localhost", DefaultBufferAllocators.preferredAllocator().allocate(0))) {
 
-        DefaultHttpDataFactory factory = new DefaultHttpDataFactory(DefaultHttpDataFactory.MINSIZE);
+            DefaultHttpDataFactory factory = new DefaultHttpDataFactory(DefaultHttpDataFactory.MINSIZE);
 
-        HttpPostRequestEncoder encoder = new HttpPostRequestEncoder(factory,
-                request, true, StandardCharsets.UTF_8, EncoderMode.HTML5);
-        File file1 = new File(getClass().getResource("/file-01.txt").toURI());
-        File file2 = new File(getClass().getResource("/file-02.txt").toURI());
-        encoder.addBodyAttribute("foo", "bar");
-        encoder.addBodyFileUpload("quux", file1, "text/plain", false);
-        encoder.addBodyFileUpload("quux", file2, "text/plain", false);
+            HttpPostRequestEncoder encoder = new HttpPostRequestEncoder(factory,
+                    request, true, StandardCharsets.UTF_8, EncoderMode.HTML5);
+            File file1 = new File(getClass().getResource("/file-01.txt").toURI());
+            File file2 = new File(getClass().getResource("/file-02.txt").toURI());
+            encoder.addBodyAttribute("foo", "bar");
+            encoder.addBodyFileUpload("quux", file1, "text/plain", false);
+            encoder.addBodyFileUpload("quux", file2, "text/plain", false);
 
-        String multipartDataBoundary = encoder.multipartDataBoundary;
-        String content = getRequestBody(encoder);
+            String multipartDataBoundary = encoder.multipartDataBoundary;
+            String content = getRequestBody(encoder);
 
-        String expected = "--" + multipartDataBoundary + "\r\n" +
-                CONTENT_DISPOSITION + ": form-data; name=\"foo\"" + "\r\n" +
-                CONTENT_LENGTH + ": 3" + "\r\n" +
-                CONTENT_TYPE + ": text/plain; charset=UTF-8" + "\r\n" +
-                "\r\n" +
-                "bar" + "\r\n" +
-                "--" + multipartDataBoundary + "\r\n" +
-                CONTENT_DISPOSITION + ": form-data; name=\"quux\"; filename=\"file-01.txt\"" + "\r\n" +
-                CONTENT_LENGTH + ": " + file1.length() + "\r\n" +
-                CONTENT_TYPE + ": text/plain" + "\r\n" +
-                CONTENT_TRANSFER_ENCODING + ": binary" + "\r\n" +
-                "\r\n" +
-                "File 01" + StringUtil.NEWLINE + "\r\n" +
-                "--" + multipartDataBoundary + "\r\n" +
-                CONTENT_DISPOSITION + ": form-data; name=\"quux\"; filename=\"file-02.txt\"" + "\r\n" +
-                CONTENT_LENGTH + ": " + file2.length() + "\r\n" +
-                CONTENT_TYPE + ": text/plain" + "\r\n" +
-                CONTENT_TRANSFER_ENCODING + ": binary" + "\r\n" +
-                "\r\n" +
-                "File 02" + StringUtil.NEWLINE +
-                "\r\n" +
-                "--" + multipartDataBoundary + "--" + "\r\n";
+            String expected = "--" + multipartDataBoundary + "\r\n" +
+                    CONTENT_DISPOSITION + ": form-data; name=\"foo\"" + "\r\n" +
+                    CONTENT_LENGTH + ": 3" + "\r\n" +
+                    CONTENT_TYPE + ": text/plain; charset=UTF-8" + "\r\n" +
+                    "\r\n" +
+                    "bar" + "\r\n" +
+                    "--" + multipartDataBoundary + "\r\n" +
+                    CONTENT_DISPOSITION + ": form-data; name=\"quux\"; filename=\"file-01.txt\"" + "\r\n" +
+                    CONTENT_LENGTH + ": " + file1.length() + "\r\n" +
+                    CONTENT_TYPE + ": text/plain" + "\r\n" +
+                    CONTENT_TRANSFER_ENCODING + ": binary" + "\r\n" +
+                    "\r\n" +
+                    "File 01" + StringUtil.NEWLINE + "\r\n" +
+                    "--" + multipartDataBoundary + "\r\n" +
+                    CONTENT_DISPOSITION + ": form-data; name=\"quux\"; filename=\"file-02.txt\"" + "\r\n" +
+                    CONTENT_LENGTH + ": " + file2.length() + "\r\n" +
+                    CONTENT_TYPE + ": text/plain" + "\r\n" +
+                    CONTENT_TRANSFER_ENCODING + ": binary" + "\r\n" +
+                    "\r\n" +
+                    "File 02" + StringUtil.NEWLINE +
+                    "\r\n" +
+                    "--" + multipartDataBoundary + "--" + "\r\n";
 
-        assertEquals(expected, content);
+            assertEquals(expected, content);
+        }
     }
 
     @Test
     public void testMultiFileUploadInHtml5Mode() throws Exception {
-        DefaultFullHttpRequest request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1,
-                HttpMethod.POST, "http://localhost", DefaultBufferAllocators.preferredAllocator().allocate(0));
+        try (DefaultFullHttpRequest request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1,
+                HttpMethod.POST, "http://localhost", DefaultBufferAllocators.preferredAllocator().allocate(0))) {
+            DefaultHttpDataFactory factory = new DefaultHttpDataFactory(DefaultHttpDataFactory.MINSIZE);
 
-        DefaultHttpDataFactory factory = new DefaultHttpDataFactory(DefaultHttpDataFactory.MINSIZE);
+            HttpPostRequestEncoder encoder = new HttpPostRequestEncoder(factory,
+                    request, true, StandardCharsets.UTF_8, EncoderMode.HTML5);
+            File file1 = new File(getClass().getResource("/file-01.txt").toURI());
+            encoder.addBodyAttribute("foo", "bar");
+            encoder.addBodyFileUpload("quux", file1, "text/plain", false);
 
-        HttpPostRequestEncoder encoder = new HttpPostRequestEncoder(factory,
-                request, true, StandardCharsets.UTF_8, EncoderMode.HTML5);
-        File file1 = new File(getClass().getResource("/file-01.txt").toURI());
-        encoder.addBodyAttribute("foo", "bar");
-        encoder.addBodyFileUpload("quux", file1, "text/plain", false);
+            String multipartDataBoundary = encoder.multipartDataBoundary;
+            String content = getRequestBody(encoder);
 
-        String multipartDataBoundary = encoder.multipartDataBoundary;
-        String content = getRequestBody(encoder);
+            String expected = "--" + multipartDataBoundary + "\r\n" +
+                    CONTENT_DISPOSITION + ": form-data; name=\"foo\"" + "\r\n" +
+                    CONTENT_LENGTH + ": 3" + "\r\n" +
+                    CONTENT_TYPE + ": text/plain; charset=UTF-8" + "\r\n" +
+                    "\r\n" +
+                    "bar" +
+                    "\r\n" +
+                    "--" + multipartDataBoundary + "\r\n" +
+                    CONTENT_DISPOSITION + ": form-data; name=\"quux\"; filename=\"file-01.txt\"" + "\r\n" +
+                    CONTENT_LENGTH + ": " + file1.length() + "\r\n" +
+                    CONTENT_TYPE + ": text/plain" + "\r\n" +
+                    CONTENT_TRANSFER_ENCODING + ": binary" + "\r\n" +
+                    "\r\n" +
+                    "File 01" + StringUtil.NEWLINE +
+                    "\r\n" +
+                    "--" + multipartDataBoundary + "--" + "\r\n";
 
-        String expected = "--" + multipartDataBoundary + "\r\n" +
-                CONTENT_DISPOSITION + ": form-data; name=\"foo\"" + "\r\n" +
-                CONTENT_LENGTH + ": 3" + "\r\n" +
-                CONTENT_TYPE + ": text/plain; charset=UTF-8" + "\r\n" +
-                "\r\n" +
-                "bar" +
-                "\r\n" +
-                "--" + multipartDataBoundary + "\r\n" +
-                CONTENT_DISPOSITION + ": form-data; name=\"quux\"; filename=\"file-01.txt\"" + "\r\n" +
-                CONTENT_LENGTH + ": " + file1.length() + "\r\n" +
-                CONTENT_TYPE + ": text/plain" + "\r\n" +
-                CONTENT_TRANSFER_ENCODING + ": binary" + "\r\n" +
-                "\r\n" +
-                "File 01" + StringUtil.NEWLINE +
-                "\r\n" +
-                "--" + multipartDataBoundary + "--" + "\r\n";
-
-        assertEquals(expected, content);
+            assertEquals(expected, content);
+        }
     }
 
     @Test
     public void testHttpPostRequestEncoderSlicedBuffer() throws Exception {
-        DefaultFullHttpRequest request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1,
-                HttpMethod.POST, "http://localhost", DefaultBufferAllocators.preferredAllocator().allocate(0));
+        try (DefaultFullHttpRequest request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1,
+                HttpMethod.POST, "http://localhost", DefaultBufferAllocators.preferredAllocator().allocate(0))) {
 
-        HttpPostRequestEncoder encoder = new HttpPostRequestEncoder(request, true);
-        // add Form attribute
-        encoder.addBodyAttribute("getform", "POST");
-        encoder.addBodyAttribute("info", "first value");
-        encoder.addBodyAttribute("secondinfo", "secondvalue a&");
-        encoder.addBodyAttribute("thirdinfo", "short text");
-        int length = 100000;
-        char[] array = new char[length];
-        Arrays.fill(array, 'a');
-        String longText = new String(array);
-        encoder.addBodyAttribute("fourthinfo", longText.substring(0, 7470));
-        File file1 = new File(getClass().getResource("/file-01.txt").toURI());
-        encoder.addBodyFileUpload("myfile", file1, "application/x-zip-compressed", false);
-        encoder.finalizeRequest();
-        while (! encoder.isEndOfInput()) {
-            HttpContent<?> httpContent = encoder.readChunk((BufferAllocator) null);
-            Buffer content = httpContent.payload();
-            // TODO how to test this ?
+            HttpPostRequestEncoder encoder = new HttpPostRequestEncoder(request, true);
+            // add Form attribute
+            encoder.addBodyAttribute("getform", "POST");
+            encoder.addBodyAttribute("info", "first value");
+            encoder.addBodyAttribute("secondinfo", "secondvalue a&");
+            encoder.addBodyAttribute("thirdinfo", "short text");
+            int length = 100000;
+            char[] array = new char[length];
+            Arrays.fill(array, 'a');
+            String longText = new String(array);
+            encoder.addBodyAttribute("fourthinfo", longText.substring(0, 7470));
+            File file1 = new File(getClass().getResource("/file-01.txt").toURI());
+            encoder.addBodyFileUpload("myfile", file1, "application/x-zip-compressed", false);
+            encoder.finalizeRequest();
+            while (!encoder.isEndOfInput()) {
+                HttpContent<?> httpContent = encoder.readChunk((BufferAllocator) null);
+                Buffer content = httpContent.payload();
+                // TODO how to test this ?
 //            assertTrue((content.unwrap() == content || content.unwrap() == null)  ||
 //                    content.unwrap() != content && refCnt == 2,
 //                    "content: " + content + " content.unwrap(): " + content.unwrap() + " refCnt: " + refCnt);
-            httpContent.close();
+                httpContent.close();
+            }
+            encoder.cleanFiles();
+            encoder.close();
         }
-        encoder.cleanFiles();
-        encoder.close();
     }
 
     private static String getRequestBody(HttpPostRequestEncoder encoder) throws Exception {
@@ -374,55 +380,60 @@ public class HttpPostRequestEncoderTest {
     @Test
     public void testDataIsMultipleOfChunkSize1() throws Exception {
         DefaultHttpDataFactory factory = new DefaultHttpDataFactory(DefaultHttpDataFactory.MINSIZE);
-        DefaultFullHttpRequest request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1,
-                HttpMethod.POST, "http://localhost", DefaultBufferAllocators.preferredAllocator().allocate(0));
-        HttpPostRequestEncoder encoder = new HttpPostRequestEncoder(factory, request, true,
-                HttpConstants.DEFAULT_CHARSET, HttpPostRequestEncoder.EncoderMode.RFC1738);
+        try (DefaultFullHttpRequest request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1,
+                HttpMethod.POST, "http://localhost", DefaultBufferAllocators.preferredAllocator().allocate(0))) {
+            HttpPostRequestEncoder encoder = new HttpPostRequestEncoder(factory, request, true,
+                    HttpConstants.DEFAULT_CHARSET, HttpPostRequestEncoder.EncoderMode.RFC1738);
 
-        MemoryFileUpload first = new MemoryFileUpload("resources", "", "application/json", null,
-                StandardCharsets.UTF_8, -1);
-        first.setMaxSize(-1);
-        first.setContent(new ByteArrayInputStream(new byte[7955]));
-        encoder.addBodyHttpData(first);
+            MemoryFileUpload first = new MemoryFileUpload("resources", "", "application/json", null,
+                    StandardCharsets.UTF_8, -1);
+            first.setMaxSize(-1);
+            first.setContent(new ByteArrayInputStream(new byte[7955]));
+            encoder.addBodyHttpData(first);
 
-        MemoryFileUpload second = new MemoryFileUpload("resources2", "", "application/json", null,
-                StandardCharsets.UTF_8, -1);
-        second.setMaxSize(-1);
-        second.setContent(new ByteArrayInputStream(new byte[7928]));
-        encoder.addBodyHttpData(second);
+            MemoryFileUpload second = new MemoryFileUpload("resources2", "", "application/json", null,
+                    StandardCharsets.UTF_8, -1);
+            second.setMaxSize(-1);
+            second.setContent(new ByteArrayInputStream(new byte[7928]));
+            encoder.addBodyHttpData(second);
 
-        assertNotNull(encoder.finalizeRequest());
+            assertNotNull(encoder.finalizeRequest());
 
-        checkNextChunkSize(encoder, 8080);
-        checkNextChunkSize(encoder, 8080);
+            checkNextChunkSize(encoder, 8080);
+            checkNextChunkSize(encoder, 8080);
 
-        HttpContent<?> httpContent = encoder.readChunk((BufferAllocator) null);
-        assertTrue(httpContent instanceof LastHttpContent, "Expected LastHttpContent is not received");
-        httpContent.close();
+            HttpContent<?> httpContent = encoder.readChunk((BufferAllocator) null);
+            assertTrue(httpContent instanceof LastHttpContent, "Expected LastHttpContent is not received");
+            httpContent.close();
 
-           assertTrue(encoder.isEndOfInput(), "Expected end of input is not receive");
+            assertTrue(encoder.isEndOfInput(), "Expected end of input is not receive");
+            first.close();
+            second.close();
+        }
     }
 
     @Test
     public void testDataIsMultipleOfChunkSize2() throws Exception {
-        DefaultFullHttpRequest request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1,
-                HttpMethod.POST, "http://localhost", DefaultBufferAllocators.preferredAllocator().allocate(0));
-        HttpPostRequestEncoder encoder = new HttpPostRequestEncoder(request, true);
-        int length = 7943;
-        char[] array = new char[length];
-        Arrays.fill(array, 'a');
-        String longText = new String(array);
-        encoder.addBodyAttribute("foo", longText);
+        try (DefaultFullHttpRequest request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1,
+                HttpMethod.POST, "http://localhost", DefaultBufferAllocators.preferredAllocator().allocate(0))) {
+            HttpPostRequestEncoder encoder = new HttpPostRequestEncoder(request, true);
+            int length = 7943;
+            char[] array = new char[length];
+            Arrays.fill(array, 'a');
+            String longText = new String(array);
+            encoder.addBodyAttribute("foo", longText);
 
-        assertNotNull(encoder.finalizeRequest());
+            assertNotNull(encoder.finalizeRequest());
 
-        checkNextChunkSize(encoder, 8080);
+            checkNextChunkSize(encoder, 8080);
 
-        HttpContent<?> httpContent = encoder.readChunk((BufferAllocator) null);
-        assertTrue(httpContent instanceof LastHttpContent, "Expected LastHttpContent is not received");
-        httpContent.close();
+            HttpContent<?> httpContent = encoder.readChunk((BufferAllocator) null);
+            assertTrue(httpContent instanceof LastHttpContent, "Expected LastHttpContent is not received");
+            httpContent.close();
 
-        assertTrue(encoder.isEndOfInput(), "Expected end of input is not receive");
+            assertTrue(encoder.isEndOfInput(), "Expected end of input is not receive");
+            encoder.cleanFiles();
+        }
     }
 
     private static void checkNextChunkSize(HttpPostRequestEncoder encoder, int sizeWithoutDelimiter) throws Exception {

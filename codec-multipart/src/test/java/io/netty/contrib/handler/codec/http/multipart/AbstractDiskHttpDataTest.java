@@ -35,7 +35,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 /**
  * {@link AbstractDiskHttpData} test cases
  */
-public class AbstractDiskHttpDataTest {
+public class AbstractDiskHttpDataTest extends AbstractTest {
 
     @Test
     public void testGetChunk() throws Exception {
@@ -60,6 +60,8 @@ public class AbstractDiskHttpDataTest {
             assertEquals(buf2.writerOffset(), 1024);
             assertFalse(Arrays.equals(BufferUtil.getBytes(buf1), BufferUtil.getBytes(buf2)),
                     "Arrays should not be equal");
+            buf1.close();
+            buf2.close();
         }
     }
 
