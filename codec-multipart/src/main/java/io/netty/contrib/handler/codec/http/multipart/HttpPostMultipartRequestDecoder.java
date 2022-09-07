@@ -21,7 +21,6 @@ import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestDecoder.Erro
 import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestDecoder.MultiPartStatus;
 import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestDecoder.NotEnoughDataDecoderException;
 import java.nio.charset.StandardCharsets;
-import io.netty5.util.AsciiString;
 import io.netty5.util.internal.PlatformDependent;
 import io.netty5.util.internal.StringUtil;
 import io.netty5.buffer.Buffer;
@@ -1004,21 +1003,16 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
      * Remove all Attributes that should be cleaned between two FileUpload in
      * Mixed mode
      */
+    @SuppressWarnings("EmptyTryBlock")
     private void cleanMixedAttributes() {
         if (currentFieldAttributes != null) {
-            cleanMixedAttributes(HttpHeaderValues.CHARSET);
-            cleanMixedAttributes(HttpHeaderNames.CONTENT_LENGTH);
-            cleanMixedAttributes(HttpHeaderNames.CONTENT_TRANSFER_ENCODING);
-            cleanMixedAttributes(HttpHeaderNames.CONTENT_TYPE);
-            cleanMixedAttributes(HttpHeaderValues.FILENAME);
+            try (Attribute charset = currentFieldAttributes.remove(HttpHeaderValues.CHARSET);
+                 Attribute clen = currentFieldAttributes.remove(HttpHeaderNames.CONTENT_LENGTH);
+                 Attribute transferEncoding = currentFieldAttributes.remove(HttpHeaderNames.CONTENT_TRANSFER_ENCODING);
+                 Attribute ctype = currentFieldAttributes.remove(HttpHeaderNames.CONTENT_TYPE);
+                 Attribute fname = currentFieldAttributes.remove(HttpHeaderValues.FILENAME)) {
+            }
         }
-    }
-
-    private void cleanMixedAttributes(AsciiString attributeKey) {
-        currentFieldAttributes.computeIfPresent(attributeKey, (charSequence, attribute) -> {
-            attribute.close();
-            return null;
-        });
     }
 
     /**
