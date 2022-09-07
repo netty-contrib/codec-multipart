@@ -1,5 +1,5 @@
 /*
- * Copyright 20202 The Netty Project
+ * Copyright 2022 The Netty Project
  *
  * The Netty Project licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -17,8 +17,6 @@ package io.netty.contrib.handler.codec.http.multipart;
 
 import org.junit.jupiter.api.AfterAll;
 
-import java.util.stream.IntStream;
-
 /**
  * Abstract base class extended by all other tests.
  */
@@ -27,7 +25,7 @@ public class AbstractTest {
     @AfterAll
     static void afterAll() {
         if (Boolean.getBoolean("io.netty5.buffer.leakDetectionEnabled")) {
-            IntStream.range(0, 10).forEach(i -> System.gc());
+            System.gc();
         }
     }
 
