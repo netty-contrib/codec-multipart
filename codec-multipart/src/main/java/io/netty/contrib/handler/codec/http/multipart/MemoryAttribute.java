@@ -15,10 +15,10 @@
  */
 package io.netty.contrib.handler.codec.http.multipart;
 
-import io.netty5.buffer.api.Buffer;
-import io.netty5.buffer.api.DefaultBufferAllocators;
-import io.netty5.buffer.api.Owned;
-import io.netty5.buffer.api.internal.InternalBufferUtils;
+import io.netty5.buffer.Buffer;
+import io.netty5.buffer.DefaultBufferAllocators;
+import io.netty5.buffer.Owned;
+import io.netty5.buffer.internal.InternalBufferUtils;
 import io.netty5.channel.ChannelException;
 import io.netty5.handler.codec.http.HttpConstants;
 import io.netty5.util.Send;

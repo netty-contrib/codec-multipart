@@ -136,9 +136,10 @@ public class HttpPostRequestDecoder implements InterfaceHttpPostRequestDecoder {
      * @return True if the request is a Multipart request
      */
     public static boolean isMultipart(HttpRequest request) {
-        String mimeType = request.headers().get(HttpHeaderNames.CONTENT_TYPE);
-        if (mimeType != null && mimeType.startsWith(HttpHeaderValues.MULTIPART_FORM_DATA.toString())) {
-            return getMultipartDataBoundary(mimeType) != null;
+        CharSequence mimeType = request.headers().get(HttpHeaderNames.CONTENT_TYPE);
+        if (mimeType != null && HttpHeaderValues.MULTIPART_FORM_DATA.
+                regionMatches(0, mimeType, 0, HttpHeaderValues.MULTIPART_FORM_DATA.length())) {
+                return getMultipartDataBoundary(mimeType.toString()) != null;
         }
         return false;
     }

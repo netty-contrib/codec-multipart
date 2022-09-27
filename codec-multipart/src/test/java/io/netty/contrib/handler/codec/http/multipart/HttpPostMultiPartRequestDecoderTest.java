@@ -16,8 +16,8 @@
 package io.netty.contrib.handler.codec.http.multipart;
 
 import java.nio.charset.StandardCharsets;
-import io.netty5.buffer.api.Buffer;
-import io.netty5.buffer.api.DefaultBufferAllocators;
+import io.netty5.buffer.Buffer;
+import io.netty5.buffer.DefaultBufferAllocators;
 import io.netty5.handler.codec.http.DefaultFullHttpRequest;
 import io.netty5.handler.codec.http.DefaultHttpContent;
 import io.netty5.handler.codec.http.DefaultHttpRequest;
@@ -77,7 +77,7 @@ public class HttpPostMultiPartRequestDecoderTest {
         FullHttpRequest req = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/upload",
                 Helpers.copiedBuffer(content, StandardCharsets.US_ASCII));
         req.headers().set("content-type", "multipart/form-data; boundary=861fbeab-cd20-470c-9609-d40a0f704466");
-        req.headers().set("content-length", content.length());
+        req.headers().set("content-length", String.valueOf(content.length()));
 
         try {
             new HttpPostMultipartRequestDecoder(req);
@@ -104,7 +104,7 @@ public class HttpPostMultiPartRequestDecoderTest {
                         "Content-Length: " + bytesLastChunk + "\n\n";
         HttpRequest request = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/upload");
         request.headers().set("content-type", "multipart/form-data; boundary=861fbeab-cd20-470c-9609-d40a0f704466");
-        request.headers().set("content-length", prefix.length() + bytesLastChunk + suffix.length());
+        request.headers().set("content-length", String.valueOf(prefix.length() + bytesLastChunk + suffix.length()));
 
         // Factory using Memory mode
         HttpDataFactory factory = new DefaultHttpDataFactory(false);
@@ -160,7 +160,7 @@ public class HttpPostMultiPartRequestDecoderTest {
 
         HttpRequest request = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/upload");
         request.headers().set("content-type", "multipart/form-data; boundary=861fbeab-cd20-470c-9609-d40a0f704466");
-        request.headers().set("content-length", prefix.length() + fileSize + suffix.length());
+        request.headers().set("content-length", String.valueOf(prefix.length() + fileSize + suffix.length()));
 
         HttpPostMultipartRequestDecoder decoder = new HttpPostMultipartRequestDecoder(factory, request);
         Buffer buf = Helpers.copiedBuffer(prefix.getBytes(StandardCharsets.UTF_8));
@@ -285,7 +285,7 @@ public class HttpPostMultiPartRequestDecoderTest {
         FullHttpRequest req = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/upload",
                 Helpers.copiedBuffer(content, StandardCharsets.US_ASCII));
         req.headers().set("content-type", "multipart/form-data; boundary=861fbeab-cd20-470c-9609-d40a0f704466");
-        req.headers().set("content-length", content.length());
+        req.headers().set("content-length", String.valueOf(content.length()));
 
         HttpPostMultipartRequestDecoder test = new HttpPostMultipartRequestDecoder(req);
         FileUpload httpData = (FileUpload) test.getBodyHttpDatas("file").get(0);
@@ -310,8 +310,8 @@ public class HttpPostMultiPartRequestDecoderTest {
 
         HttpRequest request = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/upload");
         request.headers().set("content-type", "multipart/form-data; boundary=861fbeab-cd20-470c-9609-d40a0f704466");
-        request.headers().set("content-length", nbItems * (prefix1.length() + prefix2.length() + 2 + bytesPerItem)
-                + suffix.length());
+        request.headers().set("content-length", String.valueOf(nbItems * (prefix1.length() + prefix2.length() + 2 + bytesPerItem)
+                + suffix.length()));
         HttpPostMultipartRequestDecoder decoder = new HttpPostMultipartRequestDecoder(factory, request);
         decoder.setDiscardThreshold(maxMemory);
         for (int rank = 0; rank < nbItems; rank++) {
@@ -391,7 +391,7 @@ public class HttpPostMultiPartRequestDecoderTest {
         HttpRequest request = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/upload");
         request.headers().set("content-type", "multipart/form-data; boundary=861fbeab-cd20-470c-9609-d40a0f704466");
         // +4 => 2xCRLF (beginning, end)
-        request.headers().set("content-length", prefix.length() + fileSize + suffix.length() + 4);
+        request.headers().set("content-length", String.valueOf(prefix.length() + fileSize + suffix.length() + 4));
 
         HttpPostMultipartRequestDecoder decoder = new HttpPostMultipartRequestDecoder(factory, request);
         Buffer buf = Helpers.copiedBuffer(prefix.getBytes(StandardCharsets.UTF_8));

@@ -15,21 +15,21 @@
  */
 package io.netty.contrib.handler.codec.http.multipart;
 
-import io.netty5.buffer.api.Buffer;
-import io.netty5.buffer.api.BufferAllocator;
-import io.netty5.buffer.api.DefaultBufferAllocators;
+import io.netty5.buffer.Buffer;
+import io.netty5.buffer.BufferAllocator;
+import io.netty5.buffer.DefaultBufferAllocators;
+import io.netty5.util.AsciiString;
 import io.netty5.util.Send;
 import io.netty5.handler.codec.DecoderResult;
 import io.netty5.handler.codec.http.DefaultFullHttpRequest;
 import io.netty5.handler.codec.http.DefaultHttpContent;
-import io.netty5.handler.codec.http.EmptyHttpHeaders;
 import io.netty5.handler.codec.http.EmptyLastHttpContent;
 import io.netty5.handler.codec.http.FullHttpRequest;
 import io.netty5.handler.codec.http.HttpConstants;
 import io.netty5.handler.codec.http.HttpContent;
 import io.netty5.handler.codec.http.HttpHeaderNames;
 import io.netty5.handler.codec.http.HttpHeaderValues;
-import io.netty5.handler.codec.http.HttpHeaders;
+import io.netty5.handler.codec.http.headers.HttpHeaders;
 import io.netty5.handler.codec.http.HttpMethod;
 import io.netty5.handler.codec.http.HttpRequest;
 import io.netty5.handler.codec.http.HttpUtil;
@@ -46,6 +46,7 @@ import java.net.URLEncoder;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
@@ -756,19 +757,14 @@ public class HttpPostRequestEncoder implements ChunkedInput<HttpContent<?>> {
         }
 
         HttpHeaders headers = request.headers();
-        List<String> contentTypes = headers.getAll(HttpHeaderNames.CONTENT_TYPE);
-        List<String> transferEncoding = headers.getAll(HttpHeaderNames.TRANSFER_ENCODING);
-        if (contentTypes != null) {
-            headers.remove(HttpHeaderNames.CONTENT_TYPE);
-            for (String contentType : contentTypes) {
-                // "multipart/form-data; boundary=--89421926422648"
-                String lowercased = contentType.toLowerCase();
-                if (lowercased.startsWith(HttpHeaderValues.MULTIPART_FORM_DATA.toString()) ||
-                        lowercased.startsWith(HttpHeaderValues.APPLICATION_X_WWW_FORM_URLENCODED.toString())) {
-                    // ignore
-                } else {
-                    headers.add(HttpHeaderNames.CONTENT_TYPE, contentType);
-                }
+        Iterator<CharSequence> contentTypes = headers.valuesIterator(HttpHeaderNames.CONTENT_TYPE);
+        Iterator<CharSequence> transferEncoding = headers.valuesIterator(HttpHeaderNames.TRANSFER_ENCODING);
+        while (contentTypes.hasNext()) {
+            CharSequence contentType = contentTypes.next();
+            if (AsciiString.indexOfIgnoreCase(contentType, HttpHeaderValues.MULTIPART_FORM_DATA, 0) == 0 ||
+                    AsciiString.indexOfIgnoreCase(contentType, HttpHeaderValues.APPLICATION_X_WWW_FORM_URLENCODED, 0) == 0) {
+                // ignore
+                contentTypes.remove();
             }
         }
         if (isMultipart) {
@@ -789,14 +785,11 @@ public class HttpPostRequestEncoder implements ChunkedInput<HttpContent<?>> {
         headers.set(HttpHeaderNames.CONTENT_LENGTH, String.valueOf(realSize));
         if (realSize > HttpPostBodyUtil.chunkSize || isMultipart) {
             isChunked = true;
-            if (transferEncoding != null) {
-                headers.remove(HttpHeaderNames.TRANSFER_ENCODING);
-                for (CharSequence v : transferEncoding) {
-                    if (HttpHeaderValues.CHUNKED.contentEqualsIgnoreCase(v)) {
-                        // ignore
-                    } else {
-                        headers.add(HttpHeaderNames.TRANSFER_ENCODING, v);
-                    }
+            while (transferEncoding.hasNext()) {
+                CharSequence v = transferEncoding.next();
+                if (HttpHeaderValues.CHUNKED.contentEqualsIgnoreCase(v)) {
+                    // ignore
+                    transferEncoding.remove();
                 }
             }
             HttpUtil.setTransferEncodingChunked(request, true);
@@ -1261,7 +1254,7 @@ public class HttpPostRequestEncoder implements ChunkedInput<HttpContent<?>> {
             if (content instanceof LastHttpContent) {
                 return ((LastHttpContent<?>) content).trailingHeaders();
             } else {
-                return EmptyHttpHeaders.INSTANCE;
+                return HttpHeaders.emptyHeaders();
             }
         }
 
