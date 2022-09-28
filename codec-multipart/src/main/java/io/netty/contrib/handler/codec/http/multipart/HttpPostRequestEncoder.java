@@ -758,7 +758,6 @@ public class HttpPostRequestEncoder implements ChunkedInput<HttpContent<?>> {
 
         HttpHeaders headers = request.headers();
         Iterator<CharSequence> contentTypes = headers.valuesIterator(HttpHeaderNames.CONTENT_TYPE);
-        Iterator<CharSequence> transferEncoding = headers.valuesIterator(HttpHeaderNames.TRANSFER_ENCODING);
         while (contentTypes.hasNext()) {
             CharSequence contentType = contentTypes.next();
             if (AsciiString.indexOfIgnoreCase(contentType, HttpHeaderValues.MULTIPART_FORM_DATA, 0) == 0 ||
@@ -785,13 +784,7 @@ public class HttpPostRequestEncoder implements ChunkedInput<HttpContent<?>> {
         headers.set(HttpHeaderNames.CONTENT_LENGTH, String.valueOf(realSize));
         if (realSize > HttpPostBodyUtil.chunkSize || isMultipart) {
             isChunked = true;
-            while (transferEncoding.hasNext()) {
-                CharSequence v = transferEncoding.next();
-                if (HttpHeaderValues.CHUNKED.contentEqualsIgnoreCase(v)) {
-                    // ignore
-                    transferEncoding.remove();
-                }
-            }
+            // Remove any existing Transfer-Encoding or Content-Length entries, and set chunked TE
             HttpUtil.setTransferEncodingChunked(request, true);
 
             // wrap to hide the possible content
