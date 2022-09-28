@@ -23,6 +23,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.Charset;
+import java.util.function.Function;
 
 abstract class AbstractMixedHttpData<D extends HttpData> extends ResourceSupport<HttpData, AbstractMixedHttpData<? extends HttpData>> implements HttpData {
     final String baseDir;
@@ -130,6 +131,11 @@ abstract class AbstractMixedHttpData<D extends HttpData> extends ResourceSupport
     @Override
     public Buffer getBuffer() throws IOException {
         return wrapped.getBuffer();
+    }
+
+    @Override
+    public <T> T mapBuffer(Function<Buffer, ? extends T> mapper) throws IOException {
+        return wrapped.mapBuffer(mapper);
     }
 
     @Override

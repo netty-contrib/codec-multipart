@@ -21,6 +21,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.Charset;
+import java.util.function.Function;
 
 /**
  * Extended interface for InterfaceHttpData
@@ -134,6 +135,13 @@ public interface HttpData extends InterfaceHttpData {
      * Returns the content of the file item as a Buffer.<br>
      * Note: this method will allocate a lot of memory, if the data is currently stored on the file system.
      *
+     * <p>Buffer ownersip:</p>
+     * <ul>
+     *     <li>for in memory based content, the ownership of the returned buffer is not transferred to the caller</li>
+     *     <li>for disk based content, the getBuffer() method always return a new Buffer, in this case the
+     *     ownership of the returned buffer is transferred to the caller</li>
+     * </ul>
+     *
      * @return the content of the file item as a ByteBuf
      * @throws IOException
      *
@@ -141,11 +149,26 @@ public interface HttpData extends InterfaceHttpData {
     Buffer getBuffer() throws IOException;
 
     /**
+     * Returns the result of applying the content of the file item to the given mapping function.
+     * Using the mapping function, the file item can be transformed by the function to anything,
+     * which will be returned to the caller.
+     *
+     * <p>The ownnership of the buffer passed to the mapping function is not transferred to the function, which should
+     * not modify or change the readerOffset of the buffer passed in argument</p>
+     *
+     * @param mapper
+     *            the function to apply to the content of the item. The buffer passed to the
+     *            function should not be changed.
+     */
+    public <T> T mapBuffer(Function<Buffer, ? extends T> mapper) throws IOException;
+
+    /**
      * Returns a ChannelBuffer for the content from the current position with at
      * most length read bytes, increasing the current position of the Bytes
      * read. Once it arrives at the end, it returns an EMPTY_BUFFER and it
      * resets the current position to 0.
      *
+     * <p>Buffer ownersip: The buffer ownership of the returned buffer is transferred to the caller
      * @return a ChannelBuffer for the content from the current position or an
      *         EMPTY_BUFFER if there is no more data to return
      */
@@ -219,6 +242,13 @@ public interface HttpData extends InterfaceHttpData {
 
     /**
      * Return the data which is held by this {@link HttpData}.
+     *
+     * <p>Buffer ownersip:</p>
+     * <ul>
+     *     <li>for in memory based content, the ownership of the returned buffer is not transferred to the caller</li>
+     *     <li>for disk based content, the content() method always return a new Buffer, in this case the
+     *     ownership of the returned buffer is transferred to the caller</li>
+     * </ul>
      */
     Buffer content();
 

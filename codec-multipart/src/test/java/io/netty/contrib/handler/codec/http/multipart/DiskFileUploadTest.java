@@ -269,4 +269,31 @@ public class DiskFileUploadTest extends AbstractTest {
             }
         }
     }
+
+    @Test
+    public void testCopy() throws Exception {
+        try (DiskFileUpload f1 = new DiskFileUpload("file2", "file2", "application/json", null, null, 0)) {
+            String json = "{\"hello\":\"world\"}";
+            byte[] bytes = json.getBytes(StandardCharsets.UTF_8);
+            f1.setContent(Helpers.copiedBuffer(bytes));
+
+            try (FileUpload f1Copy = f1.copy()) {
+                assertEquals(json, f1.getString());
+                assertEquals(json, f1Copy.getString());
+                assertArrayEquals(bytes, f1.get());
+                assertArrayEquals(bytes, f1Copy.get());
+                File file = f1.getFile();
+                assertEquals((long) bytes.length, file.length());
+                assertArrayEquals(bytes, doReadFile(file, bytes.length));
+                file = f1Copy.getFile();
+                assertEquals((long) bytes.length, file.length());
+                assertArrayEquals(bytes, doReadFile(file, bytes.length));
+
+                try (Buffer f1Buf = f1.getBuffer();
+                    Buffer f1CopyBuf = f1Copy.getBuffer()) {
+                    assertEquals(f1Buf, f1CopyBuf);
+                }
+            }
+        }
+    }
 }

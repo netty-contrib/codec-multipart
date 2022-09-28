@@ -539,16 +539,11 @@ public class HttpPostStandardRequestDecoder implements InterfaceHttpPostRequestD
 
     private void setFinalBuffer(Buffer buffer) throws IOException {
         currentAttribute.addContent(buffer, true);
-        Buffer currentBuf = currentAttribute.getBuffer();
-        Buffer decodedBuf = decodeAttribute(currentBuf, charset);
+        Buffer decodedBuf = currentAttribute.mapBuffer(b -> decodeAttribute(b, charset));
         if (decodedBuf != null) { // override content only when ByteBuf needed decoding
             currentAttribute.setContent(decodedBuf);
         }
         addHttpData(currentAttribute);
-        if (! currentAttribute.isInMemory() && currentBuf != null && currentBuf.isAccessible()) {
-            // disked based attribute always returned an allocated buffer from getBuffer method, so we need to close
-            currentBuf.close();
-        }
         currentAttribute = null;
     }
 

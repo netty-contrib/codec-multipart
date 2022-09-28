@@ -24,6 +24,7 @@ import io.netty5.util.internal.ObjectUtil;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
+import java.util.function.Function;
 import java.util.regex.Pattern;
 
 import static io.netty5.util.internal.ObjectUtil.checkNonEmpty;
@@ -146,6 +147,18 @@ public abstract class AbstractHttpData extends ResourceSupport<HttpData, Abstrac
             return getBuffer();
         } catch (IOException e) {
             throw new ChannelException(e);
+        }
+    }
+
+    @Override
+    public <T> T mapBuffer(Function<Buffer, ? extends T> mapper) throws IOException {
+        Buffer currentBuf = getBuffer();
+        try {
+            return mapper.apply(currentBuf);
+        } finally {
+            if (! isInMemory() && currentBuf != null && currentBuf.isAccessible()) {
+                currentBuf.close();
+            }
         }
     }
 

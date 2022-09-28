@@ -70,6 +70,21 @@ class HttpDataTest extends AbstractTest {
     }
 
     @ParameterizedHttpDataTest
+    void testCopy(HttpData httpData) throws IOException {
+        httpData.addContent(DefaultBufferAllocators.preferredAllocator().allocate(0), false);
+
+        try (HttpData copy = httpData.copy()) {
+            Buffer content = httpData.content();
+            Buffer copyContent = copy.content();
+            assertThat(content).isEqualTo(copyContent);
+            if (!httpData.isInMemory()) {
+                content.close();
+                copyContent.close();
+            }
+        }
+    }
+
+    @ParameterizedHttpDataTest
     void testCompletedFlagPreservedAfterRetainDuplicate(HttpData httpData) throws IOException {
         httpData.addContent(Helpers.copiedBuffer("foo".getBytes(StandardCharsets.UTF_8)), false);
         assertThat(httpData.isCompleted()).isFalse();
