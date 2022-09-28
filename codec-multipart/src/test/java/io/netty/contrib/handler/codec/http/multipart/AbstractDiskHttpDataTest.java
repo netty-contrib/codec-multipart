@@ -20,6 +20,7 @@ import io.netty5.buffer.BufferUtil;
 import io.netty5.buffer.Buffer;
 import io.netty5.buffer.Owned;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -35,7 +36,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 /**
  * {@link AbstractDiskHttpData} test cases
  */
-public class AbstractDiskHttpDataTest extends AbstractTest {
+@ExtendWith(GCExtension.class)
+public class AbstractDiskHttpDataTest {
 
     @Test
     public void testGetChunk() throws Exception {

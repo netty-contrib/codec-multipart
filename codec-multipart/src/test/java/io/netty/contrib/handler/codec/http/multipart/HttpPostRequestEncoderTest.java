@@ -31,6 +31,7 @@ import io.netty5.handler.codec.http.HttpRequest;
 import io.netty5.handler.codec.http.HttpVersion;
 import io.netty5.handler.codec.http.LastHttpContent;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
@@ -43,7 +44,8 @@ import static io.netty5.handler.codec.http.HttpHeaderNames.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 /** {@link HttpPostRequestEncoder} test case. */
-public class HttpPostRequestEncoderTest extends AbstractTest {
+@ExtendWith(GCExtension.class)
+public class HttpPostRequestEncoderTest {
 
     @Test
     public void testAllowedMethods() throws Exception {

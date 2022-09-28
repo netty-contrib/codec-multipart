@@ -22,6 +22,7 @@ import io.netty5.buffer.BufferUtil;
 import io.netty5.buffer.Buffer;
 import io.netty5.buffer.DefaultBufferAllocators;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -33,7 +34,8 @@ import java.util.concurrent.ThreadLocalRandom;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class DiskFileUploadTest extends AbstractTest {
+@ExtendWith(GCExtension.class)
+public class DiskFileUploadTest {
     @Test
     public void testSpecificCustomBaseDir() throws IOException {
         File baseDir = new File("target/DiskFileUploadTest/testSpecificCustomBaseDir");

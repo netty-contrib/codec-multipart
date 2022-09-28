@@ -20,6 +20,7 @@ import io.netty5.handler.codec.http.DefaultHttpRequest;
 import io.netty5.handler.codec.http.HttpRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.File;
 import java.io.FilenameFilter;
@@ -32,7 +33,8 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * Test DeleteFileOnExitHook
  */
-public class DeleteFileOnExitHookTest extends AbstractTest {
+@ExtendWith(GCExtension.class)
+public class DeleteFileOnExitHookTest {
     private static final HttpRequest REQUEST = new DefaultHttpRequest(HTTP_1_1, POST, "/form");
     private static final String HOOK_TEST_TMP = "target/DeleteFileOnExitHookTest/tmp";
     private FileUpload fu;

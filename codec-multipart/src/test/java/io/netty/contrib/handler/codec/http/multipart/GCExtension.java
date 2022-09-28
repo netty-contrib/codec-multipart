@@ -15,18 +15,17 @@
  */
 package io.netty.contrib.handler.codec.http.multipart;
 
-import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.extension.AfterAllCallback;
+import org.junit.jupiter.api.extension.ExtensionContext;
 
 /**
- * Abstract base class extended by all other tests.
+ * Junit5 extension used to run GC after all tests are executed.
  */
-public class AbstractTest {
-
-    @AfterAll
-    static void afterAll() {
+public class GCExtension implements AfterAllCallback {
+    @Override
+    public void afterAll(ExtensionContext extensionContext) throws Exception {
         if (Boolean.getBoolean("io.netty5.buffer.leakDetectionEnabled")) {
             System.gc();
         }
     }
-
 }

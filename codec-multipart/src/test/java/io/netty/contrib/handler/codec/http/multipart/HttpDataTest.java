@@ -21,6 +21,7 @@ import io.netty5.buffer.DefaultBufferAllocators;
 import org.assertj.core.api.ThrowableAssert;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
@@ -35,7 +36,8 @@ import java.util.Random;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
-class HttpDataTest extends AbstractTest {
+@ExtendWith(GCExtension.class)
+class HttpDataTest {
     private static final byte[] BYTES = new byte[64];
 
     @Retention(RetentionPolicy.RUNTIME)

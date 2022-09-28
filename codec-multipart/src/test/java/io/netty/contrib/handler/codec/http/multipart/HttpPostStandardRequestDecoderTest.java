@@ -17,7 +17,6 @@ package io.netty.contrib.handler.codec.http.multipart;
 
 import io.netty5.buffer.Buffer;
 import io.netty5.buffer.DefaultBufferAllocators;
-import io.netty5.handler.codec.http.DefaultHttpContent;
 import io.netty5.handler.codec.http.DefaultHttpRequest;
 import io.netty5.handler.codec.http.DefaultLastHttpContent;
 import io.netty5.handler.codec.http.HttpMethod;
@@ -25,10 +24,12 @@ import io.netty5.handler.codec.http.HttpRequest;
 import io.netty5.handler.codec.http.HttpVersion;
 import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class HttpPostStandardRequestDecoderTest extends AbstractTest {
+@ExtendWith(GCExtension.class)
+class HttpPostStandardRequestDecoderTest {
 
     @Test
     void testDecodeAttributes() {

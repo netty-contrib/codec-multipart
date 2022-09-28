@@ -21,6 +21,7 @@ import io.netty5.buffer.BufferUtil;
 import io.netty5.buffer.Buffer;
 import io.netty5.buffer.Owned;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
@@ -36,7 +37,8 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.jupiter.api.Assertions.*;
 
 /** {@link AbstractMemoryHttpData} test cases. */
-public class AbstractMemoryHttpDataTest extends AbstractTest {
+@ExtendWith(GCExtension.class)
+public class AbstractMemoryHttpDataTest {
 
     @Test
     public void testSetContentFromFile() throws Exception {

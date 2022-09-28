@@ -29,6 +29,7 @@ import io.netty5.handler.codec.http.HttpMethod;
 import io.netty5.handler.codec.http.HttpRequest;
 import io.netty5.handler.codec.http.HttpVersion;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -37,7 +38,8 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class HttpPostMultiPartRequestDecoderTest extends AbstractTest {
+@ExtendWith(GCExtension.class)
+public class HttpPostMultiPartRequestDecoderTest {
 
     @Test
     public void testDecodeFullHttpRequestWithNoContentTypeHeader() {

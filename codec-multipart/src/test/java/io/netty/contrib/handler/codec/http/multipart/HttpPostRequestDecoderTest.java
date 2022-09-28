@@ -33,6 +33,7 @@ import io.netty5.handler.codec.http.HttpVersion;
 import io.netty5.handler.codec.http.LastHttpContent;
 import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.function.Executable;
 
 import java.io.UnsupportedEncodingException;
@@ -46,7 +47,8 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * {@link HttpPostRequestDecoder} test case.
  */
-public class HttpPostRequestDecoderTest extends AbstractTest {
+@ExtendWith(GCExtension.class)
+public class HttpPostRequestDecoderTest {
 
     @Test
     public void testBinaryStreamUploadWithSpace() throws Exception {

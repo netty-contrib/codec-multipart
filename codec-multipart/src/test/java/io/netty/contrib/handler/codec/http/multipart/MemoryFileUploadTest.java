@@ -16,10 +16,12 @@
 package io.netty.contrib.handler.codec.http.multipart;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public class MemoryFileUploadTest extends AbstractTest {
+@ExtendWith(GCExtension.class)
+public class MemoryFileUploadTest {
     @Test
     public final void testMemoryFileUploadEquals() {
         try (MemoryFileUpload f1 =

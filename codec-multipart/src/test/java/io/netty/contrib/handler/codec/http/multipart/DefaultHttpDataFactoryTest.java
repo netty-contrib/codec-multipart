@@ -21,6 +21,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import static io.netty.contrib.handler.codec.http.multipart.HttpPostBodyUtil.DEFAULT_TEXT_CONTENT_TYPE;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -29,7 +30,8 @@ import static io.netty5.handler.codec.http.HttpMethod.POST;
 import static io.netty5.handler.codec.http.HttpVersion.HTTP_1_1;
 import static org.junit.jupiter.api.Assertions.*;
 
-public class DefaultHttpDataFactoryTest extends AbstractTest {
+@ExtendWith(GCExtension.class)
+public class DefaultHttpDataFactoryTest {
     // req1 equals req2
     private static final HttpRequest req1 = new DefaultHttpRequest(HTTP_1_1, POST, "/form");
     private static final HttpRequest req2 = new DefaultHttpRequest(HTTP_1_1, POST, "/form");
