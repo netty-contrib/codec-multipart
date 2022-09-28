@@ -41,7 +41,7 @@ public class HttpUploadClientHandler extends SimpleChannelInboundHandler<HttpObj
 
             if (!response.headers().isEmpty()) {
                 for (CharSequence name : response.headers().names()) {
-                    for (CharSequence value : response.headers().getAll(name)) {
+                    for (CharSequence value : response.headers().values(name)) {
                         System.err.println("HEADER: " + name + " = " + value);
                     }
                 }

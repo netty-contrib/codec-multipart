@@ -19,9 +19,9 @@ import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestDecoder.EndO
 import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestDecoder.ErrorDataDecoderException;
 import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestDecoder.MultiPartStatus;
 import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestDecoder.NotEnoughDataDecoderException;
-import io.netty5.buffer.api.Buffer;
-import io.netty5.buffer.api.ByteCursor;
-import io.netty5.buffer.api.DefaultBufferAllocators;
+import io.netty5.buffer.Buffer;
+import io.netty5.buffer.ByteCursor;
+import io.netty5.buffer.DefaultBufferAllocators;
 import io.netty5.handler.codec.http.HttpConstants;
 import io.netty5.handler.codec.http.HttpContent;
 import io.netty5.handler.codec.http.HttpRequest;

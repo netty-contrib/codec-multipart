@@ -15,8 +15,8 @@
  */
 package io.netty.contrib.handler.codec.http.multipart;
 
-import io.netty5.buffer.api.Buffer;
-import io.netty5.buffer.api.Owned;
+import io.netty5.buffer.Buffer;
+import io.netty5.buffer.Owned;
 import io.netty5.channel.ChannelException;
 import io.netty5.handler.codec.http.HttpHeaderNames;
 import io.netty5.handler.codec.http.HttpHeaderValues;

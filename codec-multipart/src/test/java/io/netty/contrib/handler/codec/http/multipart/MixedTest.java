@@ -15,8 +15,8 @@
  */
 package io.netty.contrib.handler.codec.http.multipart;
 
-import io.netty5.buffer.api.Buffer;
-import io.netty5.buffer.api.DefaultBufferAllocators;
+import io.netty5.buffer.Buffer;
+import io.netty5.buffer.DefaultBufferAllocators;
 import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;

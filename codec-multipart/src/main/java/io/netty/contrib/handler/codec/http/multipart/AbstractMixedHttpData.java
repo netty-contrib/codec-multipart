@@ -15,9 +15,9 @@
  */
 package io.netty.contrib.handler.codec.http.multipart;
 
-import io.netty5.buffer.api.Buffer;
-import io.netty5.buffer.api.Drop;
-import io.netty5.buffer.api.internal.ResourceSupport;
+import io.netty5.buffer.Buffer;
+import io.netty5.buffer.Drop;
+import io.netty5.buffer.internal.ResourceSupport;
 
 import java.io.File;
 import java.io.IOException;

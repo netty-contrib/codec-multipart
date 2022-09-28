@@ -19,8 +19,8 @@ import io.netty5.buffer.BufferInputStream;
 import java.nio.charset.StandardCharsets;
 import io.netty5.util.internal.PlatformDependent;
 import io.netty5.buffer.BufferUtil;
-import io.netty5.buffer.api.Buffer;
-import io.netty5.buffer.api.DefaultBufferAllocators;
+import io.netty5.buffer.Buffer;
+import io.netty5.buffer.DefaultBufferAllocators;
 import org.junit.jupiter.api.Test;
 
 import java.io.File;

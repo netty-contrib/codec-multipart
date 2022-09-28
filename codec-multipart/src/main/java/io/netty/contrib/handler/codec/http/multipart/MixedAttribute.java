@@ -15,7 +15,7 @@
  */
 package io.netty.contrib.handler.codec.http.multipart;
 
-import io.netty5.buffer.api.Owned;
+import io.netty5.buffer.Owned;
 import io.netty5.handler.codec.http.HttpConstants;
 import io.netty5.util.Send;
 

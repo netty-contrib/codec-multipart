@@ -14,8 +14,8 @@
  * under the License.
  */package io.netty.contrib.handler.codec.http.multipart;
 
-import io.netty5.buffer.api.Buffer;
-import io.netty5.buffer.api.DefaultBufferAllocators;
+import io.netty5.buffer.Buffer;
+import io.netty5.buffer.DefaultBufferAllocators;
 import io.netty5.handler.codec.http.DefaultLastHttpContent;
 import io.netty5.handler.codec.http.EmptyLastHttpContent;
 import io.netty5.util.AsciiString;

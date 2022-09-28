@@ -19,9 +19,9 @@ import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestEncoder.Enco
 import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestEncoder.ErrorDataEncoderException;
 import java.nio.charset.StandardCharsets;
 import io.netty5.util.internal.StringUtil;
-import io.netty5.buffer.api.Buffer;
-import io.netty5.buffer.api.BufferAllocator;
-import io.netty5.buffer.api.DefaultBufferAllocators;
+import io.netty5.buffer.Buffer;
+import io.netty5.buffer.BufferAllocator;
+import io.netty5.buffer.DefaultBufferAllocators;
 import io.netty5.handler.codec.http.DefaultFullHttpRequest;
 import io.netty5.handler.codec.http.DefaultHttpRequest;
 import io.netty5.handler.codec.http.HttpConstants;

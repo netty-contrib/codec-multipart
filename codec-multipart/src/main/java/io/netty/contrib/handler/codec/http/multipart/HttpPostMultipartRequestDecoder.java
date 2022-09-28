@@ -23,10 +23,10 @@ import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestDecoder.NotE
 import java.nio.charset.StandardCharsets;
 import io.netty5.util.internal.PlatformDependent;
 import io.netty5.util.internal.StringUtil;
-import io.netty5.buffer.api.Buffer;
-import io.netty5.buffer.api.BufferAllocator;
-import io.netty5.buffer.api.ByteCursor;
-import io.netty5.buffer.api.DefaultBufferAllocators;
+import io.netty5.buffer.Buffer;
+import io.netty5.buffer.BufferAllocator;
+import io.netty5.buffer.ByteCursor;
+import io.netty5.buffer.DefaultBufferAllocators;
 import io.netty5.handler.codec.http.HttpConstants;
 import io.netty5.handler.codec.http.HttpContent;
 import io.netty5.handler.codec.http.HttpHeaderNames;
@@ -184,12 +184,12 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
         this.factory = checkNotNullWithIAE(factory, "factory");
         // Fill default values
 
-        String contentTypeValue = this.request.headers().get(HttpHeaderNames.CONTENT_TYPE);
+        CharSequence contentTypeValue = this.request.headers().get(HttpHeaderNames.CONTENT_TYPE);
         if (contentTypeValue == null) {
             throw new ErrorDataDecoderException("No '" + HttpHeaderNames.CONTENT_TYPE + "' header present.");
         }
 
-        String[] dataBoundary = HttpPostRequestDecoder.getMultipartDataBoundary(contentTypeValue);
+        String[] dataBoundary = HttpPostRequestDecoder.getMultipartDataBoundary(contentTypeValue.toString());
         if (dataBoundary != null) {
             multipartDataBoundary = dataBoundary[0];
             if (dataBoundary.length > 1 && dataBoundary[1] != null) {

@@ -30,13 +30,12 @@ import io.netty5.channel.socket.nio.NioSocketChannel;
 import io.netty5.handler.codec.http.DefaultHttpRequest;
 import io.netty5.handler.codec.http.HttpHeaderNames;
 import io.netty5.handler.codec.http.HttpHeaderValues;
-import io.netty5.handler.codec.http.HttpHeaders;
+import io.netty5.handler.codec.http.headers.HttpHeaders;
 import io.netty5.handler.codec.http.HttpMethod;
 import io.netty5.handler.codec.http.HttpRequest;
 import io.netty5.handler.codec.http.HttpVersion;
 import io.netty5.handler.codec.http.QueryStringEncoder;
-import io.netty5.handler.codec.http.cookie.ClientCookieEncoder;
-import io.netty5.handler.codec.http.cookie.DefaultCookie;
+import io.netty5.handler.codec.http.headers.DefaultHttpCookiePair;
 import io.netty5.handler.ssl.SslContext;
 import io.netty5.handler.ssl.SslContextBuilder;
 import io.netty5.handler.ssl.util.InsecureTrustManagerFactory;
@@ -45,7 +44,6 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.net.URI;
 import java.util.List;
-import java.util.Map.Entry;
 
 /**
  * This class is meant to be run against {@link HttpUploadServer}.
@@ -115,8 +113,8 @@ public final class HttpUploadClient {
             b.group(group).channel(NioSocketChannel.class).handler(new HttpUploadClientInitializer(sslCtx));
 
             // Simple Get form: no factory used (not usable)
-            List<Entry<String, String>> headers = formget(b, host, port, get, uriSimple);
-            if (headers == null) {
+            HttpHeaders headers = formget(b, host, port, get, uriSimple);
+            if (headers.isEmpty()) {
                 factory.cleanAllHttpData();
                 return;
             }
@@ -143,9 +141,9 @@ public final class HttpUploadClient {
      * Standard usage of HTTP API in Netty without file Upload (get is not able to achieve File upload
      * due to limitation on request size).
      *
-     * @return the list of headers that will be used in every example after
+     * @return the headers that will be used in every example after
      **/
-    private static List<Entry<String, String>> formget(
+    private static HttpHeaders formget(
             Bootstrap bootstrap, String host, int port, String get, URI uriSimple) throws Exception {
         // XXX /formget
         // No use of HttpPostRequestEncoder since not a POST
@@ -179,11 +177,8 @@ public final class HttpUploadClient {
         // headers.set("Connection","keep-alive");
         // headers.set("Keep-Alive","300");
 
-        headers.set(
-                HttpHeaderNames.COOKIE, ClientCookieEncoder.STRICT.encode(
-                        new DefaultCookie("my-cookie", "foo"),
-                        new DefaultCookie("another-cookie", "bar"))
-        );
+        headers.addCookie(new DefaultHttpCookiePair("my-cookie", "foo"));
+        headers.addCookie(new DefaultHttpCookiePair("another-cookie", "bar"));
 
         // send request
         channel.writeAndFlush(request);
@@ -191,8 +186,7 @@ public final class HttpUploadClient {
         // Wait for the server to close the connection.
         channel.closeFuture().asStage().sync();
 
-        // convert headers to list
-        return headers.entries();
+        return headers;
     }
 
     /**
@@ -203,7 +197,7 @@ public final class HttpUploadClient {
     private static List<InterfaceHttpData> formpost(
             Bootstrap bootstrap,
             String host, int port, URI uriSimple, File file, HttpDataFactory factory,
-            List<Entry<String, String>> headers) throws Exception {
+            HttpHeaders headers) throws Exception {
         // XXX /formpost
         // Start the connection attempt.
         Channel channel = bootstrap.connect(host, port).asStage().get();
@@ -216,9 +210,7 @@ public final class HttpUploadClient {
                 new HttpPostRequestEncoder(factory, request, false);  // false => not multipart
 
         // it is legal to add directly header or cookie into the request until finalize
-        for (Entry<String, String> entry : headers) {
-            request.headers().set(entry.getKey(), entry.getValue());
-        }
+        request.headers().set(headers);
 
         // add Form attribute
         bodyRequestEncoder.addBodyAttribute("getform", "POST");
@@ -261,7 +253,7 @@ public final class HttpUploadClient {
      */
     private static void formpostmultipart(
             Bootstrap bootstrap, String host, int port, URI uriFile, HttpDataFactory factory,
-            Iterable<Entry<String, String>> headers, List<InterfaceHttpData> bodylist) throws Exception {
+            HttpHeaders headers, List<InterfaceHttpData> bodylist) throws Exception {
         // XXX /formpostmultipart
         // Start the connection attempt.
         Channel channel = bootstrap.connect(host, port).asStage().get();
@@ -274,9 +266,7 @@ public final class HttpUploadClient {
                 new HttpPostRequestEncoder(factory, request, true); // true => multipart
 
         // it is legal to add directly header or cookie into the request until finalize
-        for (Entry<String, String> entry : headers) {
-            request.headers().set(entry.getKey(), entry.getValue());
-        }
+        request.headers().set(headers);
 
         // add Form attribute from previous request in formpost()
         bodyRequestEncoder.setBodyHttpDatas(bodylist);
