@@ -21,7 +21,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.Charset;
-import java.util.function.Function;
 
 /**
  * Extended interface for InterfaceHttpData
@@ -147,20 +146,6 @@ public interface HttpData extends InterfaceHttpData {
      *
      */
     Buffer getBuffer() throws IOException;
-
-    /**
-     * Returns the result of applying the content of the file item to the given mapping function.
-     * Using the mapping function, the file item can be transformed by the function to anything,
-     * which will be returned to the caller.
-     *
-     * <p>The ownnership of the buffer passed to the mapping function is not transferred to the function, which should
-     * not modify or change the readerOffset of the buffer passed in argument</p>
-     *
-     * @param mapper
-     *            the function to apply to the content of the item. The buffer passed to the
-     *            function should not be changed.
-     */
-    public <T> T mapBuffer(Function<Buffer, ? extends T> mapper) throws IOException;
 
     /**
      * Returns a ChannelBuffer for the content from the current position with at
