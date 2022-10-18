@@ -21,6 +21,7 @@ import io.netty5.buffer.BufferUtil;
 import io.netty5.buffer.Buffer;
 import io.netty5.buffer.Owned;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
@@ -36,6 +37,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.jupiter.api.Assertions.*;
 
 /** {@link AbstractMemoryHttpData} test cases. */
+@ExtendWith(GCExtension.class)
 public class AbstractMemoryHttpDataTest {
 
     @Test
@@ -112,6 +114,8 @@ public class AbstractMemoryHttpDataTest {
             buf = Helpers.copiedBuffer(contentStr.getBytes(UTF_8));
             Buffer buf2 = test.getBuffer();
             assertTrue(BufferUtil.equals(buf, buf.readerOffset(), buf2, buf2.readerOffset(), buf2.readableBytes()));
+            buf.close();
+            buf2.close();
         } finally {
             is.close();
         }
@@ -126,17 +130,17 @@ public class AbstractMemoryHttpDataTest {
             random.nextBytes(bytes);
 
             // Generate parsed HTTP data block.
-            TestHttpData data = new TestHttpData("name", UTF_8, 0);
+            try (TestHttpData data = new TestHttpData("name", UTF_8, 0)) {
+                data.setContent(new ByteArrayInputStream(bytes));
 
-            data.setContent(new ByteArrayInputStream(bytes));
-
-            // Validate stored data.
-            Buffer buffer = data.getBuffer();
-
-            assertEquals(0, buffer.readerOffset());
-            assertEquals(bytes.length, buffer.writerOffset());
-            assertArrayEquals(bytes, BufferUtil.getBytes(buffer));
-            assertArrayEquals(bytes, data.get());
+                // Validate stored data.
+                try (Buffer buffer = data.getBuffer()) {
+                    assertEquals(0, buffer.readerOffset());
+                    assertEquals(bytes.length, buffer.writerOffset());
+                    assertArrayEquals(bytes, BufferUtil.getBytes(buffer));
+                    assertArrayEquals(bytes, data.get());
+                }
+            }
         }
     }
 

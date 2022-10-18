@@ -22,6 +22,7 @@ import io.netty5.buffer.BufferUtil;
 import io.netty5.buffer.Buffer;
 import io.netty5.buffer.DefaultBufferAllocators;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -33,6 +34,7 @@ import java.util.concurrent.ThreadLocalRandom;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+@ExtendWith(GCExtension.class)
 public class DiskFileUploadTest {
     @Test
     public void testSpecificCustomBaseDir() throws IOException {
@@ -197,6 +199,7 @@ public class DiskFileUploadTest {
             assertEquals(buf.readerOffset(), 0);
             assertEquals(buf.writerOffset(), bytes.length);
             assertArrayEquals(bytes, BufferUtil.getBytes(buf));
+            buf.close(); // disk file upload always return an allocated buffer from its getBuffer() method
         }
     }
 
@@ -265,6 +268,33 @@ public class DiskFileUploadTest {
                 assertNotNull(f1.getFile());
                 assertEquals(originalFile, f1.getFile());
                 assertEquals(maxSize, f1.length());
+            }
+        }
+    }
+
+    @Test
+    public void testCopy() throws Exception {
+        try (DiskFileUpload f1 = new DiskFileUpload("file2", "file2", "application/json", null, null, 0)) {
+            String json = "{\"hello\":\"world\"}";
+            byte[] bytes = json.getBytes(StandardCharsets.UTF_8);
+            f1.setContent(Helpers.copiedBuffer(bytes));
+
+            try (FileUpload f1Copy = f1.copy()) {
+                assertEquals(json, f1.getString());
+                assertEquals(json, f1Copy.getString());
+                assertArrayEquals(bytes, f1.get());
+                assertArrayEquals(bytes, f1Copy.get());
+                File file = f1.getFile();
+                assertEquals((long) bytes.length, file.length());
+                assertArrayEquals(bytes, doReadFile(file, bytes.length));
+                file = f1Copy.getFile();
+                assertEquals((long) bytes.length, file.length());
+                assertArrayEquals(bytes, doReadFile(file, bytes.length));
+
+                try (Buffer f1Buf = f1.getBuffer();
+                    Buffer f1CopyBuf = f1Copy.getBuffer()) {
+                    assertEquals(f1Buf, f1CopyBuf);
+                }
             }
         }
     }

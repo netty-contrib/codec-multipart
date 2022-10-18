@@ -65,6 +65,9 @@ public abstract class AbstractMemoryHttpData extends AbstractHttpData {
     }
 
     protected final void setContentInternal(Buffer buffer, long size) {
+        if (this.byteBuf != null && this.byteBuf.isAccessible()) {
+            this.byteBuf.close();
+        }
         this.byteBuf = buffer;
         this.size = size;
         setCompleted();

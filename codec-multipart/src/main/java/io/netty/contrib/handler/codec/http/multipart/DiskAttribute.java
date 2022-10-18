@@ -211,8 +211,7 @@ public class DiskAttribute extends AbstractDiskHttpData implements Attribute {
     @Override
     public Attribute copy() {
         checkAccessible();
-        final Buffer content = content();
-        return replace(content != null ? content.copy() : null);
+        return replace(content()); // for disk based content, content() always return a copy
     }
 
     @Override

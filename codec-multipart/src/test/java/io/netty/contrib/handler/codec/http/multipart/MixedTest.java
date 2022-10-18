@@ -20,9 +20,11 @@ import io.netty5.buffer.DefaultBufferAllocators;
 import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.IOException;
 
+@ExtendWith(GCExtension.class)
 public class MixedTest {
     @Test
     public void mixAttributeClosed() throws IOException {

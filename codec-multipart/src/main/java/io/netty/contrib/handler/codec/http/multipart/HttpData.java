@@ -134,6 +134,13 @@ public interface HttpData extends InterfaceHttpData {
      * Returns the content of the file item as a Buffer.<br>
      * Note: this method will allocate a lot of memory, if the data is currently stored on the file system.
      *
+     * <p>Buffer ownersip:</p>
+     * <ul>
+     *     <li>for in memory based content, the ownership of the returned buffer is not transferred to the caller</li>
+     *     <li>for disk based content, the getBuffer() method always return a new Buffer, in this case the
+     *     ownership of the returned buffer is transferred to the caller</li>
+     * </ul>
+     *
      * @return the content of the file item as a ByteBuf
      * @throws IOException
      *
@@ -146,6 +153,7 @@ public interface HttpData extends InterfaceHttpData {
      * read. Once it arrives at the end, it returns an EMPTY_BUFFER and it
      * resets the current position to 0.
      *
+     * <p>Buffer ownersip: The buffer ownership of the returned buffer is transferred to the caller
      * @return a ChannelBuffer for the content from the current position or an
      *         EMPTY_BUFFER if there is no more data to return
      */
@@ -219,6 +227,13 @@ public interface HttpData extends InterfaceHttpData {
 
     /**
      * Return the data which is held by this {@link HttpData}.
+     *
+     * <p>Buffer ownersip:</p>
+     * <ul>
+     *     <li>for in memory based content, the ownership of the returned buffer is not transferred to the caller</li>
+     *     <li>for disk based content, the content() method always return a new Buffer, in this case the
+     *     ownership of the returned buffer is transferred to the caller</li>
+     * </ul>
      */
     Buffer content();
 

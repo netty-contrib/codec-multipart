@@ -20,6 +20,7 @@ import io.netty5.buffer.BufferUtil;
 import io.netty5.buffer.Buffer;
 import io.netty5.buffer.Owned;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -35,6 +36,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 /**
  * {@link AbstractDiskHttpData} test cases
  */
+@ExtendWith(GCExtension.class)
 public class AbstractDiskHttpDataTest {
 
     @Test
@@ -60,6 +62,8 @@ public class AbstractDiskHttpDataTest {
             assertEquals(buf2.writerOffset(), 1024);
             assertFalse(Arrays.equals(BufferUtil.getBytes(buf1), BufferUtil.getBytes(buf2)),
                     "Arrays should not be equal");
+            buf1.close();
+            buf2.close();
         }
     }
 

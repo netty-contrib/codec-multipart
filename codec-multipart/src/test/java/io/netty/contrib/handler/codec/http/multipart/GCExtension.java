@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 The Netty Project
+ * Copyright 2022 The Netty Project
  *
  * The Netty Project licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -15,18 +15,17 @@
  */
 package io.netty.contrib.handler.codec.http.multipart;
 
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.AfterAllCallback;
+import org.junit.jupiter.api.extension.ExtensionContext;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-
-@ExtendWith(GCExtension.class)
-public class MemoryFileUploadTest {
-    @Test
-    public final void testMemoryFileUploadEquals() {
-        try (MemoryFileUpload f1 =
-                new MemoryFileUpload("m1", "m1", "application/json", null, null, 100)) {
-            assertEquals(f1, f1);
+/**
+ * Junit5 extension used to run GC after all tests are executed.
+ */
+public class GCExtension implements AfterAllCallback {
+    @Override
+    public void afterAll(ExtensionContext extensionContext) throws Exception {
+        if (Boolean.getBoolean("io.netty5.buffer.leakDetectionEnabled")) {
+            System.gc();
         }
     }
 }

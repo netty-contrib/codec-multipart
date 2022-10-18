@@ -178,8 +178,7 @@ public class DiskFileUpload extends AbstractDiskHttpData implements FileUpload {
 
     @Override
     public FileUpload copy() {
-        final Buffer content = content();
-        return replace(content != null ? content.copy() : null);
+        return replace(content()); // for disk based content, content() always return a copy
     }
 
     @Override
