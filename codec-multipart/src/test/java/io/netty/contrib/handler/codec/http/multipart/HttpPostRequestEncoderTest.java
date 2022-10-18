@@ -76,6 +76,7 @@ public class HttpPostRequestEncoderTest {
 
             String multipartDataBoundary = encoder.multipartDataBoundary;
             String content = getRequestBody(encoder);
+            encoder.cleanFiles();
 
             String expected = "--" + multipartDataBoundary + "\r\n" +
                     CONTENT_DISPOSITION + ": form-data; name=\"foo\"" + "\r\n" +
@@ -110,6 +111,7 @@ public class HttpPostRequestEncoderTest {
 
             String multipartDataBoundary = encoder.multipartDataBoundary;
             String content = getRequestBody(encoder);
+            encoder.cleanFiles();
 
             String expected = "--" + multipartDataBoundary + "\r\n" +
                     CONTENT_DISPOSITION + ": form-data; name=\"foo\"" + "\r\n" +
@@ -151,6 +153,7 @@ public class HttpPostRequestEncoderTest {
             String multipartDataBoundary = encoder.multipartDataBoundary;
             String multipartMixedBoundary = encoder.multipartMixedBoundary;
             String content = getRequestBody(encoder);
+            encoder.cleanFiles();
 
             String expected = "--" + multipartDataBoundary + "\r\n" +
                     CONTENT_DISPOSITION + ": form-data; name=\"foo\"" + "\r\n" +
@@ -210,6 +213,7 @@ public class HttpPostRequestEncoderTest {
             String multipartDataBoundary = encoder.multipartDataBoundary;
             String multipartMixedBoundary = encoder.multipartMixedBoundary;
             String content = getRequestBody(encoder);
+            encoder.cleanFiles();
 
             String expected = "--" + multipartDataBoundary + "\r\n" +
                     CONTENT_DISPOSITION + ": form-data; name=\"foo\"" + "\r\n" +
@@ -261,6 +265,7 @@ public class HttpPostRequestEncoderTest {
 
             String multipartDataBoundary = encoder.multipartDataBoundary;
             String content = getRequestBody(encoder);
+            encoder.cleanFiles();
 
             String expected = "--" + multipartDataBoundary + "\r\n" +
                     CONTENT_DISPOSITION + ": form-data; name=\"foo\"" + "\r\n" +
@@ -303,6 +308,7 @@ public class HttpPostRequestEncoderTest {
 
             String multipartDataBoundary = encoder.multipartDataBoundary;
             String content = getRequestBody(encoder);
+            encoder.cleanFiles();
 
             String expected = "--" + multipartDataBoundary + "\r\n" +
                     CONTENT_DISPOSITION + ": form-data; name=\"foo\"" + "\r\n" +

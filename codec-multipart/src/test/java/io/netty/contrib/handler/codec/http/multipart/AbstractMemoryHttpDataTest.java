@@ -130,16 +130,16 @@ public class AbstractMemoryHttpDataTest {
             random.nextBytes(bytes);
 
             // Generate parsed HTTP data block.
-            TestHttpData data = new TestHttpData("name", UTF_8, 0);
+            try (TestHttpData data = new TestHttpData("name", UTF_8, 0)) {
+                data.setContent(new ByteArrayInputStream(bytes));
 
-            data.setContent(new ByteArrayInputStream(bytes));
-
-            // Validate stored data.
-            try (Buffer buffer = data.getBuffer()) {
-                assertEquals(0, buffer.readerOffset());
-                assertEquals(bytes.length, buffer.writerOffset());
-                assertArrayEquals(bytes, BufferUtil.getBytes(buffer));
-                assertArrayEquals(bytes, data.get());
+                // Validate stored data.
+                try (Buffer buffer = data.getBuffer()) {
+                    assertEquals(0, buffer.readerOffset());
+                    assertEquals(bytes.length, buffer.writerOffset());
+                    assertArrayEquals(bytes, BufferUtil.getBytes(buffer));
+                    assertArrayEquals(bytes, data.get());
+                }
             }
         }
     }
