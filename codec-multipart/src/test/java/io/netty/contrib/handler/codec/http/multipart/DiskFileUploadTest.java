@@ -33,6 +33,7 @@ import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static io.netty.contrib.handler.codec.http.multipart.Helpers.ThrowingConsumer.unchecked;
 
 @ExtendWith(GCExtension.class)
 public class DiskFileUploadTest {
@@ -195,11 +196,12 @@ public class DiskFileUploadTest {
                 buffer = Helpers.copiedBuffer(bytes);
             }
             f1.addContent(buffer, true);
-            Buffer buf = f1.getBuffer();
-            assertEquals(buf.readerOffset(), 0);
-            assertEquals(buf.writerOffset(), bytes.length);
-            assertArrayEquals(bytes, BufferUtil.getBytes(buf));
-            buf.close(); // disk file upload always return an allocated buffer from its getBuffer() method
+            f1.withBuffer(buf -> {
+                assertEquals(buf.readerOffset(), 0);
+                assertEquals(buf.writerOffset(), bytes.length);
+                assertArrayEquals(bytes, BufferUtil.getBytes(buf));
+                // buffer will be closed when this lambda returns
+            });
         }
     }
 
@@ -290,11 +292,13 @@ public class DiskFileUploadTest {
                 file = f1Copy.getFile();
                 assertEquals((long) bytes.length, file.length());
                 assertArrayEquals(bytes, doReadFile(file, bytes.length));
-
-                try (Buffer f1Buf = f1.getBuffer();
-                    Buffer f1CopyBuf = f1Copy.getBuffer()) {
-                    assertEquals(f1Buf, f1CopyBuf);
-                }
+                f1.withBuffer(unchecked(f1Buf -> {
+                    f1Copy.withBuffer(f1CopyBuf -> {
+                        assertEquals(f1Buf, f1CopyBuf);
+                        // f1CopyBuf will be closed when this lambda returns
+                    });
+                    // f1Buf will be closed when this lambda returns
+                }));
             }
         }
     }

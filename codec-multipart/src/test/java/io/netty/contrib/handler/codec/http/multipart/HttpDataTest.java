@@ -76,13 +76,7 @@ class HttpDataTest {
         httpData.addContent(DefaultBufferAllocators.preferredAllocator().allocate(0), false);
 
         try (HttpData copy = httpData.copy()) {
-            Buffer content = httpData.content();
-            Buffer copyContent = copy.content();
-            assertThat(content).isEqualTo(copyContent);
-            if (!httpData.isInMemory()) {
-                content.close();
-                copyContent.close();
-            }
+            httpData.withContent(content -> copy.withContent(copyContent -> assertThat(content).isEqualTo(copyContent)));
         }
     }
 
@@ -90,22 +84,19 @@ class HttpDataTest {
     void testCompletedFlagPreservedAfterRetainDuplicate(HttpData httpData) throws IOException {
         httpData.addContent(Helpers.copiedBuffer("foo".getBytes(StandardCharsets.UTF_8)), false);
         assertThat(httpData.isCompleted()).isFalse();
-        Buffer content = httpData.content();
-        HttpData duplicate = httpData.replace(content.split());
-        assertThat(duplicate.isCompleted()).isFalse();
-        duplicate.close();
-        if (! httpData.isInMemory()) {
-            content.close(); // for disk based http data, buffers returned by content() are allocated
-        }
+        httpData.withContent(content -> {
+            try (HttpData duplicate = httpData.replace(content.split())) {
+                assertThat(duplicate.isCompleted()).isFalse();
+            }
+        });
+
         httpData.addContent(Helpers.copiedBuffer("bar".getBytes(StandardCharsets.UTF_8)), true);
         assertThat(httpData.isCompleted()).isTrue();
-        content = httpData.content();
-        duplicate = httpData.replace(content.split());
-        assertThat(duplicate.isCompleted()).isTrue();
-        duplicate.close();
-        if (! httpData.isInMemory()) {
-            content.close(); // for disk based http data, buffers returned by content() are allocated
-        }
+        httpData.withContent(content -> {
+            try (HttpData duplicate = httpData.replace(content.split())) {
+                assertThat(duplicate.isCompleted()).isTrue();
+            }
+        });
     }
 
     @Test

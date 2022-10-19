@@ -29,13 +29,14 @@ import java.io.RandomAccessFile;
 import java.nio.channels.FileChannel;
 import java.nio.charset.Charset;
 import java.util.Arrays;
+import java.util.function.Consumer;
 
 /**
  * Abstract Memory HttpData implementation
  */
 public abstract class AbstractMemoryHttpData extends AbstractHttpData {
 
-    private Buffer byteBuf;
+    protected Buffer byteBuf;
 
     protected AbstractMemoryHttpData(String name, Charset charset, long size) {
         super(name, charset, size);
@@ -221,8 +222,8 @@ public abstract class AbstractMemoryHttpData extends AbstractHttpData {
      * @return the attached ByteBuf containing the actual bytes
      */
     @Override
-    public Buffer getBuffer() {
-        return byteBuf;
+    public void withBuffer(Consumer<Buffer> bufferConsumer) {
+        bufferConsumer.accept(byteBuf);
     }
 
     @Override
@@ -272,7 +273,7 @@ public abstract class AbstractMemoryHttpData extends AbstractHttpData {
 
     @Override
     protected RuntimeException createResourceClosedException() {
-        return InternalBufferUtils.bufferIsClosed(getBuffer());
+        return InternalBufferUtils.bufferIsClosed(byteBuf);
     }
 
 }

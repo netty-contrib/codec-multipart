@@ -64,7 +64,7 @@ public class MemoryAttribute extends AbstractMemoryHttpData implements Attribute
 
     @Override
     public String getValue() {
-        return getBuffer().toString(getCharset());
+        return byteBuf.toString(getCharset());
     }
 
     @Override
@@ -130,8 +130,7 @@ public class MemoryAttribute extends AbstractMemoryHttpData implements Attribute
 
     @Override
     public Attribute copy() {
-        final Buffer content = content();
-        return replace(content != null ? content.copy() : null);
+        return replace(byteBuf != null ? byteBuf.copy() : null);
     }
 
     @Override
@@ -152,7 +151,7 @@ public class MemoryAttribute extends AbstractMemoryHttpData implements Attribute
 
     @Override
     protected Owned<AbstractHttpData> prepareSend() {
-        Send<Buffer> send = getBuffer().send();
+        Send<Buffer> send = byteBuf.send();
         return drop -> {
             Buffer received = send.receive();
             MemoryAttribute attr = new MemoryAttribute(getName());
@@ -167,6 +166,6 @@ public class MemoryAttribute extends AbstractMemoryHttpData implements Attribute
 
     @Override
     protected RuntimeException createResourceClosedException() {
-        return InternalBufferUtils.bufferIsClosed(getBuffer());
+        return InternalBufferUtils.bufferIsClosed(byteBuf);
     }
 }

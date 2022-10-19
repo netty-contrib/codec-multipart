@@ -210,8 +210,7 @@ public class DiskAttribute extends AbstractDiskHttpData implements Attribute {
 
     @Override
     public Attribute copy() {
-        checkAccessible();
-        return replace(content()); // for disk based content, content() always return a copy
+        return replace(getContent()); // for disk based content, getContent() always returns a copy
     }
 
     @Override

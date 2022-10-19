@@ -21,6 +21,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.Charset;
+import java.util.function.Consumer;
 
 /**
  * Extended interface for InterfaceHttpData
@@ -131,21 +132,21 @@ public interface HttpData extends InterfaceHttpData {
     byte[] get() throws IOException;
 
     /**
-     * Returns the content of the file item as a Buffer.<br>
+     * Calls the passed callback to operate on the file item as a Buffer.<br>
      * Note: this method will allocate a lot of memory, if the data is currently stored on the file system.
      *
      * <p>Buffer ownersip:</p>
+     * The ownership of the buffer passed to the callack is not transferred and remains to this HttpData interface.
      * <ul>
-     *     <li>for in memory based content, the ownership of the returned buffer is not transferred to the caller</li>
-     *     <li>for disk based content, the getBuffer() method always return a new Buffer, in this case the
-     *     ownership of the returned buffer is transferred to the caller</li>
+     *     <li> for memory based http data, the internal buffer is directly passed to the callback.</li>
+     *     <li> for disk based http data, a copy of the file content is passed to the callback and is immediately
+     *     closed once the callback returns.</li>
      * </ul>
      *
-     * @return the content of the file item as a ByteBuf
+     * @param contentCallback The file item buffer callback
      * @throws IOException
-     *
      */
-    Buffer getBuffer() throws IOException;
+    void withBuffer(Consumer<Buffer> contentCallback) throws IOException;
 
     /**
      * Returns a ChannelBuffer for the content from the current position with at
@@ -226,16 +227,20 @@ public interface HttpData extends InterfaceHttpData {
     File getFile() throws IOException;
 
     /**
-     * Return the data which is held by this {@link HttpData}.
+     * Calls the passed callback to operate on the file item as a Buffer.<br>
+     * Note: this method will allocate a lot of memory, if the data is currently stored on the file system.
      *
      * <p>Buffer ownersip:</p>
+     * The ownership of the buffer passed to the callack is not transferred and remains to this HttpData interface.
      * <ul>
-     *     <li>for in memory based content, the ownership of the returned buffer is not transferred to the caller</li>
-     *     <li>for disk based content, the content() method always return a new Buffer, in this case the
-     *     ownership of the returned buffer is transferred to the caller</li>
+     *     <li> for memory based http data, the internal buffer is directly passed to the callback.</li>
+     *     <li> for disk based http data, a copy of the file content is passed to the callback and is immediately
+     *     closed once the callback returns.</li>
      * </ul>
+     *
+     * @param contentCallback The file item buffer callback
      */
-    Buffer content();
+    void withContent(Consumer<Buffer> contentCallback);
 
     /**
      * Creates a deep copy of this {@link HttpData}.

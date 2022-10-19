@@ -23,6 +23,9 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.Charset;
+import java.util.function.Consumer;
+
+import static io.netty.contrib.handler.codec.http.multipart.Helpers.ThrowingConsumer.unchecked;
 
 abstract class AbstractMixedHttpData<D extends HttpData> extends ResourceSupport<HttpData, AbstractMixedHttpData<? extends HttpData>> implements HttpData {
     final String baseDir;
@@ -69,8 +72,8 @@ abstract class AbstractMixedHttpData<D extends HttpData> extends ResourceSupport
     }
 
     @Override
-    public Buffer content() {
-        return wrapped.content();
+    public void withContent(Consumer<Buffer> bufferConsumer) {
+        wrapped.withContent(bufferConsumer);
     }
 
     @Override
@@ -102,10 +105,14 @@ abstract class AbstractMixedHttpData<D extends HttpData> extends ResourceSupport
                 checkSize(wrapped.length() + buffer.readableBytes());
                 if (wrapped.length() + buffer.readableBytes() > limitSize) {
                     D diskData = makeDiskData();
-                    Buffer data = ((AbstractMemoryHttpData) wrapped).getBuffer();
-                    if (data != null && data.readableBytes() > 0) {
-                        diskData.addContent(data, false); // data will be closed by this method
-                    }
+                    // Because the diskData.addContent method throws an exception, use
+                    // the Helpers.ThrowingConsumer.unchecked helper which allows
+                    // to wrap a throwing consumer into a regular consumer
+                    ((AbstractMemoryHttpData) wrapped).withBuffer(unchecked(data -> {
+                        if (data != null && data.readableBytes() > 0) {
+                            diskData.addContent(data, false); // data will be closed by this method
+                        }
+                    }));
                     wrapped.close();
                     wrapped = diskData;
                 }
@@ -128,8 +135,8 @@ abstract class AbstractMixedHttpData<D extends HttpData> extends ResourceSupport
     }
 
     @Override
-    public Buffer getBuffer() throws IOException {
-        return wrapped.getBuffer();
+    public void withBuffer(Consumer<Buffer> bufferConsumer) throws IOException {
+        wrapped.withBuffer(bufferConsumer);
     }
 
     @Override

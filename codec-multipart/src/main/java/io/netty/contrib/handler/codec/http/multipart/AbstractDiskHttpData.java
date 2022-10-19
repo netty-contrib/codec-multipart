@@ -17,6 +17,7 @@ package io.netty.contrib.handler.codec.http.multipart;
 
 import io.netty5.buffer.Buffer;
 import io.netty5.buffer.DefaultBufferAllocators;
+import io.netty5.channel.ChannelException;
 import io.netty5.handler.codec.http.HttpConstants;
 import io.netty5.util.internal.EmptyArrays;
 import io.netty5.util.internal.ObjectUtil;
@@ -32,6 +33,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
+import java.util.function.Consumer;
 
 /**
  * Abstract Disk HttpData implementation
@@ -301,12 +303,18 @@ public abstract class AbstractDiskHttpData extends AbstractHttpData {
     }
 
     @Override
-    public Buffer getBuffer() throws IOException {
+    public void withBuffer(Consumer<Buffer> bufferConsumer) throws IOException {
         checkAccessible();
-        if (file == null) {
-            return DefaultBufferAllocators.preferredAllocator().allocate(0);
+        Buffer buf = getContent();
+        try {
+            bufferConsumer.accept(buf);
         }
-        return getBufferFrom(file);
+        finally {
+            // check if the callback closed the buffer before closing it.
+            if (buf != null && buf.isAccessible()) {
+                buf.close();
+            }
+        }
     }
 
     @Override
@@ -443,6 +451,18 @@ public abstract class AbstractDiskHttpData extends AbstractHttpData {
      */
     private static byte[] readFrom(File src) throws IOException {
         return Files.readAllBytes(src.toPath());
+    }
+
+    /**
+     * Returns a copy of the current file content. The buffer ownership is returned to the caller
+     */
+    protected Buffer getContent() {
+        try {
+            return (file == null) ? DefaultBufferAllocators.preferredAllocator().allocate(0) : getBufferFrom(file);
+        }
+        catch (IOException e) {
+            throw new ChannelException(e);
+        }
     }
 
     private static Buffer getBufferFrom(File src) throws IOException {

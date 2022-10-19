@@ -24,6 +24,7 @@ import io.netty5.util.internal.ObjectUtil;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
+import java.util.function.Consumer;
 import java.util.regex.Pattern;
 
 import static io.netty5.util.internal.ObjectUtil.checkNonEmpty;
@@ -140,10 +141,10 @@ public abstract class AbstractHttpData extends ResourceSupport<HttpData, Abstrac
     }
 
     @Override
-    public Buffer content() {
+    public void withContent(Consumer<Buffer> bufferConsumer) {
         checkAccessible();
         try {
-            return getBuffer();
+            withBuffer(b -> bufferConsumer.accept(b));
         } catch (IOException e) {
             throw new ChannelException(e);
         }

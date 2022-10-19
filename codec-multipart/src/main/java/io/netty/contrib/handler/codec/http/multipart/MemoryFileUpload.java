@@ -119,8 +119,7 @@ public class MemoryFileUpload extends AbstractMemoryHttpData implements FileUplo
 
     @Override
     public FileUpload copy() {
-        final Buffer content = content();
-        return replace(content != null ? content.copy() : content);
+        return replace(byteBuf != null ? byteBuf.copy() : byteBuf);
     }
 
     @Override
@@ -141,7 +140,7 @@ public class MemoryFileUpload extends AbstractMemoryHttpData implements FileUplo
 
     @Override
     protected Owned<AbstractHttpData> prepareSend() {
-        Send<Buffer> send = getBuffer().send();
+        Send<Buffer> send = byteBuf.send();
 
         return drop -> {
             Buffer received = send.receive();
