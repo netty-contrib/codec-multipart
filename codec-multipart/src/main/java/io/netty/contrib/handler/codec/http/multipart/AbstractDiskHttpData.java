@@ -24,6 +24,7 @@ import io.netty5.util.internal.ObjectUtil;
 import io.netty5.util.internal.PlatformDependent;
 import io.netty5.util.internal.logging.InternalLogger;
 import io.netty5.util.internal.logging.InternalLoggerFactory;
+import io.netty.contrib.handler.codec.http.multipart.Helpers.ThrowingConsumer;
 
 import java.io.File;
 import java.io.IOException;
@@ -33,7 +34,6 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
-import java.util.function.Consumer;
 
 /**
  * Abstract Disk HttpData implementation
@@ -303,11 +303,11 @@ public abstract class AbstractDiskHttpData extends AbstractHttpData {
     }
 
     @Override
-    public void withBuffer(Consumer<Buffer> bufferConsumer) throws IOException {
+    public <E extends Exception> void usingBuffer(ThrowingConsumer<Buffer, E> callback) throws IOException, E {
         checkAccessible();
         Buffer buf = getContent();
         try {
-            bufferConsumer.accept(buf);
+            callback.accept(buf);
         }
         finally {
             // check if the callback closed the buffer before closing it.

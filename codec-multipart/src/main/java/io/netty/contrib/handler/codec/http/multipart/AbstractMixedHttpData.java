@@ -18,14 +18,12 @@ package io.netty.contrib.handler.codec.http.multipart;
 import io.netty5.buffer.Buffer;
 import io.netty5.buffer.Drop;
 import io.netty5.buffer.internal.ResourceSupport;
+import io.netty.contrib.handler.codec.http.multipart.Helpers.ThrowingConsumer;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.Charset;
-import java.util.function.Consumer;
-
-import static io.netty.contrib.handler.codec.http.multipart.Helpers.ThrowingConsumer.unchecked;
 
 abstract class AbstractMixedHttpData<D extends HttpData> extends ResourceSupport<HttpData, AbstractMixedHttpData<? extends HttpData>> implements HttpData {
     final String baseDir;
@@ -72,8 +70,8 @@ abstract class AbstractMixedHttpData<D extends HttpData> extends ResourceSupport
     }
 
     @Override
-    public void withContent(Consumer<Buffer> bufferConsumer) {
-        wrapped.withContent(bufferConsumer);
+    public <E extends Exception> void usingContent(ThrowingConsumer<Buffer, E> callback) throws E {
+        wrapped.usingContent(callback);
     }
 
     @Override
@@ -108,11 +106,11 @@ abstract class AbstractMixedHttpData<D extends HttpData> extends ResourceSupport
                     // Because the diskData.addContent method throws an exception, use
                     // the Helpers.ThrowingConsumer.unchecked helper which allows
                     // to wrap a throwing consumer into a regular consumer
-                    ((AbstractMemoryHttpData) wrapped).withBuffer(unchecked(data -> {
+                    ((AbstractMemoryHttpData) wrapped).usingBuffer(data -> {
                         if (data != null && data.readableBytes() > 0) {
                             diskData.addContent(data, false); // data will be closed by this method
                         }
-                    }));
+                    });
                     wrapped.close();
                     wrapped = diskData;
                 }
@@ -135,8 +133,8 @@ abstract class AbstractMixedHttpData<D extends HttpData> extends ResourceSupport
     }
 
     @Override
-    public void withBuffer(Consumer<Buffer> bufferConsumer) throws IOException {
-        wrapped.withBuffer(bufferConsumer);
+    public <E extends Exception> void usingBuffer(ThrowingConsumer<Buffer, E> callback) throws IOException, E {
+        wrapped.usingBuffer(callback);
     }
 
     @Override

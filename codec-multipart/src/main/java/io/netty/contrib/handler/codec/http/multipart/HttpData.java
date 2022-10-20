@@ -16,12 +16,12 @@
 package io.netty.contrib.handler.codec.http.multipart;
 
 import io.netty5.buffer.Buffer;
+import io.netty.contrib.handler.codec.http.multipart.Helpers.ThrowingConsumer;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.Charset;
-import java.util.function.Consumer;
 
 /**
  * Extended interface for InterfaceHttpData
@@ -143,10 +143,12 @@ public interface HttpData extends InterfaceHttpData {
      *     closed once the callback returns.</li>
      * </ul>
      *
-     * @param contentCallback The file item buffer callback
-     * @throws IOException
+     * @param callback The file item buffer callback
+     * @param <E> the type of the exception thrown by the callback
+     * @throws IOException if the method can't load the buffer from disk
+     * @throws E if the callback throws that exception
      */
-    void withBuffer(Consumer<Buffer> contentCallback) throws IOException;
+    <E extends Exception> void usingBuffer(ThrowingConsumer<Buffer, E> callback) throws IOException, E;
 
     /**
      * Returns a ChannelBuffer for the content from the current position with at
@@ -238,9 +240,11 @@ public interface HttpData extends InterfaceHttpData {
      *     closed once the callback returns.</li>
      * </ul>
      *
-     * @param contentCallback The file item buffer callback
+     * @param callback The file item buffer callback
+     * @param <E> the type of the exception thrown by the callback
+     * @throws E if the callback throws that exception
      */
-    void withContent(Consumer<Buffer> contentCallback);
+    <E extends Exception> void usingContent(ThrowingConsumer<Buffer, E> callback) throws E;
 
     /**
      * Creates a deep copy of this {@link HttpData}.

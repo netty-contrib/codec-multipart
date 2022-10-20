@@ -40,7 +40,6 @@ import java.util.TreeMap;
 
 import static io.netty5.util.internal.ObjectUtil.checkNotNullWithIAE;
 import static io.netty5.util.internal.ObjectUtil.checkPositiveOrZero;
-import static io.netty.contrib.handler.codec.http.multipart.Helpers.ThrowingConsumer.unchecked;
 
 /**
  * This decoder will decode Body and can handle POST BODY.
@@ -540,12 +539,12 @@ public class HttpPostStandardRequestDecoder implements InterfaceHttpPostRequestD
 
     private void setFinalBuffer(Buffer buffer) throws IOException {
         currentAttribute.addContent(buffer, true);
-        currentAttribute.withBuffer(unchecked(attrBuffer -> {
+        currentAttribute.usingBuffer(attrBuffer -> {
             Buffer decodedBuf = decodeAttribute(attrBuffer, charset);
             if (decodedBuf != null) { // override content only when ByteBuf needed decoding
                 currentAttribute.setContent(decodedBuf);
             }
-        }));
+        });
         addHttpData(currentAttribute);
         currentAttribute = null;
     }

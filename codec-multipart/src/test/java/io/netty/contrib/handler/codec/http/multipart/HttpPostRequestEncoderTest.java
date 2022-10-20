@@ -376,7 +376,7 @@ public class HttpPostRequestEncoderTest {
                 buffers[i] = ((InternalAttribute) data).toBuffer();
             } else if (data instanceof HttpData) {
                 int index = i;
-                ((HttpData) data).withBuffer(buf -> buffers[index] = buf.split());
+                ((HttpData) data).usingBuffer(buf -> buffers[index] = buf.split());
             }
         }
 

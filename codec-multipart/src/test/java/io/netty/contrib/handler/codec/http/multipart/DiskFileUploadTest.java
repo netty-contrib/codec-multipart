@@ -33,7 +33,6 @@ import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static io.netty.contrib.handler.codec.http.multipart.Helpers.ThrowingConsumer.unchecked;
 
 @ExtendWith(GCExtension.class)
 public class DiskFileUploadTest {
@@ -196,7 +195,7 @@ public class DiskFileUploadTest {
                 buffer = Helpers.copiedBuffer(bytes);
             }
             f1.addContent(buffer, true);
-            f1.withBuffer(buf -> {
+            f1.usingBuffer(buf -> {
                 assertEquals(buf.readerOffset(), 0);
                 assertEquals(buf.writerOffset(), bytes.length);
                 assertArrayEquals(bytes, BufferUtil.getBytes(buf));
@@ -292,13 +291,7 @@ public class DiskFileUploadTest {
                 file = f1Copy.getFile();
                 assertEquals((long) bytes.length, file.length());
                 assertArrayEquals(bytes, doReadFile(file, bytes.length));
-                f1.withBuffer(unchecked(f1Buf -> {
-                    f1Copy.withBuffer(f1CopyBuf -> {
-                        assertEquals(f1Buf, f1CopyBuf);
-                        // f1CopyBuf will be closed when this lambda returns
-                    });
-                    // f1Buf will be closed when this lambda returns
-                }));
+                f1.usingBuffer(f1Buf -> f1Copy.usingBuffer(f1CopyBuf -> assertEquals(f1Buf, f1CopyBuf)));
             }
         }
     }

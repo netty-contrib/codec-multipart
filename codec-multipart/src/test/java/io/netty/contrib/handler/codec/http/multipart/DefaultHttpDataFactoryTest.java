@@ -87,21 +87,21 @@ public class DefaultHttpDataFactoryTest {
         file2.setContent(Helpers.copiedBuffer("file2 content", UTF_8));
 
         // Assert that they are not deleted
-        attribute1.withBuffer(buf -> assertNotNull(buf));
-        attribute2.withBuffer(buf -> assertNotNull(buf));
-        file1.withBuffer(buf -> assertNotNull(buf));
-        file2.withBuffer(buf -> assertNotNull(buf));
+        attribute1.usingBuffer(buf -> assertNotNull(buf));
+        attribute2.usingBuffer(buf -> assertNotNull(buf));
+        file1.usingBuffer(buf -> assertNotNull(buf));
+        file2.usingBuffer(buf -> assertNotNull(buf));
 
         // Clean up by req1
         factory.cleanRequestHttpData(req1);
 
         // Assert that data belonging to req1 has been cleaned up
-        attribute1.withBuffer(buf -> assertNull(buf));
-        file1.withBuffer(buf -> assertNull(buf));
+        attribute1.usingBuffer(buf -> assertNull(buf));
+        file1.usingBuffer(buf -> assertNull(buf));
 
         // But not req2
-        attribute2.withBuffer(buf -> assertNotNull(buf));
-        file2.withBuffer(buf -> assertNotNull(buf));
+        attribute2.usingBuffer(buf -> assertNotNull(buf));
+        file2.usingBuffer(buf -> assertNotNull(buf));
     }
 
     @Test
@@ -134,12 +134,12 @@ public class DefaultHttpDataFactoryTest {
         factory.cleanRequestHttpData(req1);
 
         // Assert that attribute1 and file1 have been cleaned up
-        attribute1.withBuffer(buf -> assertNull(buf));
-        file1.withBuffer(buf -> assertNull(buf));
+        attribute1.usingBuffer(buf -> assertNull(buf));
+        file1.usingBuffer(buf -> assertNull(buf));
 
         // But not attribute2 and file2
-        attribute2.withBuffer(buf -> assertNotNull(buf));
-        file2.withBuffer(buf -> assertNotNull(buf));
+        attribute2.usingBuffer(buf -> assertNotNull(buf));
+        file2.usingBuffer(buf -> assertNotNull(buf));
 
         // Cleanup attribute2 and file2 manually to avoid memory leak, not via factory
         attribute2.close();

@@ -772,10 +772,10 @@ public class HttpPostRequestDecoderTest {
         assertEquals(2, decoder.getBodyHttpDatas().size());
 
         Attribute attrMsg = (Attribute) decoder.getBodyHttpData("msg");
-        attrMsg.withBuffer(attrBuf -> assertTrue(attrBuf.isDirect()));
+        attrMsg.usingBuffer(attrBuf -> assertTrue(attrBuf.isDirect()));
         assertEquals("test message", attrMsg.getValue());
         Attribute attrMsgId = (Attribute) decoder.getBodyHttpData("msg_id");
-        attrMsgId.withBuffer(attrBuf -> assertTrue(attrBuf.isDirect()));
+        attrMsgId.usingBuffer(attrBuf -> assertTrue(attrBuf.isDirect()));
         assertEquals("15200", attrMsgId.getValue());
 
         decoder.destroy();
@@ -891,23 +891,23 @@ public class HttpPostRequestDecoderTest {
         assertEquals(5, decoder.getBodyHttpDatas().size());
 
         Attribute attr = (Attribute) decoder.getBodyHttpData("foo");
-        attr.withBuffer(attrBuf -> assertTrue(attrBuf.isDirect()));
+        attr.usingBuffer(attrBuf -> assertTrue(attrBuf.isDirect()));
         assertEquals("bar", attr.getValue());
 
         attr = (Attribute) decoder.getBodyHttpData("a");
-        attr.withBuffer(attrBuf ->assertTrue(attrBuf.isDirect()));
+        attr.usingBuffer(attrBuf ->assertTrue(attrBuf.isDirect()));
         assertEquals("b", attr.getValue());
 
         attr = (Attribute) decoder.getBodyHttpData("empty");
-        attr.withBuffer(attrBuf -> assertTrue(attrBuf.isDirect()));
+        attr.usingBuffer(attrBuf -> assertTrue(attrBuf.isDirect()));
         assertEquals("", attr.getValue());
 
         attr = (Attribute) decoder.getBodyHttpData("city");
-        attr.withBuffer(attrBuf -> assertTrue(attrBuf.isDirect()));
+        attr.usingBuffer(attrBuf -> assertTrue(attrBuf.isDirect()));
         assertEquals("<\"new\" york city>", attr.getValue());
 
         attr = (Attribute) decoder.getBodyHttpData("other_city");
-        attr.withBuffer(attrBuf -> assertTrue(attrBuf.isDirect()));
+        attr.usingBuffer(attrBuf -> assertTrue(attrBuf.isDirect()));
         assertEquals("los angeles", attr.getValue());
 
         decoder.destroy();

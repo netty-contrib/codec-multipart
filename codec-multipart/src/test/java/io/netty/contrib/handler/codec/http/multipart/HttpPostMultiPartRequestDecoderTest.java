@@ -128,7 +128,7 @@ public class HttpPostMultiPartRequestDecoderTest {
         Buffer content = Helpers.copiedBuffer(body);
         httpContent = new DefaultHttpContent(content);
         decoder.offer(httpContent); // Ouf of range before here
-        ((HttpData) decoder.currentPartialHttpData()).withBuffer(b -> assertNotNull(b));
+        ((HttpData) decoder.currentPartialHttpData()).usingBuffer(b -> assertNotNull(b));
         httpContent.close();
         content = Helpers.copiedBuffer(bsuffix2);
         httpContent = new DefaultHttpContent(content);
@@ -172,7 +172,7 @@ public class HttpPostMultiPartRequestDecoderTest {
         Buffer buf = Helpers.copiedBuffer(prefix.getBytes(StandardCharsets.UTF_8));
         DefaultHttpContent httpContent = new DefaultHttpContent(buf);
         decoder.offer(httpContent);
-        ((HttpData) decoder.currentPartialHttpData()).withBuffer(partial -> {
+        ((HttpData) decoder.currentPartialHttpData()).usingBuffer(partial -> {
             assertNotNull(partial);
             partialBuffers.add(partial);
         });
@@ -187,7 +187,7 @@ public class HttpPostMultiPartRequestDecoderTest {
             Buffer content = Helpers.copiedBuffer(body, 0, bytesPerChunk);
             httpContent = new DefaultHttpContent(content);
             decoder.offer(httpContent); // **OutOfMemory previously here**
-            ((HttpData) decoder.currentPartialHttpData()).withBuffer(partial -> {
+            ((HttpData) decoder.currentPartialHttpData()).usingBuffer(partial -> {
                 assertNotNull(partial);
                 partialBuffers.add(partial);
             });
@@ -215,7 +215,7 @@ public class HttpPostMultiPartRequestDecoderTest {
         Buffer content2 = Helpers.copiedBuffer(previousLastbody, 0, previousLastbody.length);
         httpContent = new DefaultHttpContent(content2);
         decoder.offer(httpContent);
-        ((HttpData) decoder.currentPartialHttpData()).withBuffer(partial -> {
+        ((HttpData) decoder.currentPartialHttpData()).usingBuffer(partial -> {
             assertNotNull(partial);
             partialBuffers.add(partial);
         });
@@ -223,7 +223,7 @@ public class HttpPostMultiPartRequestDecoderTest {
         content2 = Helpers.copiedBuffer(lastbody, 0, lastbody.length);
         httpContent = new DefaultHttpContent(content2);
         decoder.offer(httpContent);
-        ((HttpData) decoder.currentPartialHttpData()).withBuffer(partial -> {
+        ((HttpData) decoder.currentPartialHttpData()).usingBuffer(partial -> {
             assertNotNull(partial);
             partialBuffers.add(partial);
         });
@@ -241,7 +241,7 @@ public class HttpPostMultiPartRequestDecoderTest {
         assertEquals(inMemory, data.isInMemory());
         if (data.isInMemory()) {
             // To be done only if not inMemory: assertEquals(data.get().length, fileSize);
-            data.withBuffer(b -> assertFalse(b.capacity() < 1024 * 1024,
+            data.usingBuffer(b -> assertFalse(b.capacity() < 1024 * 1024,
                     "Capacity should be higher than 1M"));
         }
         assertTrue(decoder.getCurrentAllocatedCapacity() < 1024 * 1024,
@@ -425,7 +425,7 @@ public class HttpPostMultiPartRequestDecoderTest {
         Buffer buf = Helpers.copiedBuffer(prefix.getBytes(StandardCharsets.UTF_8));
         DefaultHttpContent httpContent = new DefaultHttpContent(buf);
         decoder.offer(httpContent);
-        ((HttpData) decoder.currentPartialHttpData()).withBuffer(partial -> {
+        ((HttpData) decoder.currentPartialHttpData()).usingBuffer(partial -> {
             assertNotNull(partial);
             partialBuffers.add(partial);
         });
@@ -441,7 +441,7 @@ public class HttpPostMultiPartRequestDecoderTest {
             httpContent = new DefaultHttpContent(content);
             decoder.offer(httpContent);
             // **OutOfMemory previously here**
-            ((HttpData) decoder.currentPartialHttpData()).withBuffer(partial -> {
+            ((HttpData) decoder.currentPartialHttpData()).usingBuffer(partial -> {
                 assertNotNull(partial);
                 partialBuffers.add(partial);
             });
@@ -478,7 +478,7 @@ public class HttpPostMultiPartRequestDecoderTest {
         assertEquals(inMemory, data.isInMemory());
         if (data.isInMemory()) {
             // To be done only if not inMemory: assertEquals(data.get().length, fileSize);
-            data.withBuffer(b -> assertFalse(b.capacity() < fileSize,
+            data.usingBuffer(b -> assertFalse(b.capacity() < fileSize,
                         "Capacity should be at least file size"));
         }
         assertTrue(decoder.getCurrentAllocatedCapacity() < fileSize,

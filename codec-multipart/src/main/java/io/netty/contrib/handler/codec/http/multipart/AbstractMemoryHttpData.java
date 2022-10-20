@@ -21,6 +21,7 @@ import io.netty5.buffer.DefaultBufferAllocators;
 import io.netty5.buffer.internal.InternalBufferUtils;
 import io.netty5.handler.codec.http.HttpConstants;
 import io.netty5.util.internal.ObjectUtil;
+import io.netty.contrib.handler.codec.http.multipart.Helpers.ThrowingConsumer;
 
 import java.io.File;
 import java.io.IOException;
@@ -29,7 +30,6 @@ import java.io.RandomAccessFile;
 import java.nio.channels.FileChannel;
 import java.nio.charset.Charset;
 import java.util.Arrays;
-import java.util.function.Consumer;
 
 /**
  * Abstract Memory HttpData implementation
@@ -222,8 +222,8 @@ public abstract class AbstractMemoryHttpData extends AbstractHttpData {
      * @return the attached ByteBuf containing the actual bytes
      */
     @Override
-    public void withBuffer(Consumer<Buffer> bufferConsumer) {
-        bufferConsumer.accept(byteBuf);
+    public <E extends Exception> void usingBuffer(ThrowingConsumer<Buffer, E> callback) throws IOException, E {
+        callback.accept(byteBuf);
     }
 
     @Override

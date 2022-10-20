@@ -76,7 +76,7 @@ class HttpDataTest {
         httpData.addContent(DefaultBufferAllocators.preferredAllocator().allocate(0), false);
 
         try (HttpData copy = httpData.copy()) {
-            httpData.withContent(content -> copy.withContent(copyContent -> assertThat(content).isEqualTo(copyContent)));
+            httpData.usingContent(content -> copy.usingContent(copyContent -> assertThat(content).isEqualTo(copyContent)));
         }
     }
 
@@ -84,7 +84,7 @@ class HttpDataTest {
     void testCompletedFlagPreservedAfterRetainDuplicate(HttpData httpData) throws IOException {
         httpData.addContent(Helpers.copiedBuffer("foo".getBytes(StandardCharsets.UTF_8)), false);
         assertThat(httpData.isCompleted()).isFalse();
-        httpData.withContent(content -> {
+        httpData.usingContent(content -> {
             try (HttpData duplicate = httpData.replace(content.split())) {
                 assertThat(duplicate.isCompleted()).isFalse();
             }
@@ -92,7 +92,7 @@ class HttpDataTest {
 
         httpData.addContent(Helpers.copiedBuffer("bar".getBytes(StandardCharsets.UTF_8)), true);
         assertThat(httpData.isCompleted()).isTrue();
-        httpData.withContent(content -> {
+        httpData.usingContent(content -> {
             try (HttpData duplicate = httpData.replace(content.split())) {
                 assertThat(duplicate.isCompleted()).isTrue();
             }

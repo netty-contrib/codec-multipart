@@ -22,7 +22,7 @@ import io.netty5.util.AsciiString;
 import io.netty5.util.Resource;
 
 import java.nio.charset.Charset;
-import java.util.function.Consumer;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -34,44 +34,21 @@ import static java.nio.charset.StandardCharsets.US_ASCII;
 public class Helpers {
 
     /**
-     * A Consumer which can throw Exceptions. This utility class can be used to
-     * wrap a throwing consumer into a regular java Consumer, and allows to
-     * rethrow checked exceptions as unchecked RuntimeException.
+     * A Consumer which can throw an Exception.
+     *
+     * @param <T> the input argument accepted by the consumer
+     * @param <X> the exception than can be thrown by the consumer
      */
     @FunctionalInterface
-    public interface ThrowingConsumer<T> extends Consumer<T> {
+    public interface ThrowingConsumer<T, X extends Exception> {
+        void accept(T t) throws X;
 
-        @Override
-        default void accept(final T e) {
-            try {
-                throwingAccept(e);
-            } catch (Throwable ex) {
-                rethrowChecked(ex);
-            }
-        }
-
-        void throwingAccept(T e) throws Throwable;
-
-        /**
-         * Wraps a ThrowingConsumer which can throw an Exception into a regular java Consumer which does not
-         * throw anything. If the consumer throws any exception, it will be rethrown as an unchecked
-         * RuntimeException.
-         *
-         * @param consumer a throwing consumer which may throw an exception
-         * @return the throwing consumer wrapped as a regular java consumer
-         * @param <T> the type of the acceptable input
-         */
-        static <T> Consumer<T> unchecked(final ThrowingConsumer<T> consumer) {
-            return consumer;
-        }
-
-        /**
-         * Rethrow an exception as an unchecked RuntimeException, even if the Throwable is a
-         * checked Exception.
-         */
-        @SuppressWarnings("unchecked")
-        private static <E extends Throwable> void rethrowChecked(Throwable ex) throws E {
-            throw (E) ex;
+        default ThrowingConsumer<T, X> andThen(ThrowingConsumer<? super T, X> after) {
+            Objects.requireNonNull(after);
+            return (T t) -> {
+                accept(t);
+                after.accept(t);
+            };
         }
     }
 

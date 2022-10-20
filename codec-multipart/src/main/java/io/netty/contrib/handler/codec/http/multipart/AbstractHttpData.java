@@ -21,10 +21,10 @@ import io.netty5.buffer.internal.ResourceSupport;
 import io.netty5.channel.ChannelException;
 import io.netty5.handler.codec.http.HttpConstants;
 import io.netty5.util.internal.ObjectUtil;
+import io.netty.contrib.handler.codec.http.multipart.Helpers.ThrowingConsumer;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
-import java.util.function.Consumer;
 import java.util.regex.Pattern;
 
 import static io.netty5.util.internal.ObjectUtil.checkNonEmpty;
@@ -141,10 +141,10 @@ public abstract class AbstractHttpData extends ResourceSupport<HttpData, Abstrac
     }
 
     @Override
-    public void withContent(Consumer<Buffer> bufferConsumer) {
+    public <E extends Exception> void usingContent(ThrowingConsumer<Buffer, E> callback) throws E {
         checkAccessible();
         try {
-            withBuffer(b -> bufferConsumer.accept(b));
+            usingBuffer(b -> callback.accept(b));
         } catch (IOException e) {
             throw new ChannelException(e);
         }

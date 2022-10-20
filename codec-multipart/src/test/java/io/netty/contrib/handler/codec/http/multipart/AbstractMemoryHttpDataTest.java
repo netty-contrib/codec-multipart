@@ -55,7 +55,7 @@ public class AbstractMemoryHttpDataTest {
                 fos.close();
             }
             test.setContent(tmpFile);
-            test.withBuffer(buf -> {
+            test.usingBuffer(buf -> {
                 assertEquals(buf.readerOffset(), 0);
                 assertEquals(buf.writerOffset(), bytes.length);
                 assertArrayEquals(bytes, test.get());
@@ -113,7 +113,7 @@ public class AbstractMemoryHttpDataTest {
                 assertFalse(buf.readableBytes() > 0);
                 assertEquals(test.getString(UTF_8), contentStr);
                 try (Buffer buf2 = Helpers.copiedBuffer(contentStr.getBytes(UTF_8))) {
-                    test.withBuffer(testBuf -> {
+                    test.usingBuffer(testBuf -> {
                         assertTrue(BufferUtil.equals(buf2, buf2.readerOffset(), testBuf, testBuf.readerOffset(), testBuf.readableBytes()));
                     });
                 }
@@ -136,7 +136,7 @@ public class AbstractMemoryHttpDataTest {
                 data.setContent(new ByteArrayInputStream(bytes));
 
                 // Validate stored data.
-                data.withBuffer(buffer -> {
+                data.usingBuffer(buffer -> {
                     assertEquals(0, buffer.readerOffset());
                     assertEquals(bytes.length, buffer.writerOffset());
                     assertArrayEquals(bytes, BufferUtil.getBytes(buffer));
