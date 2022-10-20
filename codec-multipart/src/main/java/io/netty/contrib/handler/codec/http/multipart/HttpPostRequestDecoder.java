@@ -97,6 +97,7 @@ public class HttpPostRequestDecoder implements InterfaceHttpPostRequestDecoder {
     }
 
     /**
+     * <pre>{@code
      * states follow NOTSTARTED PREAMBLE ( (HEADERDELIMITER DISPOSITION (FIELD |
      * FILEUPLOAD))* (HEADERDELIMITER DISPOSITION MIXEDPREAMBLE (MIXEDDELIMITER
      * MIXEDDISPOSITION MIXEDFILEUPLOAD)+ MIXEDCLOSEDELIMITER)* CLOSEDELIMITER)+
@@ -125,6 +126,7 @@ public class HttpPostRequestDecoder implements InterfaceHttpPostRequestDecoder {
      * MIXEDCLOSEDELIMITER --AaB03x-- => CLOSEDELIMITER
      *
      * Once CLOSEDELIMITER is found, last getStatus is EPILOGUE
+     *  }</pre>
      */
     protected enum MultiPartStatus {
         NOTSTARTED, PREAMBLE, HEADERDELIMITER, DISPOSITION, FIELD, FILEUPLOAD, MIXEDPREAMBLE, MIXEDDELIMITER,
