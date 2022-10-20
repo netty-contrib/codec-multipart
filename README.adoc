@@ -8,7 +8,7 @@
 
 ## Project description
 
-This project is a porting of the Netty 4.1.80.Final Multipart codec to the new Netty 5.0.0-Alpha5 Buffer API.
+This project is a porting of the Netty 4.x Multipart codec to the new Netty 5.0.0 Buffer API.
 
 ## Running the benchmarks
 
