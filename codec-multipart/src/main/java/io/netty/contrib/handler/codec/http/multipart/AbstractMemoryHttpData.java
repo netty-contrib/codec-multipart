@@ -21,6 +21,7 @@ import io.netty5.buffer.DefaultBufferAllocators;
 import io.netty5.buffer.internal.InternalBufferUtils;
 import io.netty5.handler.codec.http.HttpConstants;
 import io.netty5.util.internal.ObjectUtil;
+import io.netty.contrib.handler.codec.http.multipart.Helpers.ThrowingConsumer;
 
 import java.io.File;
 import java.io.IOException;
@@ -35,7 +36,7 @@ import java.util.Arrays;
  */
 public abstract class AbstractMemoryHttpData extends AbstractHttpData {
 
-    private Buffer byteBuf;
+    protected Buffer byteBuf;
 
     protected AbstractMemoryHttpData(String name, Charset charset, long size) {
         super(name, charset, size);
@@ -221,8 +222,8 @@ public abstract class AbstractMemoryHttpData extends AbstractHttpData {
      * @return the attached ByteBuf containing the actual bytes
      */
     @Override
-    public Buffer getBuffer() {
-        return byteBuf;
+    public <E extends Exception> void usingBuffer(ThrowingConsumer<Buffer, E> callback) throws IOException, E {
+        callback.accept(byteBuf);
     }
 
     @Override
@@ -272,7 +273,7 @@ public abstract class AbstractMemoryHttpData extends AbstractHttpData {
 
     @Override
     protected RuntimeException createResourceClosedException() {
-        return InternalBufferUtils.bufferIsClosed(getBuffer());
+        return InternalBufferUtils.bufferIsClosed(byteBuf);
     }
 
 }

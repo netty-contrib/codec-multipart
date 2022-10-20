@@ -22,6 +22,7 @@ import io.netty5.util.AsciiString;
 import io.netty5.util.Resource;
 
 import java.nio.charset.Charset;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -31,6 +32,25 @@ import static java.nio.charset.StandardCharsets.US_ASCII;
  * Various helper methods used by multipart implementation classes.
  */
 public class Helpers {
+
+    /**
+     * A Consumer which can throw an Exception.
+     *
+     * @param <T> the input argument accepted by the consumer
+     * @param <X> the exception than can be thrown by the consumer
+     */
+    @FunctionalInterface
+    public interface ThrowingConsumer<T, X extends Exception> {
+        void accept(T t) throws X;
+
+        default ThrowingConsumer<T, X> andThen(ThrowingConsumer<? super T, X> after) {
+            Objects.requireNonNull(after);
+            return (T t) -> {
+                accept(t);
+                after.accept(t);
+            };
+        }
+    }
 
     static Buffer copiedBuffer(String str, Charset charset) {
         return DefaultBufferAllocators.onHeapAllocator().copyOf(str, charset);

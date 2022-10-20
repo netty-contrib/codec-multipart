@@ -16,6 +16,7 @@
 package io.netty.contrib.handler.codec.http.multipart;
 
 import io.netty5.buffer.Buffer;
+import io.netty.contrib.handler.codec.http.multipart.Helpers.ThrowingConsumer;
 
 import java.io.File;
 import java.io.IOException;
@@ -131,21 +132,23 @@ public interface HttpData extends InterfaceHttpData {
     byte[] get() throws IOException;
 
     /**
-     * Returns the content of the file item as a Buffer.<br>
+     * Calls the passed callback to operate on the file item as a Buffer.<br>
      * Note: this method will allocate a lot of memory, if the data is currently stored on the file system.
      *
      * <p>Buffer ownersip:</p>
+     * The ownership of the buffer passed to the callack is not transferred and remains to this HttpData interface.
      * <ul>
-     *     <li>for in memory based content, the ownership of the returned buffer is not transferred to the caller</li>
-     *     <li>for disk based content, the getBuffer() method always return a new Buffer, in this case the
-     *     ownership of the returned buffer is transferred to the caller</li>
+     *     <li> for memory based http data, the internal buffer is directly passed to the callback.</li>
+     *     <li> for disk based http data, a copy of the file content is passed to the callback and is immediately
+     *     closed once the callback returns.</li>
      * </ul>
      *
-     * @return the content of the file item as a ByteBuf
-     * @throws IOException
-     *
+     * @param callback The file item buffer callback
+     * @param <E> the type of the exception thrown by the callback
+     * @throws IOException if the method can't load the buffer from disk
+     * @throws E if the callback throws that exception
      */
-    Buffer getBuffer() throws IOException;
+    <E extends Exception> void usingBuffer(ThrowingConsumer<Buffer, E> callback) throws IOException, E;
 
     /**
      * Returns a ChannelBuffer for the content from the current position with at
@@ -226,16 +229,22 @@ public interface HttpData extends InterfaceHttpData {
     File getFile() throws IOException;
 
     /**
-     * Return the data which is held by this {@link HttpData}.
+     * Calls the passed callback to operate on the file item as a Buffer.<br>
+     * Note: this method will allocate a lot of memory, if the data is currently stored on the file system.
      *
      * <p>Buffer ownersip:</p>
+     * The ownership of the buffer passed to the callack is not transferred and remains to this HttpData interface.
      * <ul>
-     *     <li>for in memory based content, the ownership of the returned buffer is not transferred to the caller</li>
-     *     <li>for disk based content, the content() method always return a new Buffer, in this case the
-     *     ownership of the returned buffer is transferred to the caller</li>
+     *     <li> for memory based http data, the internal buffer is directly passed to the callback.</li>
+     *     <li> for disk based http data, a copy of the file content is passed to the callback and is immediately
+     *     closed once the callback returns.</li>
      * </ul>
+     *
+     * @param callback The file item buffer callback
+     * @param <E> the type of the exception thrown by the callback
+     * @throws E if the callback throws that exception
      */
-    Buffer content();
+    <E extends Exception> void usingContent(ThrowingConsumer<Buffer, E> callback) throws E;
 
     /**
      * Creates a deep copy of this {@link HttpData}.

@@ -55,11 +55,12 @@ public class AbstractMemoryHttpDataTest {
                 fos.close();
             }
             test.setContent(tmpFile);
-            Buffer buf = test.getBuffer();
-            assertEquals(buf.readerOffset(), 0);
-            assertEquals(buf.writerOffset(), bytes.length);
-            assertArrayEquals(bytes, test.get());
-            assertArrayEquals(bytes, BufferUtil.getBytes(buf));
+            test.usingBuffer(buf -> {
+                assertEquals(buf.readerOffset(), 0);
+                assertEquals(buf.writerOffset(), bytes.length);
+                assertArrayEquals(bytes, test.get());
+                assertArrayEquals(bytes, BufferUtil.getBytes(buf));
+            });
         }
     }
 
@@ -103,21 +104,22 @@ public class AbstractMemoryHttpDataTest {
     @Test
     public void testSetContentFromStream() throws Exception {
         // definedSize=0
-        TestHttpData test = new TestHttpData("test", UTF_8, 0);
-        String contentStr = "foo_test";
-        Buffer buf = Helpers.copiedBuffer(contentStr.getBytes(UTF_8));
-        BufferInputStream is = new BufferInputStream(buf.send());
-        try {
-            test.setContent(is);
-            assertFalse(buf.readableBytes() > 0);
-            assertEquals(test.getString(UTF_8), contentStr);
-            buf = Helpers.copiedBuffer(contentStr.getBytes(UTF_8));
-            Buffer buf2 = test.getBuffer();
-            assertTrue(BufferUtil.equals(buf, buf.readerOffset(), buf2, buf2.readerOffset(), buf2.readableBytes()));
-            buf.close();
-            buf2.close();
-        } finally {
-            is.close();
+        try (TestHttpData test = new TestHttpData("test", UTF_8, 0)) {
+            String contentStr = "foo_test";
+            Buffer buf = Helpers.copiedBuffer(contentStr.getBytes(UTF_8));
+            BufferInputStream is = new BufferInputStream(buf.send());
+            try {
+                test.setContent(is);
+                assertFalse(buf.readableBytes() > 0);
+                assertEquals(test.getString(UTF_8), contentStr);
+                try (Buffer buf2 = Helpers.copiedBuffer(contentStr.getBytes(UTF_8))) {
+                    test.usingBuffer(testBuf -> {
+                        assertTrue(BufferUtil.equals(buf2, buf2.readerOffset(), testBuf, testBuf.readerOffset(), testBuf.readableBytes()));
+                    });
+                }
+            } finally {
+                is.close();
+            }
         }
 
         Random random = new SecureRandom();
@@ -134,12 +136,12 @@ public class AbstractMemoryHttpDataTest {
                 data.setContent(new ByteArrayInputStream(bytes));
 
                 // Validate stored data.
-                try (Buffer buffer = data.getBuffer()) {
+                data.usingBuffer(buffer -> {
                     assertEquals(0, buffer.readerOffset());
                     assertEquals(bytes.length, buffer.writerOffset());
                     assertArrayEquals(bytes, BufferUtil.getBytes(buffer));
                     assertArrayEquals(bytes, data.get());
-                }
+                });
             }
         }
     }

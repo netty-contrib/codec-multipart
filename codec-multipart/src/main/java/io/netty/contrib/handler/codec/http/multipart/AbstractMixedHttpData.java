@@ -18,6 +18,7 @@ package io.netty.contrib.handler.codec.http.multipart;
 import io.netty5.buffer.Buffer;
 import io.netty5.buffer.Drop;
 import io.netty5.buffer.internal.ResourceSupport;
+import io.netty.contrib.handler.codec.http.multipart.Helpers.ThrowingConsumer;
 
 import java.io.File;
 import java.io.IOException;
@@ -69,8 +70,8 @@ abstract class AbstractMixedHttpData<D extends HttpData> extends ResourceSupport
     }
 
     @Override
-    public Buffer content() {
-        return wrapped.content();
+    public <E extends Exception> void usingContent(ThrowingConsumer<Buffer, E> callback) throws E {
+        wrapped.usingContent(callback);
     }
 
     @Override
@@ -102,10 +103,14 @@ abstract class AbstractMixedHttpData<D extends HttpData> extends ResourceSupport
                 checkSize(wrapped.length() + buffer.readableBytes());
                 if (wrapped.length() + buffer.readableBytes() > limitSize) {
                     D diskData = makeDiskData();
-                    Buffer data = ((AbstractMemoryHttpData) wrapped).getBuffer();
-                    if (data != null && data.readableBytes() > 0) {
-                        diskData.addContent(data, false); // data will be closed by this method
-                    }
+                    // Because the diskData.addContent method throws an exception, use
+                    // the Helpers.ThrowingConsumer.unchecked helper which allows
+                    // to wrap a throwing consumer into a regular consumer
+                    ((AbstractMemoryHttpData) wrapped).usingBuffer(data -> {
+                        if (data != null && data.readableBytes() > 0) {
+                            diskData.addContent(data, false); // data will be closed by this method
+                        }
+                    });
                     wrapped.close();
                     wrapped = diskData;
                 }
@@ -128,8 +133,8 @@ abstract class AbstractMixedHttpData<D extends HttpData> extends ResourceSupport
     }
 
     @Override
-    public Buffer getBuffer() throws IOException {
-        return wrapped.getBuffer();
+    public <E extends Exception> void usingBuffer(ThrowingConsumer<Buffer, E> callback) throws IOException, E {
+        wrapped.usingBuffer(callback);
     }
 
     @Override
