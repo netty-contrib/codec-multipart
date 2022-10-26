@@ -219,7 +219,6 @@ public abstract class AbstractMemoryHttpData extends AbstractHttpData {
     /**
      * Utility to go from a In Memory FileUpload
      * to a Disk (or another implementation) FileUpload
-     * @return the attached ByteBuf containing the actual bytes
      */
     @Override
     public <E extends Exception> void usingBuffer(ThrowingConsumer<Buffer, E> callback) throws IOException, E {
