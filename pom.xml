@@ -24,7 +24,7 @@
 
   <groupId>io.netty.contrib</groupId>
   <artifactId>netty-codec-multipart-parent</artifactId>
-  <version>5.0.0.Alpha1</version>
+  <version>5.0.1.Alpha1-SNAPSHOT</version>
   <name>Netty/Codec/Multipart Parent</name>
   <packaging>pom</packaging>
   <url>https://netty.io/</url>
@@ -51,7 +51,7 @@
     <url>https://github.com/netty-contrib/codec-multipart</url>
     <connection>scm:git:https://github.com/netty-contrib/codec-multipart.git</connection>
     <developerConnection>scm:git:https://github.com/netty-contrib/codec-multipart.git</developerConnection>
-    <tag>netty-codec-multipart-parent-5.0.0.Alpha1</tag>
+    <tag>HEAD</tag>
   </scm>
 
   <developers>
