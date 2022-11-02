@@ -1,17 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
         <groupId>io.netty.contrib</groupId>
         <artifactId>netty-codec-multipart-parent</artifactId>
-        <version>5.0.0.Alpha1-SNAPSHOT</version>
+        <version>5.0.0.Alpha1</version>
     </parent>
 
     <artifactId>netty-codec-multipart-benchmarks</artifactId>
-    <version>${parent.version}</version>
+    <version>5.0.0.Alpha1</version>
     <packaging>jar</packaging>
 
     <properties>
@@ -19,9 +17,9 @@
         <!-- Skip tests by default; run only if -DskipTests=false is specified -->
         <skipTests>true</skipTests>
         <!-- This only be set when run on linux as on other platforms we just want to include the jar without native code -->
-        <epoll.classifier/>
+        <epoll.classifier />
         <!-- This only be set when run on mac as on other platforms we just want to include the jar without native code -->
-        <kqueue.classifier/>
+        <kqueue.classifier />
         <japicmp.skip>true</japicmp.skip>
         <javaModuleName>io.netty5.microbench</javaModuleName>
         <jni.classifier>${os.detected.name}-${os.detected.arch}</jni.classifier>
@@ -92,12 +90,10 @@
                                 <configuration>
                                     <finalName>microbenchmarks</finalName>
                                     <transformers>
-                                        <transformer
-                                                implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                        <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
                                             <mainClass>org.openjdk.jmh.Main</mainClass>
                                         </transformer>
-                                        <transformer
-                                                implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                                        <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer" />
                                     </transformers>
                                     <filters>
                                         <filter>
