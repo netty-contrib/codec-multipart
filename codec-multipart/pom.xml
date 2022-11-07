@@ -5,11 +5,11 @@
     <parent>
         <groupId>io.netty.contrib</groupId>
         <artifactId>netty-codec-multipart-parent</artifactId>
-        <version>5.0.1.Alpha1-SNAPSHOT</version>
+        <version>5.0.0.Alpha2-SNAPSHOT</version>
     </parent>
 
     <artifactId>netty-codec-multipart</artifactId>
-    <version>5.0.1.Alpha1-SNAPSHOT</version>
+    <version>${parent.version}</version>
     <name>Netty/Codec/Multipart</name>
     <packaging>jar</packaging>
 
