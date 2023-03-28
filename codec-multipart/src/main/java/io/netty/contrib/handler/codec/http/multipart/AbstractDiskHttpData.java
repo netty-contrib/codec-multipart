@@ -22,8 +22,8 @@ import io.netty5.handler.codec.http.HttpConstants;
 import io.netty5.util.internal.EmptyArrays;
 import io.netty5.util.internal.ObjectUtil;
 import io.netty5.util.internal.PlatformDependent;
-import io.netty5.util.internal.logging.InternalLogger;
-import io.netty5.util.internal.logging.InternalLoggerFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import io.netty.contrib.handler.codec.http.multipart.Helpers.ThrowingConsumer;
 
 import java.io.File;
@@ -40,7 +40,7 @@ import java.nio.file.Files;
  */
 public abstract class AbstractDiskHttpData extends AbstractHttpData {
 
-    private static final InternalLogger logger = InternalLoggerFactory.getInstance(AbstractDiskHttpData.class);
+    private static final Logger logger = LoggerFactory.getLogger(AbstractDiskHttpData.class);
 
     private File file;
     private boolean isRenamed;
