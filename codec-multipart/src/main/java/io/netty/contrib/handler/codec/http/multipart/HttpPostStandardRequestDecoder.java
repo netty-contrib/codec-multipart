@@ -499,10 +499,15 @@ public class HttpPostStandardRequestDecoder implements InterfaceHttpPostRequestD
                 firstpos = currentpos;
                 currentStatus = MultiPartStatus.EPILOGUE;
             } else if (contRead && currentAttribute != null && currentStatus == MultiPartStatus.FIELD) {
+                // make sure we don't forward a partial percent escape
+                if (firstpos <= currentpos - 1 && undecodedChunk.getUnsignedByte(currentpos - 1) == '%') {
+                    currentpos--;
+                } else if (firstpos <= currentpos - 2 && undecodedChunk.getUnsignedByte(currentpos - 2) == '%') {
+                    currentpos -= 2;
+                }
                 // reset index except if to continue in case of FIELD getStatus
                 undecodedChunk.readerOffset(firstpos);
-                currentAttribute.addContent(undecodedChunk.readSplit(currentpos - firstpos),
-                                            false);
+                currentAttribute.addContent(decodeAttribute(undecodedChunk.readSplit(currentpos - firstpos), charset), false);
                 currentpos = 0;
                 firstpos = currentpos;
             }
@@ -538,13 +543,7 @@ public class HttpPostStandardRequestDecoder implements InterfaceHttpPostRequestD
     }
 
     private void setFinalBuffer(Buffer buffer) throws IOException {
-        currentAttribute.addContent(buffer, true);
-        currentAttribute.usingBuffer(attrBuffer -> {
-            Buffer decodedBuf = decodeAttribute(attrBuffer, charset);
-            if (decodedBuf != null) { // override content only when ByteBuf needed decoding
-                currentAttribute.setContent(decodedBuf);
-            }
-        });
+        currentAttribute.addContent(decodeAttribute(buffer, charset), true);
         addHttpData(currentAttribute);
         currentAttribute = null;
     }
@@ -566,7 +565,7 @@ public class HttpPostStandardRequestDecoder implements InterfaceHttpPostRequestD
         ByteCursor cursor = b.openCursor();
         int firstEscaped = cursor.process(new UrlEncodedDetector());
         if (firstEscaped == -1) {
-            return null; // nothing to decode
+            return b; // nothing to decode
         }
 
         cursor = b.openCursor();
@@ -580,10 +579,13 @@ public class HttpPostStandardRequestDecoder implements InterfaceHttpPostRequestD
             }
             idx -= urlDecode.nextEscapedIdx - 1;
             buf.close();
+            String s = b.toString(charset);
+            b.close();
             throw new ErrorDataDecoderException(
-                String.format("Invalid hex byte at index '%d' in string: '%s'", idx, b.toString(charset)));
+                String.format("Invalid hex byte at index '%d' in string: '%s'", idx, s));
         }
 
+        b.close();
         return buf;
     }
 
