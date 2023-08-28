@@ -115,7 +115,7 @@ public class HttpUploadServerHandler extends SimpleChannelInboundHandler<HttpObj
 
             // new getMethod
             for (HttpCookiePair cookie : request.headers().getCookies()) {
-                responseContent.append("COOKIE: " + cookie.encoded() + "\r\n");
+                responseContent.append("COOKIE: " + cookie.encodedCookie() + "\r\n");
             }
 
             responseContent.append("\r\n\r\n");
