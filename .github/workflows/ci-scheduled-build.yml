@@ -13,14 +13,11 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 # ----------------------------------------------------------------------------
-name: Build
+name: Scheduled Build
 
 on:
-  push:
-    branches: ["main"]
-  pull_request:
-    branches: ["main"]
-  workflow_dispatch: # Allows you to run this workflow manually from the Actions tab
+  schedule:
+    - cron: '30 8 * * 1'  # At 08:30 on Monday, every Monday.
 
 jobs:
   Build:
