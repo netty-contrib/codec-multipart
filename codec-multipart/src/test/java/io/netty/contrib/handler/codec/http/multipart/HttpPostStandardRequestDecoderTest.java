@@ -16,13 +16,18 @@
 package io.netty.contrib.handler.codec.http.multipart;
 
 import io.netty5.buffer.Buffer;
+import io.netty5.buffer.BufferAllocator;
 import io.netty5.buffer.DefaultBufferAllocators;
+import io.netty5.handler.codec.http.DefaultHttpContent;
 import io.netty5.handler.codec.http.DefaultHttpRequest;
 import io.netty5.handler.codec.http.DefaultLastHttpContent;
+import io.netty5.handler.codec.http.HttpContent;
 import io.netty5.handler.codec.http.HttpMethod;
 import io.netty5.handler.codec.http.HttpRequest;
 import io.netty5.handler.codec.http.HttpVersion;
 import java.nio.charset.StandardCharsets;
+
+import io.netty5.handler.codec.http.LastHttpContent;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -82,13 +87,35 @@ class HttpPostStandardRequestDecoderTest {
         decoder.destroy();
     }
 
+    @Test
+    void testPercentDecode() {
+        String requestBody = "key1=va%20lue1";
+
+        HttpRequest request = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/upload");
+
+        BufferAllocator alloc = DefaultBufferAllocators.preferredAllocator();
+        for (int splitIndex = 0; splitIndex < requestBody.length(); splitIndex++) {
+            Buffer full = alloc.copyOf(requestBody, StandardCharsets.UTF_8);
+            HttpPostStandardRequestDecoder decoder = new HttpPostStandardRequestDecoder(httpDiskDataFactory(), request);
+            try (HttpContent<?> left = new DefaultHttpContent(full.readSplit(splitIndex))) {
+                decoder.offer(left);
+            }
+            try (LastHttpContent<?> right = new DefaultLastHttpContent(full)) {
+                decoder.offer(right);
+            }
+            assertEquals(1, decoder.getBodyHttpDatas().size());
+            assertMemoryAttribute(decoder.getBodyHttpData("key1"), "va lue1");
+            decoder.destroy();
+        }
+    }
+
     private static DefaultHttpDataFactory httpDiskDataFactory() {
         return new DefaultHttpDataFactory(false);
     }
 
     private static void assertMemoryAttribute(InterfaceHttpData data, String expectedValue) {
         assertEquals(InterfaceHttpData.HttpDataType.Attribute, data.getHttpDataType());
-        assertEquals(((MemoryAttribute) data).getValue(), expectedValue);
+        assertEquals(expectedValue, ((MemoryAttribute) data).getValue());
     }
 
 }
