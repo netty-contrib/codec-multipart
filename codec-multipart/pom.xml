@@ -67,6 +67,12 @@
             <version>0.22.1</version>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>io.micronaut.fuzzing</groupId>
+            <artifactId>micronaut-fuzzing-api</artifactId>
+            <version>0.1.13</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <profiles>

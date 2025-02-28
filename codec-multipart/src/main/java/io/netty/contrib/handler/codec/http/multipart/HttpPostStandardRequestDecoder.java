@@ -553,7 +553,7 @@ public class HttpPostStandardRequestDecoder implements InterfaceHttpPostRequestD
      *
      * @return the decoded component
      */
-    private static String decodeAttribute(String s, Charset charset) {
+    static String decodeAttribute(String s, Charset charset) {
         try {
             return QueryStringDecoder.decodeComponent(s, charset);
         } catch (IllegalArgumentException e) {

@@ -15,7 +15,6 @@
  */
 package io.netty.contrib.handler.codec.http.multipart;
 
-import io.netty5.buffer.Buffer;
 import io.netty5.buffer.DefaultBufferAllocators;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -23,11 +22,6 @@ import org.junit.jupiter.api.Test;
 import java.nio.charset.StandardCharsets;
 
 class MultipartDecoderTest {
-    private static String contentAsString(PostBodyDecoder decoder) {
-        try (Buffer b = decoder.decodedContent().receive()) {
-            return b.toString(StandardCharsets.UTF_8);
-        }
-    }
 
     @Test
     public void testSimple() {
@@ -60,7 +54,7 @@ class MultipartDecoderTest {
             Assertions.assertNull(((ContentDisposition) decoder.parsedHeaderValue()).fileName());
             Assertions.assertEquals(PostBodyDecoder.Event.HEADERS_COMPLETE, decoder.next());
             Assertions.assertEquals(PostBodyDecoder.Event.CONTENT, decoder.next());
-            Assertions.assertEquals("text default", contentAsString(decoder));
+            Assertions.assertEquals("text default", decoder.decodedContentString());
             Assertions.assertEquals(PostBodyDecoder.Event.FIELD_COMPLETE, decoder.next());
 
             Assertions.assertEquals(PostBodyDecoder.Event.BEGIN_FIELD, decoder.next());
@@ -74,7 +68,7 @@ class MultipartDecoderTest {
             Assertions.assertEquals("text/plain", decoder.headerValue());
             Assertions.assertEquals(PostBodyDecoder.Event.HEADERS_COMPLETE, decoder.next());
             Assertions.assertEquals(PostBodyDecoder.Event.CONTENT, decoder.next());
-            Assertions.assertEquals("Content of a.txt.\n", contentAsString(decoder));
+            Assertions.assertEquals("Content of a.txt.\n", decoder.decodedContentString());
             Assertions.assertEquals(PostBodyDecoder.Event.FIELD_COMPLETE, decoder.next());
 
             Assertions.assertEquals(PostBodyDecoder.Event.BEGIN_FIELD, decoder.next());
@@ -88,7 +82,7 @@ class MultipartDecoderTest {
             Assertions.assertEquals("text/html", decoder.headerValue());
             Assertions.assertEquals(PostBodyDecoder.Event.HEADERS_COMPLETE, decoder.next());
             Assertions.assertEquals(PostBodyDecoder.Event.CONTENT, decoder.next());
-            Assertions.assertEquals("<!DOCTYPE html><title>Content of a.html.</title>\n", contentAsString(decoder));
+            Assertions.assertEquals("<!DOCTYPE html><title>Content of a.html.</title>\n", decoder.decodedContentString());
             Assertions.assertEquals(PostBodyDecoder.Event.FIELD_COMPLETE, decoder.next());
         }
     }

@@ -17,6 +17,7 @@ package io.netty.contrib.handler.codec.http.multipart;
 
 import com.code_intelligence.jazzer.Jazzer;
 import com.code_intelligence.jazzer.junit.DictionaryEntries;
+import io.micronaut.fuzzing.util.ByteSplitter;
 import io.netty5.buffer.Buffer;
 import io.netty5.buffer.DefaultBufferAllocators;
 import org.junit.jupiter.api.Assertions;
@@ -37,7 +38,7 @@ import java.util.stream.Stream;
 public abstract class AbstractFuzzTest {
     protected static final String BOUNDARY = "a";
     public static final String FUZZ_SEPARATOR_STR = "SEP";
-    private static final byte[] FUZZ_SEPARATOR = FUZZ_SEPARATOR_STR.getBytes(StandardCharsets.UTF_8);
+    public static final ByteSplitter FUZZ_SPLITTER = ByteSplitter.create(FUZZ_SEPARATOR_STR);
 
     protected static final List<String> JAZZER_ARGS = List.of(
             //"-only_ascii=1"
@@ -55,16 +56,6 @@ public abstract class AbstractFuzzTest {
             // force init outer class
             List<?> l = JAZZER_ARGS;
         }
-    }
-
-    protected static Buffer readUntilSeparator(Buffer buffer) {
-        int sepIndex = indexOf(buffer, FUZZ_SEPARATOR);
-        if (sepIndex == -1) {
-            return null;
-        }
-        Buffer piece = buffer.readSplit(sepIndex - buffer.readerOffset());
-        buffer.skipReadableBytes(FUZZ_SEPARATOR.length);
-        return piece;
     }
 
     @Test
@@ -101,6 +92,13 @@ public abstract class AbstractFuzzTest {
                         "-minimize_crash=1", crashPath
                 )
         ).toArray(String[]::new));
+    }
+
+    protected Buffer next(byte[] bytes, ByteSplitter.ChunkIterator itr) {
+        itr.proceed();
+        Buffer buffer = DefaultBufferAllocators.preferredAllocator().allocate(itr.length());
+        buffer.writeBytes(bytes, itr.start(), itr.length());
+        return buffer;
     }
 
     @Retention(RetentionPolicy.RUNTIME)

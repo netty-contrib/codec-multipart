@@ -16,8 +16,8 @@
 package io.netty.contrib.handler.codec.http.multipart;
 
 import com.code_intelligence.jazzer.junit.FuzzTest;
+import io.micronaut.fuzzing.util.ByteSplitter;
 import io.netty5.buffer.Buffer;
-import io.netty5.buffer.DefaultBufferAllocators;
 import io.netty5.handler.codec.http.DefaultHttpContent;
 import io.netty5.handler.codec.http.DefaultHttpRequest;
 import io.netty5.handler.codec.http.DefaultLastHttpContent;
@@ -50,14 +50,11 @@ public class MultipartComparisonTest extends AbstractFuzzTest {
     @MultipartFuzzTest
     @FuzzTest(maxDuration = "2h")
     public void compare(byte[] bytes) {
-        try (Runner runner = new Runner(); Buffer buffer = DefaultBufferAllocators.preferredAllocator().copyOf(bytes)) {
-            while (buffer.readableBytes() > 0 && !runner.failed) {
-                Buffer piece = readUntilSeparator(buffer);
-                boolean last = piece == null;
-                if (last) {
-                    piece = buffer;
-                }
-                runner.offer(last ? new DefaultLastHttpContent(piece) : new DefaultHttpContent(piece));
+        try (Runner runner = new Runner()) {
+            ByteSplitter.ChunkIterator itr = FUZZ_SPLITTER.splitIterator(bytes);
+            while (itr.hasNext() && !runner.failed) {
+                Buffer piece = next(bytes, itr);
+                runner.offer(itr.hasNext() ? new DefaultLastHttpContent(piece) : new DefaultHttpContent(piece));
             }
         }
         logStackTraces = false;

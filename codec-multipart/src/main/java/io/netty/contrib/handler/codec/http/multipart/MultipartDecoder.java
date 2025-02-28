@@ -16,7 +16,6 @@
 package io.netty.contrib.handler.codec.http.multipart;
 
 import io.netty5.buffer.Buffer;
-import io.netty5.buffer.CompositeBuffer;
 import io.netty5.handler.codec.http.HttpConstants;
 import io.netty5.handler.codec.http.HttpHeaderNames;
 import io.netty5.handler.codec.http.HttpHeaderValues;
@@ -28,7 +27,7 @@ import java.nio.charset.IllegalCharsetNameException;
 import java.nio.charset.StandardCharsets;
 import java.nio.charset.UnsupportedCharsetException;
 
-final class MultipartDecoder implements PostBodyDecoder {
+final class MultipartDecoder extends AbstractDecoder {
     /**
      * When enabled, try to reproduce exactly the weird behavior of the old {@link HttpPostMultipartRequestDecoder}
      * implementation.
@@ -36,8 +35,6 @@ final class MultipartDecoder implements PostBodyDecoder {
     boolean quirkMode = false;
 
     private final String multipartDataBoundary;
-    private final Charset charset;
-    private final int undecodedLimit;
 
     private State state = State.HEADERDELIMITER;
     private Buffer buffer;
@@ -62,37 +59,15 @@ final class MultipartDecoder implements PostBodyDecoder {
     private long quirkDefinedLength;
 
     MultipartDecoder(String multipartDataBoundary, Charset charset, int undecodedLimit) {
+        super(charset, undecodedLimit);
         this.multipartDataBoundary = multipartDataBoundary;
-        this.charset = charset;
-        this.undecodedLimit = undecodedLimit;
 
         clearPartData();
     }
 
     @Override
     public void add(Send<Buffer> buffer) {
-        if (this.buffer != null && this.buffer.readableBytes() <= 0) {
-            this.buffer.close();
-            this.buffer = null;
-        }
-        // TODO: limit size
-        if (this.buffer == null) {
-            this.buffer = buffer.receive();
-        } else {
-            this.buffer.compact();
-            if (this.buffer.readableBytes() > undecodedLimit) {
-                buffer.close();
-                throw new HttpPostRequestDecoder.ErrorDataDecoderException("Undecoded data limit exceeded");
-            }
-
-            if (this.buffer instanceof CompositeBuffer) {
-                ((CompositeBuffer) this.buffer).extendWith(buffer);
-            } else {
-                try (Buffer b = buffer.receive()) {
-                    this.buffer.writeBytes(b);
-                }
-            }
-        }
+        super.add(buffer);
         if (quirkMode) {
             quirkHeaderStart = -1;
         }
@@ -197,7 +172,7 @@ final class MultipartDecoder implements PostBodyDecoder {
     }
 
     @Override
-    public String headerName() {
+    public CharSequence headerName() {
         if (headerKey == null) {
             throw new IllegalStateException("Not in a header");
         }
@@ -218,7 +193,7 @@ final class MultipartDecoder implements PostBodyDecoder {
             throw new IllegalStateException("Not in a header");
         }
         if (HttpHeaderNames.CONTENT_DISPOSITION.contentEqualsIgnoreCase(headerKey)) {
-            return new ContentDisposition(headerValue);
+            return new MultipartContentDisposition(headerValue);
         }
         return null;
     }
@@ -532,9 +507,7 @@ final class MultipartDecoder implements PostBodyDecoder {
 
     @Override
     public void close() {
-        if (buffer != null) {
-            buffer.close();
-        }
+        super.close();
         if (undecodedPartData != null) {
             undecodedPartData.close();
         }

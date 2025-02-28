@@ -41,6 +41,11 @@ public interface PostBodyDecoder extends Closeable {
     void add(Send<Buffer> buffer);
 
     /**
+     * Signal that no more input is forthcoming after the last {@link #add(Send)} call.
+     */
+    void endInput();
+
+    /**
      * Attempt to parse some input. The events returned by this method have the following structure:
      * <p>
      * {@code (BEGIN_FIELD HEADER* HEADERS_COMPLETE CONTENT* FIELD_COMPLETE)*}
@@ -57,8 +62,19 @@ public interface PostBodyDecoder extends Closeable {
      * @return The header name
      * @throws IllegalStateException If the last event was not a header
      */
-    default String headerName() {
+    default CharSequence headerName() {
         throw new IllegalStateException("Not a header");
+    }
+
+    /**
+     * Check whether this decoder supports {@link #headerValue()}. This is the case for the multipart decoder, but not
+     * the {@code application/x-www-form-urlencoded} decoder. For {@code application/x-www-form-urlencoded}, only
+     * {@link #parsedHeaderValue()} is supported (and always returns {@link ContentDisposition}).
+     *
+     * @return {@code true} iff {@link #headerValue()} is supported
+     */
+    default boolean hasUnparsedHeaderValue() {
+        return true;
     }
 
     /**
@@ -91,6 +107,17 @@ public interface PostBodyDecoder extends Closeable {
      *                               been called
      */
     Send<Buffer> decodedContent();
+
+    /**
+     * If the last event was a {@link Event#CONTENT}, get the string value of the content buffer with the configured
+     * charset.
+     *
+     * @return The content
+     * @throws IllegalStateException If the last event was not {@link Event#CONTENT}, or if this method has already
+     *                               been called
+     * @see #decodedContent()
+     */
+    String decodedContentString();
 
     /**
      * Close this decoder, releasing any remaining buffers.
@@ -154,6 +181,10 @@ public interface PostBodyDecoder extends Closeable {
 
         MultipartDecoder forBoundary0(String boundary) {
             return new MultipartDecoder(boundary, charset, undecodedLimit);
+        }
+
+        public PostBodyDecoder forFormData() {
+            return new UrlEncodedDecoder(charset, undecodedLimit);
         }
     }
 }
