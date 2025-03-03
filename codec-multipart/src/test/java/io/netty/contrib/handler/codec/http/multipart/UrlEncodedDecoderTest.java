@@ -27,7 +27,7 @@ class UrlEncodedDecoderTest {
 
     @Test
     public void simple() {
-        try (PostBodyDecoder decoder = PostBodyDecoder.builder().forFormData()) {
+        try (PostBodyDecoder decoder = PostBodyDecoder.builder().forUrlEncodedData()) {
             decoder.add(DefaultBufferAllocators.preferredAllocator()
                     .copyOf("foo=bar&fizz=buzz", StandardCharsets.UTF_8).send());
             decoder.endInput();
@@ -40,7 +40,7 @@ class UrlEncodedDecoderTest {
 
     @Test
     public void decodePlus() {
-        try (PostBodyDecoder decoder = PostBodyDecoder.builder().forFormData()) {
+        try (PostBodyDecoder decoder = PostBodyDecoder.builder().forUrlEncodedData()) {
             decoder.add(DefaultBufferAllocators.preferredAllocator()
                     .copyOf("foo=xyz+abc", StandardCharsets.UTF_8).send());
             decoder.endInput();
@@ -52,7 +52,7 @@ class UrlEncodedDecoderTest {
 
     @Test
     public void decodePercent() {
-        try (PostBodyDecoder decoder = PostBodyDecoder.builder().forFormData()) {
+        try (PostBodyDecoder decoder = PostBodyDecoder.builder().forUrlEncodedData()) {
             decoder.add(DefaultBufferAllocators.preferredAllocator()
                     .copyOf("foo=xyz%20abc", StandardCharsets.UTF_8).send());
             decoder.endInput();

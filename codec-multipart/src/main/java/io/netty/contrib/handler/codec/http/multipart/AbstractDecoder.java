@@ -7,7 +7,7 @@ import io.netty5.util.Send;
 import java.nio.charset.Charset;
 
 abstract class AbstractDecoder implements PostBodyDecoder {
-    private final int undecodedLimit;
+    int undecodedLimit;
     final Charset charset;
 
     Buffer buffer;

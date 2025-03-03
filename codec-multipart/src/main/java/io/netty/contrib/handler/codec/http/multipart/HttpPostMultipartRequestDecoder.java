@@ -68,11 +68,6 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
     private final MultipartDecoder decoder;
 
     /**
-     * Default charset to use
-     */
-    private Charset charset;
-
-    /**
      * Does the last chunk already received
      */
     private boolean isLastChunk;
@@ -165,7 +160,7 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
      */
     public HttpPostMultipartRequestDecoder(HttpDataFactory factory, HttpRequest request, Charset charset) {
         this.request = checkNotNullWithIAE(request, "request");
-        this.charset = checkNotNullWithIAE(charset, "charset");
+        checkNotNullWithIAE(charset, "charset");
         this.factory = checkNotNullWithIAE(factory, "factory");
         // Fill default values
 
@@ -180,7 +175,7 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
             multipartDataBoundary = dataBoundary[0];
             if (dataBoundary.length > 1 && dataBoundary[1] != null) {
                 try {
-                    this.charset = Charset.forName(dataBoundary[1]);
+                    charset = Charset.forName(dataBoundary[1]);
                 } catch (IllegalCharsetNameException e) {
                     throw new ErrorDataDecoderException(e);
                 }
@@ -682,7 +677,7 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
         // eventually restart from existing FileUpload
         // Now get value according to Content-Type and Charset
         Attribute encoding = currentFieldAttributes.get(HttpHeaderNames.CONTENT_TRANSFER_ENCODING);
-        Charset localCharset = charset;
+        Charset localCharset = this.decoder.charset;
         // Default
         TransferEncodingMechanism mechanism = TransferEncodingMechanism.BIT7;
         if (encoding != null) {

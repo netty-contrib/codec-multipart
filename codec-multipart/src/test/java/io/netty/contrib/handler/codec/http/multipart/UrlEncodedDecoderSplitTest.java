@@ -3,7 +3,7 @@ package io.netty.contrib.handler.codec.http.multipart;
 public class UrlEncodedDecoderSplitTest extends AbstractDecoderSplitTest {
     @Override
     protected PostBodyDecoder createDecoder() {
-        return PostBodyDecoder.builder().forFormData();
+        return PostBodyDecoder.builder().forUrlEncodedData();
     }
 
     public static void main(String[] args) throws Throwable {

@@ -183,7 +183,7 @@ public interface PostBodyDecoder extends Closeable {
             return new MultipartDecoder(boundary, charset, undecodedLimit);
         }
 
-        public PostBodyDecoder forFormData() {
+        public PostBodyDecoder forUrlEncodedData() {
             return new UrlEncodedDecoder(charset, undecodedLimit);
         }
     }
