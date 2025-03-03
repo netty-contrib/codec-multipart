@@ -1,7 +1,10 @@
 package io.netty.contrib.handler.codec.http.multipart;
 
 /**
- * Parsed representation of the {@code Content-Disposition} header, giving access to the file name.
+ * Parsed representation of the {@code Content-Disposition} header, giving access to the field and file name.
+ * <p>
+ *
+ * @author Jonas Konrad
  */
 public interface ContentDisposition extends ParsedHeaderValue {
     /**

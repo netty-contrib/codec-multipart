@@ -110,8 +110,6 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
 
     private boolean destroyed;
 
-    private int discardThreshold = HttpPostRequestDecoder.DEFAULT_DISCARD_THRESHOLD;
-
     private final static ByteProcessor CTRLSPACE_PROCESSOR = value -> Character.isISOControl(value) || Character.isWhitespace(value);
 
     /**
@@ -227,7 +225,7 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
      */
     @Override
     public void setDiscardThreshold(int discardThreshold) {
-        this.discardThreshold = checkPositiveOrZero(discardThreshold, "discardThreshold");
+        decoder.compactionThreshold = checkPositiveOrZero(discardThreshold, "discardThreshold");
     }
 
     /**
@@ -235,7 +233,7 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
      */
     @Override
     public int getDiscardThreshold() {
-        return discardThreshold;
+        return decoder.compactionThreshold;
     }
 
     /**

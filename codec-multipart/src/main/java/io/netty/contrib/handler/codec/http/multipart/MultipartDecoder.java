@@ -58,8 +58,8 @@ final class MultipartDecoder extends AbstractDecoder {
     private String quirkPartCharset;
     private long quirkDefinedLength;
 
-    MultipartDecoder(String multipartDataBoundary, Charset charset, int undecodedLimit) {
-        super(charset, undecodedLimit);
+    MultipartDecoder(Builder builder, String multipartDataBoundary) {
+        super(builder);
         this.multipartDataBoundary = multipartDataBoundary;
 
         clearPartData();

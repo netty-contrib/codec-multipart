@@ -35,6 +35,7 @@ import java.util.Map;
 import java.util.TreeMap;
 
 import static io.netty5.util.internal.ObjectUtil.checkNotNullWithIAE;
+import static io.netty5.util.internal.ObjectUtil.checkPositiveOrZero;
 
 /**
  * This decoder will decode Body and can handle POST BODY.
@@ -166,23 +167,18 @@ public class HttpPostStandardRequestDecoder implements InterfaceHttpPostRequestD
      * Set the amount of bytes after which read bytes in the buffer should be discarded.
      * Setting this lower gives lower memory usage but with the overhead of more memory copies.
      * Use {@code 0} to disable it.
-     *
-     * @deprecated Compaction is not necessary anymore
      */
     @Override
-    @Deprecated
     public void setDiscardThreshold(int discardThreshold) {
+        decoder.compactionThreshold = checkPositiveOrZero(discardThreshold, "discardThreshold");
     }
 
     /**
      * Return the threshold in bytes after which read data in the buffer should be discarded.
-     *
-     * @deprecated Compaction is not necessary anymore
      */
     @Override
-    @Deprecated
     public int getDiscardThreshold() {
-        return HttpPostRequestDecoder.DEFAULT_DISCARD_THRESHOLD;
+        return decoder.compactionThreshold;
     }
 
     /**

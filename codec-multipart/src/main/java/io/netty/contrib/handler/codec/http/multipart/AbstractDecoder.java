@@ -7,15 +7,17 @@ import io.netty5.util.Send;
 import java.nio.charset.Charset;
 
 abstract class AbstractDecoder implements PostBodyDecoder {
-    int undecodedLimit;
+    final int undecodedLimit;
     final Charset charset;
+    int compactionThreshold;
 
     Buffer buffer;
     boolean eof;
 
-    AbstractDecoder(Charset charset, int undecodedLimit) {
-        this.undecodedLimit = undecodedLimit;
-        this.charset = charset;
+    AbstractDecoder(Builder builder) {
+        this.undecodedLimit = builder.undecodedLimit;
+        this.charset = builder.charset;
+        this.compactionThreshold = builder.compactionThreshold;
     }
 
     @Override
@@ -27,11 +29,12 @@ abstract class AbstractDecoder implements PostBodyDecoder {
             this.buffer.close();
             this.buffer = null;
         }
-        // TODO: limit size
         if (this.buffer == null) {
             this.buffer = buffer.receive();
         } else {
-            this.buffer.compact();
+            if (compactionThreshold >= 0 && this.buffer.writerOffset() >= compactionThreshold) {
+                this.buffer.compact();
+            }
             if (this.buffer.readableBytes() > undecodedLimit) {
                 buffer.close();
                 throw new HttpPostRequestDecoder.ErrorDataDecoderException("Undecoded data limit exceeded");

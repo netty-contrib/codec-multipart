@@ -6,8 +6,6 @@ import io.netty5.util.ByteProcessor;
 import io.netty5.util.Send;
 import io.netty5.util.internal.StringUtil;
 
-import java.nio.charset.Charset;
-
 final class UrlEncodedDecoder extends AbstractDecoder {
     private static final ByteProcessor FIND_KEY_END = value -> value != '=' && value != '&';
     private static final ByteProcessor FIND_VALUE_END = value -> value != '&' && value != '\r' && value != '\n';
@@ -19,8 +17,8 @@ final class UrlEncodedDecoder extends AbstractDecoder {
 
     boolean quirkMode = false;
 
-    UrlEncodedDecoder(Charset charset, int undecodedLimit) {
-        super(charset, undecodedLimit);
+    UrlEncodedDecoder(Builder builder) {
+        super(builder);
     }
 
     @Override
@@ -254,11 +252,11 @@ final class UrlEncodedDecoder extends AbstractDecoder {
                         continue;
                     } else if (quirkMode) {
                         // whatwg URL spec allows this
-                        failPercentDecode(buffer);
+                        failPercentDecode();
                     }
                 } else if (quirkMode) {
                     // whatwg URL spec allows this
-                    failPercentDecode(buffer);
+                    failPercentDecode();
                 }
             }
             if (b == '+') {
@@ -272,7 +270,8 @@ final class UrlEncodedDecoder extends AbstractDecoder {
         buffer.writerOffset(wi);
     }
 
-    private void failPercentDecode(Buffer buffer) {
+    private void failPercentDecode() {
+        assert quirkMode;
         if (state == State.KEY) {
             throw new HttpPostRequestDecoder.ErrorDataDecoderException("Bad string");
         } else {
