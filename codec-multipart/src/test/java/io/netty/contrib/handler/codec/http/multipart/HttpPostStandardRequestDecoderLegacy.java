@@ -419,9 +419,9 @@ public class HttpPostStandardRequestDecoderLegacy implements InterfaceHttpPostRe
                         String key = decodeAttribute(Helpers.toString(undecodedChunk, firstpos, equalpos - firstpos, charset), charset);
                         currentAttribute = factory.createAttribute(request, key);
                         firstpos = currentpos;
-                    } else if (read == '&') { // special empty FIELD
+                    } else if (read == '&' || (isLastChunk && undecodedChunk.readableBytes() == 0)) { // special empty FIELD
                         currentStatus = MultiPartStatus.DISPOSITION;
-                        ampersandpos = currentpos - 1;
+                        ampersandpos = read == '&' ? currentpos - 1 : currentpos;
                         String key = decodeAttribute(
                                 Helpers.toString(undecodedChunk, firstpos, ampersandpos - firstpos, charset), charset);
 

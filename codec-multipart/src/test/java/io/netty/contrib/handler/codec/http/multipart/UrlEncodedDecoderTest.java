@@ -19,10 +19,18 @@ class UrlEncodedDecoderTest {
 
         Assertions.assertEquals(PostBodyDecoder.Event.HEADERS_COMPLETE, decoder.next());
 
-        Assertions.assertEquals(PostBodyDecoder.Event.CONTENT, decoder.next());
-        Assertions.assertEquals(value, decoder.decodedContentString());
+        PostBodyDecoder.Event next = decoder.next();
 
-        Assertions.assertEquals(PostBodyDecoder.Event.FIELD_COMPLETE, decoder.next());
+        if (next == PostBodyDecoder.Event.CONTENT) {
+            Assertions.assertEquals(PostBodyDecoder.Event.CONTENT, next);
+            Assertions.assertEquals(value, decoder.decodedContentString());
+            next = decoder.next();
+        } else {
+            //noinspection MisorderedAssertEqualsArguments
+            Assertions.assertEquals(value, "");
+        }
+
+        Assertions.assertEquals(PostBodyDecoder.Event.FIELD_COMPLETE, next);
     }
 
     @Test
@@ -58,6 +66,18 @@ class UrlEncodedDecoderTest {
             decoder.endInput();
 
             expectField(decoder, "foo", "xyz abc");
+            Assertions.assertNull(decoder.next());
+        }
+    }
+
+    @Test
+    public void special() {
+        try (PostBodyDecoder decoder = PostBodyDecoder.builder().forUrlEncodedData()) {
+            decoder.add(DefaultBufferAllocators.preferredAllocator()
+                    .copyOf("foo", StandardCharsets.UTF_8).send());
+            decoder.endInput();
+
+            expectField(decoder, "foo", "");
             Assertions.assertNull(decoder.next());
         }
     }

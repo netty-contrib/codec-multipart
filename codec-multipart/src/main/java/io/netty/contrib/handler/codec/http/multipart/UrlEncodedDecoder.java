@@ -30,10 +30,14 @@ final class UrlEncodedDecoder extends AbstractDecoder {
                         return null;
                     }
                     int keyEnd = buffer.openCursor().process(FIND_KEY_END);
+                    boolean noValueAtEof = keyEnd == -1 && eof && buffer.readableBytes() > 0;
+                    if (noValueAtEof) {
+                        keyEnd = buffer.readableBytes();
+                    }
                     if (keyEnd >= 0) {
                         boolean hasValue;
                         try (Buffer keyBuffer = buffer.readSplit(keyEnd)) {
-                            hasValue = buffer.readByte() == '=';
+                            hasValue = !noValueAtEof && buffer.readByte() == '=';
                             if (!hasValue && keyBuffer.readableBytes() == 0) {
                                 // Some weird request bodies start with an '&' character, eg: &name=J&age=17.
                                 // Just ignore.
@@ -48,7 +52,7 @@ final class UrlEncodedDecoder extends AbstractDecoder {
                                 key = keyBuffer.toString(charset);
                             }
                         }
-                        if (!hasValue) {
+                        if (!hasValue && !noValueAtEof) {
                             // go to just before the '&', it will read as an empty value
                             buffer.readerOffset(buffer.readerOffset() - 1);
                         }
