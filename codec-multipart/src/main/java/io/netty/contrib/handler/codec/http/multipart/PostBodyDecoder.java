@@ -15,11 +15,8 @@
  */
 package io.netty.contrib.handler.codec.http.multipart;
 
+import io.netty.buffer.ByteBuf;
 import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestDecoder.ErrorDataDecoderException;
-import io.netty5.buffer.Buffer;
-import io.netty5.handler.codec.http.HttpConstants;
-import io.netty5.util.Send;
-import io.netty5.util.internal.ObjectUtil;
 
 import java.io.Closeable;
 import java.nio.charset.Charset;
@@ -34,7 +31,7 @@ import java.util.Objects;
  * to the more complicated multipart input.
  * <p>
  * To use this API, first create an instance using the {@link #builder() builder}. When new input comes in, add it
- * using {@link #add(Send)}. Then, repeatedly call {@link #next()} and handle the returned events. When {@link #next()}
+ * using {@link #add(ByteBuf)}. Then, repeatedly call {@link #next()} and handle the returned events. When {@link #next()}
  * returns {@code null}, wait for new input. At the end of the input, call {@link #endInput()} and repeatedly
  * {@link #next()} again.
  * <p>
@@ -62,10 +59,10 @@ public interface PostBodyDecoder extends Closeable {
      *                                   adding more data, or the input data has tokens that exceed the configured
      *                                   limit (possible attack vector).
      */
-    void add(Send<Buffer> buffer);
+    void add(ByteBuf buffer);
 
     /**
-     * Signal that no more input is forthcoming after the last {@link #add(Send)} call.
+     * Signal that no more input is forthcoming after the last {@link #add(ByteBuf)} call.
      */
     void endInput();
 
@@ -138,7 +135,7 @@ public interface PostBodyDecoder extends Closeable {
      *                               been called
      * @throws ErrorDataDecoderException On invalid input
      */
-    Send<Buffer> decodedContent();
+    ByteBuf decodedContent();
 
     /**
      * If the last event was a {@link Event#CONTENT}, get the string value of the content buffer with the configured

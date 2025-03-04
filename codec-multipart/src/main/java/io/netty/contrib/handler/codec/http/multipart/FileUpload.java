@@ -15,7 +15,7 @@
  */
 package io.netty.contrib.handler.codec.http.multipart;
 
-import io.netty5.buffer.Buffer;
+import io.netty.buffer.ByteBuf;
 
 /**
  * FileUpload interface that could be in memory, on temporary file or any other implementations.
@@ -62,6 +62,23 @@ public interface FileUpload extends HttpData {
     FileUpload copy();
 
     @Override
-    FileUpload replace(Buffer content);
+    FileUpload duplicate();
 
+    @Override
+    FileUpload retainedDuplicate();
+
+    @Override
+    FileUpload replace(ByteBuf content);
+
+    @Override
+    FileUpload retain();
+
+    @Override
+    FileUpload retain(int increment);
+
+    @Override
+    FileUpload touch();
+
+    @Override
+    FileUpload touch(Object hint);
 }

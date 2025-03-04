@@ -1,10 +1,10 @@
 package io.netty.contrib.handler.codec.http.multipart;
 
-import io.netty5.buffer.Buffer;
-import io.netty5.handler.codec.http.HttpHeaderNames;
-import io.netty5.util.ByteProcessor;
-import io.netty5.util.Send;
-import io.netty5.util.internal.StringUtil;
+
+import io.netty.buffer.ByteBuf;
+import io.netty.handler.codec.http.HttpHeaderNames;
+import io.netty.util.ByteProcessor;
+import io.netty.util.internal.StringUtil;
 
 final class UrlEncodedDecoder extends AbstractDecoder {
     private static final ByteProcessor FIND_KEY_END = value -> value != '=' && value != '&';
@@ -13,7 +13,7 @@ final class UrlEncodedDecoder extends AbstractDecoder {
     private State state = State.KEY;
 
     private String key;
-    private Buffer undecodedContent;
+    private ByteBuf undecodedContent;
 
     boolean quirkMode = false;
 
@@ -29,32 +29,35 @@ final class UrlEncodedDecoder extends AbstractDecoder {
                     if (buffer == null) {
                         return null;
                     }
-                    int keyEnd = buffer.openCursor().process(FIND_KEY_END);
+                    int keyEnd = buffer.forEachByte(FIND_KEY_END);
                     boolean noValueAtEof = keyEnd == -1 && eof && buffer.readableBytes() > 0;
                     if (noValueAtEof) {
                         keyEnd = buffer.readableBytes();
                     }
                     if (keyEnd >= 0) {
                         boolean hasValue;
-                        try (Buffer keyBuffer = buffer.readSplit(keyEnd)) {
+                        ByteBuf keyByteBuf = buffer.readRetainedSlice(keyEnd);
+                        try {
                             hasValue = !noValueAtEof && buffer.readByte() == '=';
-                            if (!hasValue && keyBuffer.readableBytes() == 0) {
+                            if (!hasValue && keyByteBuf.readableBytes() == 0) {
                                 // Some weird request bodies start with an '&' character, eg: &name=J&age=17.
                                 // Just ignore.
                                 break;
                             }
                             if (quirkMode) {
                                 // old impl does charset decoding first. this is subtly different wrt invalid sequences
-                                key = HttpPostStandardRequestDecoder.decodeAttribute(keyBuffer.toString(charset), charset);
+                                key = HttpPostStandardRequestDecoder.decodeAttribute(keyByteBuf.toString(charset), charset);
                             } else {
                                 // whatwg spec first does percent decoding, then utf-8 decoding
-                                decodeComponent(keyBuffer);
-                                key = keyBuffer.toString(charset);
+                                decodeComponent(keyByteBuf);
+                                key = keyByteBuf.toString(charset);
                             }
+                        } finally {
+                            keyByteBuf.release();
                         }
                         if (!hasValue && !noValueAtEof) {
                             // go to just before the '&', it will read as an empty value
-                            buffer.readerOffset(buffer.readerOffset() - 1);
+                            buffer.readerIndex(buffer.readerIndex() - 1);
                         }
                         state = State.EMIT_HEADER_1;
                         return Event.BEGIN_FIELD;
@@ -71,19 +74,19 @@ final class UrlEncodedDecoder extends AbstractDecoder {
                     return Event.HEADERS_COMPLETE;
                 case VALUE:
                     if (undecodedContent != null) {
-                        undecodedContent.close();
+                        undecodedContent.release();
                         undecodedContent = null;
                     }
                     if (buffer != null && buffer.readableBytes() == 0) {
-                        buffer.close();
+                        buffer.release();
                         buffer = null;
                     }
                     if (buffer == null && !eof) {
                         return null;
                     }
-                    int valueEnd = buffer == null ? 0 : buffer.openCursor().process(FIND_VALUE_END);
+                    int valueEnd = buffer == null ? 0 : buffer.forEachByte(FIND_VALUE_END);
                     boolean endAttribute = valueEnd == 0;
-                    if (endAttribute && quirkMode && buffer != null && buffer.readableBytes() == 1 && buffer.getByte(buffer.readerOffset()) == '\r' && !eof) {
+                    if (endAttribute && quirkMode && buffer != null && buffer.readableBytes() == 1 && buffer.getByte(buffer.readerIndex()) == '\r' && !eof) {
                         endAttribute = false;
                     }
                     if (endAttribute) {
@@ -94,25 +97,25 @@ final class UrlEncodedDecoder extends AbstractDecoder {
                             if (b == '&') {
                                 state = State.KEY;
                             } else if (quirkMode && b == '\r' && buffer.readableBytes() == 0 && !eof) {
-                                buffer.readerOffset(buffer.readerOffset() - 1);
+                                buffer.readerIndex(buffer.readerIndex() - 1);
                                 return null;
                             } else {
-                                buffer.readerOffset(buffer.readerOffset() - 1);
+                                buffer.readerIndex(buffer.readerIndex() - 1);
                                 state = State.EOL;
                                 if (quirkMode) {
-                                    earlyEolCheck(buffer.readerOffset());
+                                    earlyEolCheck(buffer.readerIndex());
                                 }
                             }
                         }
                         return Event.FIELD_COMPLETE;
                     } else {
-                        if (quirkMode && !eof && valueEnd >= 0 && buffer.getByte(buffer.readerOffset() + valueEnd) == '\r') {
+                        if (quirkMode && !eof && valueEnd >= 0 && buffer.getByte(buffer.readerIndex() + valueEnd) == '\r') {
                             // in quirk mode, delay processing (potentially invalid) trailing escape until we can check
                             // for sure whether a terminating CRLF is valid.
-                            int trailing = findTrailingEscape(buffer, buffer.readerOffset() + valueEnd);
+                            int trailing = findTrailingEscape(buffer, buffer.readerIndex() + valueEnd);
                             if (trailing != -1) {
-                                if (!earlyEolCheck(buffer.readerOffset() + valueEnd)) {
-                                    valueEnd = trailing - buffer.readerOffset();
+                                if (!earlyEolCheck(buffer.readerIndex() + valueEnd)) {
+                                    valueEnd = trailing - buffer.readerIndex();
                                     if (valueEnd == 0) {
                                         return null;
                                     }
@@ -120,9 +123,9 @@ final class UrlEncodedDecoder extends AbstractDecoder {
                             }
                         }
                         if (!eof && valueEnd < 0) {
-                            int trailing = findTrailingEscape(buffer, buffer.writerOffset());
+                            int trailing = findTrailingEscape(buffer, buffer.writerIndex());
                             if (trailing != -1) {
-                                valueEnd = trailing - buffer.readerOffset();
+                                valueEnd = trailing - buffer.readerIndex();
                                 if (valueEnd == 0) {
                                     return null;
                                 }
@@ -135,22 +138,22 @@ final class UrlEncodedDecoder extends AbstractDecoder {
                         } else if (valueEnd == 0) {
                             return null;
                         } else {
-                            undecodedContent = buffer.readSplit(valueEnd);
+                            undecodedContent = buffer.readRetainedSlice(valueEnd);
                         }
                         if (quirkMode && buffer != null) {
-                            earlyEolCheck(buffer.readerOffset());
+                            earlyEolCheck(buffer.readerIndex());
                         }
                         return Event.CONTENT;
                     }
                 case EOL:
-                    byte first = buffer.getByte(buffer.readerOffset());
+                    byte first = buffer.getByte(buffer.readerIndex());
                     assert first == '\r' || first == '\n';
                     if (first == '\r') {
                         if (buffer.readableBytes() == 1) {
                             // need to wait for \n to verify line ending
                             return null;
                         }
-                        if (buffer.getByte(buffer.readerOffset() + 1) != '\n') {
+                        if (buffer.getByte(buffer.readerIndex() + 1) != '\n') {
                             throw new HttpPostRequestDecoder.ErrorDataDecoderException("Bad end of line");
                         }
                     }
@@ -158,7 +161,7 @@ final class UrlEncodedDecoder extends AbstractDecoder {
                     // fall-through
                 case DISCARD_REMAINING:
                     if (buffer != null) {
-                        buffer.close();
+                        buffer.release();
                         buffer = null;
                     }
                     return null;
@@ -173,11 +176,11 @@ final class UrlEncodedDecoder extends AbstractDecoder {
      * @param end The end index in the buffer to start scanning at (exclusive)
      * @return The index of the unfinished escape, or {@code -1} if there is no unfinished escape
      */
-    private static int findTrailingEscape(Buffer buffer, int end) {
-        if (buffer.readerOffset() <= end - 1 && buffer.getByte(end - 1) == '%') {
+    private static int findTrailingEscape(ByteBuf buffer, int end) {
+        if (buffer.readerIndex() <= end - 1 && buffer.getByte(end - 1) == '%') {
             return end - 1;
         }
-        if (buffer.readerOffset() <= end - 2 && buffer.getByte(end - 2) == '%') {
+        if (buffer.readerIndex() <= end - 2 && buffer.getByte(end - 2) == '%') {
             return end - 2;
         }
         return -1;
@@ -193,7 +196,7 @@ final class UrlEncodedDecoder extends AbstractDecoder {
     private boolean earlyEolCheck(int start) {
         assert quirkMode;
 
-        if (buffer.writerOffset() > start + 1 &&
+        if (buffer.writerIndex() > start + 1 &&
                 buffer.getByte(start) == '\r') {
             if (buffer.getByte(start + 1) != '\n') {
                 throw new HttpPostRequestDecoder.ErrorDataDecoderException("Bad end of line");
@@ -231,23 +234,27 @@ final class UrlEncodedDecoder extends AbstractDecoder {
     }
 
     @Override
-    public Send<Buffer> decodedContent() {
+    public ByteBuf decodedContent() {
         if (undecodedContent == null) {
             throw new IllegalStateException("Not in CONTENT event");
         }
-        try (Buffer b = undecodedContent) {
+        ByteBuf b = undecodedContent;
+        try {
             undecodedContent = null;
             decodeComponent(b);
-            return b.send();
+            return b;
+        } catch (Exception e) {
+            b.release();
+            throw e;
         }
     }
 
-    private void decodeComponent(Buffer buffer) {
-        int wi = buffer.readerOffset();
-        for (int ri = wi; ri < buffer.writerOffset(); wi++, ri++) {
+    private void decodeComponent(ByteBuf buffer) {
+        int wi = buffer.readerIndex();
+        for (int ri = wi; ri < buffer.writerIndex(); wi++, ri++) {
             byte b = buffer.getByte(ri);
             if (b == '%') {
-                if (ri < buffer.writerOffset() - 2) {
+                if (ri < buffer.writerIndex() - 2) {
                     int hi = StringUtil.decodeHexNibble((char) buffer.getByte(ri + 1));
                     int lo = StringUtil.decodeHexNibble((char) buffer.getByte(ri + 2));
                     if (hi != -1 && lo != -1) {
@@ -271,7 +278,7 @@ final class UrlEncodedDecoder extends AbstractDecoder {
                 buffer.setByte(wi, b);
             }
         }
-        buffer.writerOffset(wi);
+        buffer.writerIndex(wi);
     }
 
     private void failPercentDecode() {
@@ -287,7 +294,7 @@ final class UrlEncodedDecoder extends AbstractDecoder {
     public void close() {
         super.close();
         if (undecodedContent != null) {
-            undecodedContent.close();
+            undecodedContent.release();
             undecodedContent = null;
         }
     }

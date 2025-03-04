@@ -21,7 +21,7 @@
         <!-- This only be set when run on mac as on other platforms we just want to include the jar without native code -->
         <kqueue.classifier />
         <japicmp.skip>true</japicmp.skip>
-        <javaModuleName>io.netty5.microbench</javaModuleName>
+        <javaModuleName>io.netty.microbench</javaModuleName>
         <jni.classifier>${os.detected.name}-${os.detected.arch}</jni.classifier>
         <junit.version>5.8.2</junit.version>
     </properties>
@@ -126,16 +126,20 @@
         </dependency>
         <dependency>
             <groupId>io.netty</groupId>
-            <artifactId>netty5-microbench</artifactId>
+            <artifactId>netty-microbench</artifactId>
             <version>${netty.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>io.netty</groupId>
-                    <artifactId>netty5-transport-native-epoll</artifactId>
+                    <artifactId>netty-transport-native-epoll</artifactId>
                 </exclusion>
                 <exclusion>
                     <groupId>io.netty</groupId>
-                    <artifactId>netty5-transport-native-kqueue</artifactId>
+                    <artifactId>netty-transport-native-kqueue</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>io.netty</groupId>
+                    <artifactId>netty-tcnative</artifactId>
                 </exclusion>
             </exclusions>
         </dependency>

@@ -15,17 +15,17 @@
  */
 package io.netty.contrib.handler.codec.http.multipart;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestDecoder.EndOfDataDecoderException;
 import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestDecoder.ErrorDataDecoderException;
 import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestDecoder.NotEnoughDataDecoderException;
-import io.netty5.buffer.Buffer;
-import io.netty5.buffer.DefaultBufferAllocators;
-import io.netty5.handler.codec.http.HttpConstants;
-import io.netty5.handler.codec.http.HttpContent;
-import io.netty5.handler.codec.http.HttpRequest;
-import io.netty5.handler.codec.http.LastHttpContent;
-import io.netty5.handler.codec.http.QueryStringDecoder;
-import io.netty5.util.internal.PlatformDependent;
+import io.netty.handler.codec.http.HttpConstants;
+import io.netty.handler.codec.http.HttpContent;
+import io.netty.handler.codec.http.HttpRequest;
+import io.netty.handler.codec.http.LastHttpContent;
+import io.netty.handler.codec.http.QueryStringDecoder;
+import io.netty.util.internal.PlatformDependent;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -34,8 +34,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
-import static io.netty5.util.internal.ObjectUtil.checkNotNullWithIAE;
-import static io.netty5.util.internal.ObjectUtil.checkPositiveOrZero;
+import static io.netty.util.internal.ObjectUtil.checkNotNullWithIAE;
+import static io.netty.util.internal.ObjectUtil.checkPositiveOrZero;
 
 /**
  * This decoder will decode Body and can handle POST BODY.
@@ -135,7 +135,7 @@ public class HttpPostStandardRequestDecoder implements InterfaceHttpPostRequestD
             if (request instanceof HttpContent) {
                 // Offer automatically if the given request is as type of HttpContent
                 // See #1089
-                offer((HttpContent<?>) request);
+                offer((HttpContent) request);
             } else {
                 parseBody();
             }
@@ -258,11 +258,11 @@ public class HttpPostStandardRequestDecoder implements InterfaceHttpPostRequestD
      *             errors
      */
     @Override
-    public HttpPostStandardRequestDecoder offer(HttpContent<?> content) {
+    public HttpPostStandardRequestDecoder offer(HttpContent content) {
         checkDestroyed();
 
-        Buffer buf = content.payload();
-        decoder.add(buf.send());
+        ByteBuf buf = content.content();
+        decoder.add(buf);
         if (content instanceof LastHttpContent) {
             decoder.endInput();
         }
@@ -298,7 +298,7 @@ public class HttpPostStandardRequestDecoder implements InterfaceHttpPostRequestD
      * is called, there is no more available InterfaceHttpData. A subsequent
      * call to offer(httpChunk) could enable more data.
      *
-     * Be sure to call {@link InterfaceHttpData#close()} after you are done
+     * Be sure to call {@link InterfaceHttpData#release()} after you are done
      * with processing to make sure to not leak any resources
      *
      * @return the next available InterfaceHttpData or null if none
@@ -365,9 +365,9 @@ public class HttpPostStandardRequestDecoder implements InterfaceHttpPostRequestD
                 if (event == PostBodyDecoder.Event.HEADER) {
                     currentAttribute = factory.createAttribute(request, ((ContentDisposition) decoder.parsedHeaderValue()).name());
                 } else if (event == PostBodyDecoder.Event.CONTENT) {
-                    currentAttribute.addContent(decoder.decodedContent().receive(), false);
+                    currentAttribute.addContent(decoder.decodedContent(), false);
                 } else if (event == PostBodyDecoder.Event.FIELD_COMPLETE) {
-                    currentAttribute.addContent(DefaultBufferAllocators.preferredAllocator().allocate(0), true);
+                    currentAttribute.addContent(Unpooled.EMPTY_BUFFER, true);
                     addHttpData(currentAttribute);
                     currentAttribute = null;
                 }
@@ -415,8 +415,8 @@ public class HttpPostStandardRequestDecoder implements InterfaceHttpPostRequestD
         // Clean Memory based data
         for (InterfaceHttpData httpData : bodyListHttpData) {
             // Might have been already closed by the user
-            if (httpData.isAccessible()) {
-                httpData.close();
+            if (httpData.refCnt() > 0) {
+                httpData.release();
             }
         }
 

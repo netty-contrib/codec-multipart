@@ -15,22 +15,24 @@
  */
 package io.netty.contrib.handler.codec.http.multipart;
 
-import io.netty5.handler.codec.http.DefaultHttpRequest;
-import io.netty5.handler.codec.http.HttpRequest;
+import io.netty.buffer.Unpooled;
+import io.netty.handler.codec.http.DefaultHttpRequest;
+import io.netty.handler.codec.http.HttpRequest;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 
 import static io.netty.contrib.handler.codec.http.multipart.HttpPostBodyUtil.DEFAULT_TEXT_CONTENT_TYPE;
-import static java.nio.charset.StandardCharsets.UTF_8;
-import static io.netty5.handler.codec.http.HttpHeaderValues.IDENTITY;
-import static io.netty5.handler.codec.http.HttpMethod.POST;
-import static io.netty5.handler.codec.http.HttpVersion.HTTP_1_1;
-import static org.junit.jupiter.api.Assertions.*;
+import static io.netty.handler.codec.http.HttpHeaderValues.IDENTITY;
+import static io.netty.handler.codec.http.HttpMethod.POST;
+import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
+import static io.netty.util.CharsetUtil.UTF_8;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-@ExtendWith(GCExtension.class)
 public class DefaultHttpDataFactoryTest {
     // req1 equals req2
     private static final HttpRequest req1 = new DefaultHttpRequest(HTTP_1_1, POST, "/form");
@@ -83,25 +85,33 @@ public class DefaultHttpDataFactoryTest {
                 req2, "file2", "file2.txt",
                 DEFAULT_TEXT_CONTENT_TYPE, IDENTITY.toString(), UTF_8, 123
         );
-        file1.setContent(Helpers.copiedBuffer("file1 content", UTF_8));
-        file2.setContent(Helpers.copiedBuffer("file2 content", UTF_8));
+        file1.setContent(Unpooled.copiedBuffer("file1 content", UTF_8));
+        file2.setContent(Unpooled.copiedBuffer("file2 content", UTF_8));
 
         // Assert that they are not deleted
-        attribute1.usingBuffer(buf -> assertNotNull(buf));
-        attribute2.usingBuffer(buf -> assertNotNull(buf));
-        file1.usingBuffer(buf -> assertNotNull(buf));
-        file2.usingBuffer(buf -> assertNotNull(buf));
+        assertNotNull(attribute1.getByteBuf());
+        assertNotNull(attribute2.getByteBuf());
+        assertNotNull(file1.getByteBuf());
+        assertNotNull(file2.getByteBuf());
+        assertEquals(1, attribute1.refCnt());
+        assertEquals(1, attribute2.refCnt());
+        assertEquals(1, file1.refCnt());
+        assertEquals(1, file2.refCnt());
 
         // Clean up by req1
         factory.cleanRequestHttpData(req1);
 
         // Assert that data belonging to req1 has been cleaned up
-        attribute1.usingBuffer(buf -> assertNull(buf));
-        file1.usingBuffer(buf -> assertNull(buf));
+        assertNull(attribute1.getByteBuf());
+        assertNull(file1.getByteBuf());
+        assertEquals(0, attribute1.refCnt());
+        assertEquals(0, file1.refCnt());
 
         // But not req2
-        attribute2.usingBuffer(buf -> assertNotNull(buf));
-        file2.usingBuffer(buf -> assertNotNull(buf));
+        assertNotNull(attribute2.getByteBuf());
+        assertNotNull(file2.getByteBuf());
+        assertEquals(1, attribute2.refCnt());
+        assertEquals(1, file2.refCnt());
     }
 
     @Test
@@ -117,8 +127,8 @@ public class DefaultHttpDataFactoryTest {
                 req1, "file", "file.txt",
                 DEFAULT_TEXT_CONTENT_TYPE, IDENTITY.toString(), UTF_8, 123
         );
-        file1.setContent(Helpers.copiedBuffer("file content", UTF_8));
-        file2.setContent(Helpers.copiedBuffer("file content", UTF_8));
+        file1.setContent(Unpooled.copiedBuffer("file content", UTF_8));
+        file2.setContent(Unpooled.copiedBuffer("file content", UTF_8));
 
         // Before doing anything, assert that the data items are equal
         assertEquals(attribute1.hashCode(), attribute2.hashCode());
@@ -134,15 +144,21 @@ public class DefaultHttpDataFactoryTest {
         factory.cleanRequestHttpData(req1);
 
         // Assert that attribute1 and file1 have been cleaned up
-        attribute1.usingBuffer(buf -> assertNull(buf));
-        file1.usingBuffer(buf -> assertNull(buf));
+        assertNull(attribute1.getByteBuf());
+        assertNull(file1.getByteBuf());
+        assertEquals(0, attribute1.refCnt());
+        assertEquals(0, file1.refCnt());
 
         // But not attribute2 and file2
-        attribute2.usingBuffer(buf -> assertNotNull(buf));
-        file2.usingBuffer(buf -> assertNotNull(buf));
+        assertNotNull(attribute2.getByteBuf());
+        assertNotNull(file2.getByteBuf());
+        assertEquals(1, attribute2.refCnt());
+        assertEquals(1, file2.refCnt());
 
         // Cleanup attribute2 and file2 manually to avoid memory leak, not via factory
-        attribute2.close();
-        file2.close();
+        attribute2.release();
+        file2.release();
+        assertEquals(0, attribute2.refCnt());
+        assertEquals(0, file2.refCnt());
     }
 }

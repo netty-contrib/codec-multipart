@@ -20,27 +20,27 @@
     <dependencies>
         <dependency>
             <groupId>io.netty</groupId>
-            <artifactId>netty5-codec-http</artifactId>
+            <artifactId>netty-codec-http</artifactId>
             <version>${netty.version}</version>
         </dependency>
         <dependency>
             <groupId>io.netty</groupId>
-            <artifactId>netty5-common</artifactId>
+            <artifactId>netty-common</artifactId>
             <version>${netty.version}</version>
         </dependency>
         <dependency>
             <groupId>io.netty</groupId>
-            <artifactId>netty5-buffer</artifactId>
+            <artifactId>netty-buffer</artifactId>
             <version>${netty.version}</version>
         </dependency>
         <dependency>
             <groupId>io.netty</groupId>
-            <artifactId>netty5-transport</artifactId>
+            <artifactId>netty-transport</artifactId>
             <version>${netty.version}</version>
         </dependency>
         <dependency>
             <groupId>io.netty</groupId>
-            <artifactId>netty5-codec</artifactId>
+            <artifactId>netty-codec</artifactId>
             <version>${netty.version}</version>
         </dependency>
 
@@ -57,7 +57,7 @@
         </dependency>
         <dependency>
             <groupId>io.netty</groupId>
-            <artifactId>netty5-testsuite</artifactId>
+            <artifactId>netty-testsuite</artifactId>
             <version>${netty.version}</version>
             <scope>test</scope>
         </dependency>

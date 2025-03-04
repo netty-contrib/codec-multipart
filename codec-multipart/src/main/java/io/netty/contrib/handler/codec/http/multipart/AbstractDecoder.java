@@ -1,8 +1,7 @@
 package io.netty.contrib.handler.codec.http.multipart;
 
-import io.netty5.buffer.Buffer;
-import io.netty5.buffer.CompositeBuffer;
-import io.netty5.util.Send;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.CompositeByteBuf;
 
 import java.nio.charset.Charset;
 
@@ -11,7 +10,7 @@ abstract class AbstractDecoder implements PostBodyDecoder {
     final Charset charset;
     int compactionThreshold;
 
-    Buffer buffer;
+    ByteBuf buffer;
     boolean eof;
 
     AbstractDecoder(Builder builder) {
@@ -21,30 +20,32 @@ abstract class AbstractDecoder implements PostBodyDecoder {
     }
 
     @Override
-    public void add(Send<Buffer> buffer) {
+    public void add(ByteBuf buffer) {
         if (eof) {
             throw new IllegalStateException("endInput() already called");
         }
         if (this.buffer != null && this.buffer.readableBytes() <= 0) {
-            this.buffer.close();
+            this.buffer.release();
             this.buffer = null;
         }
         if (this.buffer == null) {
-            this.buffer = buffer.receive();
+            this.buffer = buffer;
         } else {
-            if (compactionThreshold >= 0 && this.buffer.writerOffset() >= compactionThreshold) {
-                this.buffer.compact();
+            if (compactionThreshold >= 0 && this.buffer.writerIndex() >= compactionThreshold) {
+                this.buffer.discardSomeReadBytes();
             }
             if (this.buffer.readableBytes() > undecodedLimit) {
-                buffer.close();
+                buffer.release();
                 throw new HttpPostRequestDecoder.ErrorDataDecoderException("Undecoded data limit exceeded");
             }
 
-            if (this.buffer instanceof CompositeBuffer) {
-                ((CompositeBuffer) this.buffer).extendWith(buffer);
+            if (this.buffer instanceof CompositeByteBuf) {
+                ((CompositeByteBuf) this.buffer).addComponent(true, buffer);
             } else {
-                try (Buffer b = buffer.receive()) {
-                    this.buffer.writeBytes(b);
+                try {
+                    this.buffer.writeBytes(buffer);
+                } finally {
+                    buffer.release();
                 }
             }
         }
@@ -57,15 +58,19 @@ abstract class AbstractDecoder implements PostBodyDecoder {
 
     @Override
     public String decodedContentString() {
-        try (Buffer b = decodedContent().receive()) {
-            return b.toString(charset);
+        ByteBuf byteBuf = decodedContent();
+        try {
+            return byteBuf.toString(charset);
+        } finally {
+            byteBuf.release();
         }
     }
 
     @Override
     public void close() {
         if (buffer != null) {
-            buffer.close();
+            buffer.release();
+            buffer = null;
         }
     }
 }

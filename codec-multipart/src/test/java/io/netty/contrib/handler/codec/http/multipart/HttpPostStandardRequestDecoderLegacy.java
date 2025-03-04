@@ -15,21 +15,24 @@
  */
 package io.netty.contrib.handler.codec.http.multipart;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestDecoder.EndOfDataDecoderException;
 import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestDecoder.ErrorDataDecoderException;
 import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestDecoder.MultiPartStatus;
 import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestDecoder.NotEnoughDataDecoderException;
-import io.netty5.buffer.Buffer;
-import io.netty5.buffer.ByteCursor;
-import io.netty5.buffer.DefaultBufferAllocators;
-import io.netty5.handler.codec.http.HttpConstants;
-import io.netty5.handler.codec.http.HttpContent;
-import io.netty5.handler.codec.http.HttpRequest;
-import io.netty5.handler.codec.http.LastHttpContent;
-import io.netty5.handler.codec.http.QueryStringDecoder;
-import io.netty5.util.ByteProcessor;
-import io.netty5.util.internal.PlatformDependent;
-import io.netty5.util.internal.StringUtil;
+import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestDecoder.TooLongFormFieldException;
+import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestDecoder.TooManyFormFieldsException;
+import io.netty.handler.codec.http.HttpConstants;
+import io.netty.handler.codec.http.HttpContent;
+import io.netty.handler.codec.http.HttpHeaderNames;
+import io.netty.handler.codec.http.HttpHeaderValues;
+import io.netty.handler.codec.http.HttpRequest;
+import io.netty.handler.codec.http.LastHttpContent;
+import io.netty.handler.codec.http.QueryStringDecoder;
+import io.netty.util.ByteProcessor;
+import io.netty.util.internal.PlatformDependent;
+import io.netty.util.internal.StringUtil;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -38,8 +41,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
-import static io.netty5.util.internal.ObjectUtil.checkNotNullWithIAE;
-import static io.netty5.util.internal.ObjectUtil.checkPositiveOrZero;
+import static io.netty.util.internal.ObjectUtil.checkNotNull;
+import static io.netty.util.internal.ObjectUtil.checkPositiveOrZero;
 
 /**
  * This decoder will decode Body and can handle POST BODY.
@@ -65,6 +68,16 @@ public class HttpPostStandardRequestDecoderLegacy implements InterfaceHttpPostRe
     private final Charset charset;
 
     /**
+     * The maximum number of fields allows by the form
+     */
+    private final int maxFields;
+
+    /**
+     * The maximum number of accumulated bytes when decoding a field
+     */
+    private final int maxBufferedBytes;
+
+    /**
      * Does the last chunk already received
      */
     private boolean isLastChunk;
@@ -72,7 +85,7 @@ public class HttpPostStandardRequestDecoderLegacy implements InterfaceHttpPostRe
     /**
      * HttpDatas from Body
      */
-    final List<InterfaceHttpData> bodyListHttpData = new ArrayList<InterfaceHttpData>();
+    private final List<InterfaceHttpData> bodyListHttpData = new ArrayList<InterfaceHttpData>();
 
     /**
      * HttpDatas as Map from Body
@@ -83,7 +96,7 @@ public class HttpPostStandardRequestDecoderLegacy implements InterfaceHttpPostRe
     /**
      * The current channelBuffer
      */
-    private Buffer undecodedChunk;
+    private ByteBuf undecodedChunk;
 
     /**
      * Body HttpDatas current position
@@ -149,14 +162,40 @@ public class HttpPostStandardRequestDecoderLegacy implements InterfaceHttpPostRe
      *             errors
      */
     public HttpPostStandardRequestDecoderLegacy(HttpDataFactory factory, HttpRequest request, Charset charset) {
-        this.request = checkNotNullWithIAE(request, "request");
-        this.charset = checkNotNullWithIAE(charset, "charset");
-        this.factory = checkNotNullWithIAE(factory, "factory");
+        this(factory, request, charset, HttpPostRequestDecoder.DEFAULT_MAX_FIELDS,
+                HttpPostRequestDecoder.DEFAULT_MAX_BUFFERED_BYTES);
+    }
+
+    /**
+     *
+     * @param factory
+     *            the factory used to create InterfaceHttpData
+     * @param request
+     *            the request to decode
+     * @param charset
+     *            the charset to use as default
+     * @param maxFields
+     *            the maximum number of fields the form can have, {@code -1} to disable
+     * @param maxBufferedBytes
+     *            the maximum number of bytes the decoder can buffer when decoding a field, {@code -1} to disable
+     * @throws NullPointerException
+     *             for request or charset or factory
+     * @throws ErrorDataDecoderException
+     *             if the default charset was wrong when decoding or other
+     *             errors
+     */
+    public HttpPostStandardRequestDecoderLegacy(HttpDataFactory factory, HttpRequest request, Charset charset,
+                                          int maxFields, int maxBufferedBytes) {
+        this.request = checkNotNull(request, "request");
+        this.charset = checkNotNull(charset, "charset");
+        this.factory = checkNotNull(factory, "factory");
+        this.maxFields = maxFields;
+        this.maxBufferedBytes = maxBufferedBytes;
         try {
             if (request instanceof HttpContent) {
                 // Offer automatically if the given request is as type of HttpContent
                 // See #1089
-                offer((HttpContent<?>) request);
+                offer((HttpContent) request);
             } else {
                 parseBody();
             }
@@ -279,30 +318,40 @@ public class HttpPostStandardRequestDecoderLegacy implements InterfaceHttpPostRe
      *             errors
      */
     @Override
-    public HttpPostStandardRequestDecoderLegacy offer(HttpContent<?> content) {
+    public HttpPostStandardRequestDecoderLegacy offer(HttpContent content) {
         checkDestroyed();
 
         if (content instanceof LastHttpContent) {
             isLastChunk = true;
         }
 
-        Buffer buf = content.payload();
+        ByteBuf buf = content.content();
         if (undecodedChunk == null) {
             undecodedChunk =
                     // Since the Handler will release the incoming later on, we need to copy it
                     //
                     // We are explicit allocate a buffer and NOT calling copy() as otherwise it may set a maxCapacity
                     // which is not really usable for us as we may exceed it once we add more bytes.
-                    buf.isDirect() ?
-                        DefaultBufferAllocators.offHeapAllocator().allocate(buf.readableBytes()).writeBytes(buf) :
-                            DefaultBufferAllocators.onHeapAllocator().allocate(buf.readableBytes()).writeBytes(buf);
+                    buf.alloc().buffer(buf.readableBytes()).writeBytes(buf);
         } else {
-            undecodedChunk.ensureWritable(buf.readableBytes());
             undecodedChunk.writeBytes(buf);
         }
         parseBody();
-        if (undecodedChunk != null && undecodedChunk.writerOffset() > discardThreshold) {
-            undecodedChunk.compact();
+        if (maxBufferedBytes > 0 && undecodedChunk != null && undecodedChunk.readableBytes() > maxBufferedBytes) {
+            throw new TooLongFormFieldException();
+        }
+        if (undecodedChunk != null && undecodedChunk.writerIndex() > discardThreshold) {
+            if (undecodedChunk.refCnt() == 1) {
+                // It's safe to call discardBytes() as we are the only owner of the buffer.
+                undecodedChunk.discardReadBytes();
+            } else {
+                // There seems to be multiple references of the buffer. Let's copy the data and release the buffer to
+                // ensure we can give back memory to the system.
+                ByteBuf buffer = undecodedChunk.alloc().buffer(undecodedChunk.readableBytes());
+                buffer.writeBytes(undecodedChunk);
+                undecodedChunk.release();
+                undecodedChunk = buffer;
+            }
         }
         return this;
     }
@@ -335,7 +384,7 @@ public class HttpPostStandardRequestDecoderLegacy implements InterfaceHttpPostRe
      * is called, there is no more available InterfaceHttpData. A subsequent
      * call to offer(httpChunk) could enable more data.
      *
-     * Be sure to call {@link InterfaceHttpData#close()} after you are done
+     * Be sure to call {@link InterfaceHttpData#release()} after you are done
      * with processing to make sure to not leak any resources
      *
      * @return the next available InterfaceHttpData or null if none
@@ -381,6 +430,9 @@ public class HttpPostStandardRequestDecoderLegacy implements InterfaceHttpPostRe
         if (data == null) {
             return;
         }
+        if (maxFields > 0 && bodyListHttpData.size() >= maxFields) {
+            throw new TooManyFormFieldsException();
+        }
         List<InterfaceHttpData> datas = bodyMapHttpData.get(data.getName());
         if (datas == null) {
             datas = new ArrayList<InterfaceHttpData>(1);
@@ -399,7 +451,7 @@ public class HttpPostStandardRequestDecoderLegacy implements InterfaceHttpPostRe
      *             errors
      */
     private void parseBodyAttributesStandard() {
-        int firstpos = undecodedChunk.readerOffset();
+        int firstpos = undecodedChunk.readerIndex();
         int currentpos = firstpos;
         int equalpos;
         int ampersandpos;
@@ -408,7 +460,7 @@ public class HttpPostStandardRequestDecoderLegacy implements InterfaceHttpPostRe
         }
         boolean contRead = true;
         try {
-            while (undecodedChunk.readableBytes() > 0 && contRead) {
+            while (undecodedChunk.isReadable() && contRead) {
                 char read = (char) undecodedChunk.readUnsignedByte();
                 currentpos++;
                 switch (currentStatus) {
@@ -416,15 +468,16 @@ public class HttpPostStandardRequestDecoderLegacy implements InterfaceHttpPostRe
                     if (read == '=') {
                         currentStatus = MultiPartStatus.FIELD;
                         equalpos = currentpos - 1;
-                        String key = decodeAttribute(Helpers.toString(undecodedChunk, firstpos, equalpos - firstpos, charset), charset);
+                        String key = decodeAttribute(undecodedChunk.toString(firstpos, equalpos - firstpos, charset),
+                                charset);
                         currentAttribute = factory.createAttribute(request, key);
                         firstpos = currentpos;
-                    } else if (read == '&' || (isLastChunk && undecodedChunk.readableBytes() == 0)) { // special empty FIELD
+                    } else if (read == '&' ||
+                            (isLastChunk && !undecodedChunk.isReadable() && hasFormBody())) { // special empty FIELD
                         currentStatus = MultiPartStatus.DISPOSITION;
                         ampersandpos = read == '&' ? currentpos - 1 : currentpos;
                         String key = decodeAttribute(
-                                Helpers.toString(undecodedChunk, firstpos, ampersandpos - firstpos, charset), charset);
-
+                                undecodedChunk.toString(firstpos, ampersandpos - firstpos, charset), charset);
                         // Some weird request bodies start with an '&' character, eg: &name=J&age=17.
                         // In that case, key would be "", will get exception:
                         // java.lang.IllegalArgumentException: Param 'name' must not be empty;
@@ -434,7 +487,6 @@ public class HttpPostStandardRequestDecoderLegacy implements InterfaceHttpPostRe
                             currentAttribute.setValue(""); // empty
                             addHttpData(currentAttribute);
                         }
-
                         currentAttribute = null;
                         firstpos = currentpos;
                         contRead = true;
@@ -444,23 +496,17 @@ public class HttpPostStandardRequestDecoderLegacy implements InterfaceHttpPostRe
                     if (read == '&') {
                         currentStatus = MultiPartStatus.DISPOSITION;
                         ampersandpos = currentpos - 1;
-                        undecodedChunk.readerOffset(firstpos);
-                        setFinalBuffer(undecodedChunk.readSplit(ampersandpos - firstpos));
-                        undecodedChunk.skipReadableBytes(1); // skip ampersand
-                        currentpos = 1;
+                        setFinalBuffer(undecodedChunk.retainedSlice(firstpos, ampersandpos - firstpos));
                         firstpos = currentpos;
                         contRead = true;
                     } else if (read == HttpConstants.CR) {
-                        if (undecodedChunk.readableBytes() > 0) {
+                        if (undecodedChunk.isReadable()) {
                             read = (char) undecodedChunk.readUnsignedByte();
                             currentpos++;
                             if (read == HttpConstants.LF) {
                                 currentStatus = MultiPartStatus.PREEPILOGUE;
                                 ampersandpos = currentpos - 2;
-                                undecodedChunk.readerOffset(firstpos);
-                                setFinalBuffer(undecodedChunk.readSplit(ampersandpos - firstpos));
-                                undecodedChunk.skipReadableBytes(2); // skip CRLF
-                                currentpos = 2;
+                                setFinalBuffer(undecodedChunk.retainedSlice(firstpos, ampersandpos - firstpos));
                                 firstpos = currentpos;
                                 contRead = false;
                             } else {
@@ -473,10 +519,7 @@ public class HttpPostStandardRequestDecoderLegacy implements InterfaceHttpPostRe
                     } else if (read == HttpConstants.LF) {
                         currentStatus = MultiPartStatus.PREEPILOGUE;
                         ampersandpos = currentpos - 1;
-                        undecodedChunk.readerOffset(firstpos);
-                        setFinalBuffer(undecodedChunk.readSplit(ampersandpos - firstpos));
-                        undecodedChunk.skipReadableBytes(1); // skip LF
-                        currentpos = 1;
+                        setFinalBuffer(undecodedChunk.retainedSlice(firstpos, ampersandpos - firstpos));
                         firstpos = currentpos;
                         contRead = false;
                     }
@@ -490,39 +533,30 @@ public class HttpPostStandardRequestDecoderLegacy implements InterfaceHttpPostRe
                 // special case
                 ampersandpos = currentpos;
                 if (ampersandpos > firstpos) {
-                    undecodedChunk.readerOffset(firstpos);
-                    setFinalBuffer(undecodedChunk.readSplit(ampersandpos - firstpos));
-                    currentpos = 0;
+                    setFinalBuffer(undecodedChunk.retainedSlice(firstpos, ampersandpos - firstpos));
                 } else if (!currentAttribute.isCompleted()) {
-                    setFinalBuffer(DefaultBufferAllocators.preferredAllocator().allocate(0));
+                    setFinalBuffer(Unpooled.EMPTY_BUFFER);
                 }
                 firstpos = currentpos;
                 currentStatus = MultiPartStatus.EPILOGUE;
             } else if (contRead && currentAttribute != null && currentStatus == MultiPartStatus.FIELD) {
-                // make sure we don't forward a partial percent escape
-                if (firstpos <= currentpos - 1 && undecodedChunk.getUnsignedByte(currentpos - 1) == '%') {
-                    currentpos--;
-                } else if (firstpos <= currentpos - 2 && undecodedChunk.getUnsignedByte(currentpos - 2) == '%') {
-                    currentpos -= 2;
-                }
                 // reset index except if to continue in case of FIELD getStatus
-                undecodedChunk.readerOffset(firstpos);
-                currentAttribute.addContent(decodeAttribute(undecodedChunk.readSplit(currentpos - firstpos), charset), false);
-                currentpos = 0;
+                currentAttribute.addContent(undecodedChunk.retainedSlice(firstpos, currentpos - firstpos),
+                                            false);
                 firstpos = currentpos;
             }
-            undecodedChunk.readerOffset(firstpos);
+            undecodedChunk.readerIndex(firstpos);
         } catch (ErrorDataDecoderException e) {
             // error while decoding
-            //undecodedChunk.readerOffset(firstpos);
+            undecodedChunk.readerIndex(firstpos);
             throw e;
         } catch (IOException e) {
             // error while decoding
-            //undecodedChunk.readerOffset(firstpos);
+            undecodedChunk.readerIndex(firstpos);
             throw new ErrorDataDecoderException(e);
         } catch (IllegalArgumentException e) {
             // error while decoding
-            //undecodedChunk.readerOffset(firstpos);
+            undecodedChunk.readerIndex(firstpos);
             throw new ErrorDataDecoderException(e);
         }
     }
@@ -542,8 +576,12 @@ public class HttpPostStandardRequestDecoderLegacy implements InterfaceHttpPostRe
         parseBodyAttributesStandard();
     }
 
-    private void setFinalBuffer(Buffer buffer) throws IOException {
-        currentAttribute.addContent(decodeAttribute(buffer, charset), true);
+    private void setFinalBuffer(ByteBuf buffer) throws IOException {
+        currentAttribute.addContent(buffer, true);
+        ByteBuf decodedBuf = decodeAttribute(currentAttribute.getByteBuf(), charset);
+        if (decodedBuf != null) { // override content only when ByteBuf needed decoding
+            currentAttribute.setContent(decodedBuf);
+        }
         addHttpData(currentAttribute);
         currentAttribute = null;
     }
@@ -553,7 +591,7 @@ public class HttpPostStandardRequestDecoderLegacy implements InterfaceHttpPostRe
      *
      * @return the decoded component
      */
-    static String decodeAttribute(String s, Charset charset) {
+    private static String decodeAttribute(String s, Charset charset) {
         try {
             return QueryStringDecoder.decodeComponent(s, charset);
         } catch (IllegalArgumentException e) {
@@ -561,31 +599,25 @@ public class HttpPostStandardRequestDecoderLegacy implements InterfaceHttpPostRe
         }
     }
 
-    private static Buffer decodeAttribute(Buffer b, Charset charset) {
-        ByteCursor cursor = b.openCursor();
-        int firstEscaped = cursor.process(new UrlEncodedDetector());
+    private static ByteBuf decodeAttribute(ByteBuf b, Charset charset) {
+        int firstEscaped = b.forEachByte(new UrlEncodedDetector());
         if (firstEscaped == -1) {
-            return b; // nothing to decode
+            return null; // nothing to decode
         }
 
-        cursor = b.openCursor();
-        Buffer buf = b.isDirect() ? DefaultBufferAllocators.offHeapAllocator().allocate(b.readableBytes()) :
-                DefaultBufferAllocators.onHeapAllocator().allocate(b.readableBytes());
+        ByteBuf buf = b.alloc().buffer(b.readableBytes());
         UrlDecoder urlDecode = new UrlDecoder(buf);
-        int idx = cursor.process(urlDecode);
+        int idx = b.forEachByte(urlDecode);
         if (urlDecode.nextEscapedIdx != 0) { // incomplete hex byte
             if (idx == -1) {
                 idx = b.readableBytes() - 1;
             }
             idx -= urlDecode.nextEscapedIdx - 1;
-            buf.close();
-            String s = b.toString(charset);
-            b.close();
+            buf.release();
             throw new ErrorDataDecoderException(
-                String.format("Invalid hex byte at index '%d' in string: '%s'", idx, s));
+                String.format("Invalid hex byte at index '%d' in string: '%s'", idx, b.toString(charset)));
         }
 
-        b.close();
         return buf;
     }
 
@@ -599,18 +631,16 @@ public class HttpPostStandardRequestDecoderLegacy implements InterfaceHttpPostRe
         cleanFiles();
         // Clean Memory based data
         for (InterfaceHttpData httpData : bodyListHttpData) {
-            // Might have been already closed by the user
-            if (httpData.isAccessible()) {
-                httpData.close();
+            // Might have been already released by the user
+            if (httpData.refCnt() > 0) {
+                httpData.release();
             }
         }
 
         destroyed = true;
 
-        if (undecodedChunk != null) {
-            if (undecodedChunk.isAccessible()) {
-                undecodedChunk.close();
-            }
+        if (undecodedChunk != null && undecodedChunk.refCnt() > 0) {
+            undecodedChunk.release();
             undecodedChunk = null;
         }
     }
@@ -635,20 +665,32 @@ public class HttpPostStandardRequestDecoderLegacy implements InterfaceHttpPostRe
         factory.removeHttpDataFromClean(request, data);
     }
 
+    /**
+     * Check if request has headers indicating that it contains form body
+     */
+    private boolean hasFormBody() {
+        String contentHeaderValue = request.headers().get(HttpHeaderNames.CONTENT_TYPE);
+        if (contentHeaderValue == null) {
+            return false;
+        }
+        return HttpHeaderValues.APPLICATION_X_WWW_FORM_URLENCODED.contentEquals(contentHeaderValue)
+                || HttpHeaderValues.MULTIPART_FORM_DATA.contentEquals(contentHeaderValue);
+    }
+
     private static final class UrlEncodedDetector implements ByteProcessor {
         @Override
-        public boolean process(byte value) {
+        public boolean process(byte value) throws Exception {
             return value != '%' && value != '+';
         }
     }
 
     private static final class UrlDecoder implements ByteProcessor {
 
-        private final Buffer output;
+        private final ByteBuf output;
         private int nextEscapedIdx;
         private byte hiByte;
 
-        UrlDecoder(Buffer output) {
+        UrlDecoder(ByteBuf output) {
             this.output = output;
         }
 
@@ -665,13 +707,13 @@ public class HttpPostStandardRequestDecoderLegacy implements InterfaceHttpPostRe
                         ++nextEscapedIdx;
                         return false;
                     }
-                    output.writeByte((byte) ((hi << 4) + lo));
+                    output.writeByte((hi << 4) + lo);
                     nextEscapedIdx = 0;
                 }
             } else if (value == '%') {
                 nextEscapedIdx = 1;
             } else if (value == '+') {
-                output.writeByte((byte) ' ');
+                output.writeByte(' ');
             } else {
                 output.writeByte(value);
             }

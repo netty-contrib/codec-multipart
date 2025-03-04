@@ -15,9 +15,8 @@
  */
 package io.netty.contrib.handler.codec.http.multipart;
 
-import io.netty5.buffer.Owned;
-import io.netty5.handler.codec.http.HttpConstants;
-import io.netty5.util.Send;
+import io.netty.buffer.ByteBuf;
+import io.netty.handler.codec.http.HttpConstants;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -91,10 +90,6 @@ public class MixedAttribute extends AbstractMixedHttpData<Attribute> implements 
                 makeInitialAttributeFromValue(name, value, limitSize, charset, baseDir, deleteOnExit));
     }
 
-    public MixedAttribute(String baseDir, boolean deleteOnExit, long limitSize, Attribute attribute) {
-        super(limitSize, baseDir, deleteOnExit, attribute);
-    }
-
     @Override
     public String getValue() throws IOException {
         return wrapped.getValue();
@@ -113,12 +108,50 @@ public class MixedAttribute extends AbstractMixedHttpData<Attribute> implements 
     }
 
     @Override
-    protected Owned<AbstractMixedHttpData<?>> prepareSend() {
-        Send<HttpData> send = wrapped.send();
-        return drop -> {
-            Attribute receivedAttr = (Attribute) send.receive();
-            MixedAttribute copy = new MixedAttribute(baseDir, deleteOnExit, limitSize, receivedAttr);
-            return copy;
-        };
+    public Attribute copy() {
+        // for binary compatibility
+        return super.copy();
+    }
+
+    @Override
+    public Attribute duplicate() {
+        // for binary compatibility
+        return super.duplicate();
+    }
+
+    @Override
+    public Attribute replace(ByteBuf content) {
+        // for binary compatibility
+        return super.replace(content);
+    }
+
+    @Override
+    public Attribute retain() {
+        // for binary compatibility
+        return super.retain();
+    }
+
+    @Override
+    public Attribute retain(int increment) {
+        // for binary compatibility
+        return super.retain(increment);
+    }
+
+    @Override
+    public Attribute retainedDuplicate() {
+        // for binary compatibility
+        return super.retainedDuplicate();
+    }
+
+    @Override
+    public Attribute touch() {
+        // for binary compatibility
+        return super.touch();
+    }
+
+    @Override
+    public Attribute touch(Object hint) {
+        // for binary compatibility
+        return super.touch(hint);
     }
 }

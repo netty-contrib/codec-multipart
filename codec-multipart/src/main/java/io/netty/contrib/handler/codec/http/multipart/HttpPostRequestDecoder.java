@@ -15,14 +15,14 @@
  */
 package io.netty.contrib.handler.codec.http.multipart;
 
-import io.netty5.util.internal.ObjectUtil;
-import io.netty5.util.internal.StringUtil;
-import io.netty5.handler.codec.DecoderException;
-import io.netty5.handler.codec.http.HttpConstants;
-import io.netty5.handler.codec.http.HttpContent;
-import io.netty5.handler.codec.http.HttpHeaderNames;
-import io.netty5.handler.codec.http.HttpHeaderValues;
-import io.netty5.handler.codec.http.HttpRequest;
+import io.netty.handler.codec.DecoderException;
+import io.netty.handler.codec.http.HttpConstants;
+import io.netty.handler.codec.http.HttpContent;
+import io.netty.handler.codec.http.HttpHeaderNames;
+import io.netty.handler.codec.http.HttpHeaderValues;
+import io.netty.handler.codec.http.HttpRequest;
+import io.netty.util.internal.ObjectUtil;
+import io.netty.util.internal.StringUtil;
 
 import java.nio.charset.Charset;
 import java.util.List;
@@ -36,6 +36,10 @@ import java.util.List;
 public class HttpPostRequestDecoder implements InterfaceHttpPostRequestDecoder {
 
     static final int DEFAULT_DISCARD_THRESHOLD = 10 * 1024 * 1024;
+
+    static final int DEFAULT_MAX_FIELDS = 128;
+
+    static final int DEFAULT_MAX_BUFFERED_BYTES = 1024;
 
     private final InterfaceHttpPostRequestDecoder decoder;
 
@@ -51,6 +55,25 @@ public class HttpPostRequestDecoder implements InterfaceHttpPostRequestDecoder {
      */
     public HttpPostRequestDecoder(HttpRequest request) {
         this(new DefaultHttpDataFactory(DefaultHttpDataFactory.MINSIZE), request, HttpConstants.DEFAULT_CHARSET);
+    }
+
+    /**
+     *
+     * @param request
+     *            the request to decode
+     * @param maxFields
+     *            the maximum number of fields the form can have, {@code -1} to disable
+     * @param maxBufferedBytes
+     *            the maximum number of bytes the decoder can buffer when decoding a field, {@code -1} to disable
+     * @throws NullPointerException
+     *             for request
+     * @throws ErrorDataDecoderException
+     *             if the default charset was wrong when decoding or other
+     *             errors
+     */
+    public HttpPostRequestDecoder(HttpRequest request, int maxFields, int maxBufferedBytes) {
+        this(new DefaultHttpDataFactory(DefaultHttpDataFactory.MINSIZE), request, HttpConstants.DEFAULT_CHARSET,
+             maxFields, maxBufferedBytes);
     }
 
     /**
@@ -84,9 +107,9 @@ public class HttpPostRequestDecoder implements InterfaceHttpPostRequestDecoder {
      *             errors
      */
     public HttpPostRequestDecoder(HttpDataFactory factory, HttpRequest request, Charset charset) {
-        ObjectUtil.checkNotNullWithIAE(factory, "factory");
-        ObjectUtil.checkNotNullWithIAE(request, "request");
-        ObjectUtil.checkNotNullWithIAE(charset, "charset");
+        ObjectUtil.checkNotNull(factory, "factory");
+        ObjectUtil.checkNotNull(request, "request");
+        ObjectUtil.checkNotNull(charset, "charset");
 
         // Fill default values
         if (isMultipart(request)) {
@@ -97,7 +120,38 @@ public class HttpPostRequestDecoder implements InterfaceHttpPostRequestDecoder {
     }
 
     /**
-     * <pre>{@code
+     *
+     * @param factory
+     *            the factory used to create InterfaceHttpData
+     * @param request
+     *            the request to decode
+     * @param charset
+     *            the charset to use as default
+     * @param maxFields
+     *            the maximum number of fields the form can have, {@code -1} to disable
+     * @param maxBufferedBytes
+     *            the maximum number of bytes the decoder can buffer when decoding a field, {@code -1} to disable
+     * @throws NullPointerException
+     *             for request or charset or factory
+     * @throws ErrorDataDecoderException
+     *             if the default charset was wrong when decoding or other
+     *             errors
+     */
+    public HttpPostRequestDecoder(HttpDataFactory factory, HttpRequest request, Charset charset,
+                                  int maxFields, int maxBufferedBytes) {
+        ObjectUtil.checkNotNull(factory, "factory");
+        ObjectUtil.checkNotNull(request, "request");
+        ObjectUtil.checkNotNull(charset, "charset");
+
+        // Fill default values
+        if (isMultipart(request)) {
+            decoder = new HttpPostMultipartRequestDecoder(factory, request, charset, maxFields, maxBufferedBytes);
+        } else {
+            decoder = new HttpPostStandardRequestDecoder(factory, request, charset, maxFields, maxBufferedBytes);
+        }
+    }
+
+    /**
      * states follow NOTSTARTED PREAMBLE ( (HEADERDELIMITER DISPOSITION (FIELD |
      * FILEUPLOAD))* (HEADERDELIMITER DISPOSITION MIXEDPREAMBLE (MIXEDDELIMITER
      * MIXEDDISPOSITION MIXEDFILEUPLOAD)+ MIXEDCLOSEDELIMITER)* CLOSEDELIMITER)+
@@ -126,7 +180,6 @@ public class HttpPostRequestDecoder implements InterfaceHttpPostRequestDecoder {
      * MIXEDCLOSEDELIMITER --AaB03x-- => CLOSEDELIMITER
      *
      * Once CLOSEDELIMITER is found, last getStatus is EPILOGUE
-     *  }</pre>
      */
     protected enum MultiPartStatus {
         NOTSTARTED, PREAMBLE, HEADERDELIMITER, DISPOSITION, FIELD, FILEUPLOAD, MIXEDPREAMBLE, MIXEDDELIMITER,
@@ -138,10 +191,9 @@ public class HttpPostRequestDecoder implements InterfaceHttpPostRequestDecoder {
      * @return True if the request is a Multipart request
      */
     public static boolean isMultipart(HttpRequest request) {
-        CharSequence mimeType = request.headers().get(HttpHeaderNames.CONTENT_TYPE);
-        if (mimeType != null && HttpHeaderValues.MULTIPART_FORM_DATA.
-                regionMatches(0, mimeType, 0, HttpHeaderValues.MULTIPART_FORM_DATA.length())) {
-                return getMultipartDataBoundary(mimeType.toString()) != null;
+        String mimeType = request.headers().get(HttpHeaderNames.CONTENT_TYPE);
+        if (mimeType != null && mimeType.startsWith(HttpHeaderValues.MULTIPART_FORM_DATA.toString())) {
+            return getMultipartDataBoundary(mimeType) != null;
         }
         return false;
     }
@@ -222,7 +274,7 @@ public class HttpPostRequestDecoder implements InterfaceHttpPostRequestDecoder {
     }
 
     @Override
-    public InterfaceHttpPostRequestDecoder offer(HttpContent<?> content) {
+    public InterfaceHttpPostRequestDecoder offer(HttpContent content) {
         return decoder.offer(content);
     }
 
@@ -340,5 +392,19 @@ public class HttpPostRequestDecoder implements InterfaceHttpPostRequestDecoder {
         public ErrorDataDecoderException(String msg, Throwable cause) {
             super(msg, cause);
         }
+    }
+
+    /**
+     * Exception when the maximum number of fields for a given form is reached
+     */
+    public static final class TooManyFormFieldsException extends DecoderException {
+        private static final long serialVersionUID = 1336267941020800769L;
+    }
+
+    /**
+     * Exception when a field content is too long
+     */
+    public static final class TooLongFormFieldException extends DecoderException {
+        private static final long serialVersionUID = 1336267941020800769L;
     }
 }

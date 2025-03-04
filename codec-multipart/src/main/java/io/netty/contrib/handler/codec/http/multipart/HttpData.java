@@ -15,8 +15,8 @@
  */
 package io.netty.contrib.handler.codec.http.multipart;
 
-import io.netty5.buffer.Buffer;
-import io.netty.contrib.handler.codec.http.multipart.Helpers.ThrowingConsumer;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufHolder;
 
 import java.io.File;
 import java.io.IOException;
@@ -26,7 +26,7 @@ import java.nio.charset.Charset;
 /**
  * Extended interface for InterfaceHttpData
  */
-public interface HttpData extends InterfaceHttpData {
+public interface HttpData extends InterfaceHttpData, ByteBufHolder {
 
     /**
      * Returns the maxSize for this HttpData.
@@ -49,17 +49,17 @@ public interface HttpData extends InterfaceHttpData {
 
     /**
      * Set the content from the ChannelBuffer (erase any previous data)
-     * <p>{@link Buffer#close()} ownership of {@code buffer} is transferred to this {@link HttpData}.
+     * <p>{@link ByteBuf#release()} ownership of {@code buffer} is transferred to this {@link HttpData}.
      *
      * @param buffer
      *            must be not null
      * @throws IOException
      */
-    void setContent(Buffer buffer) throws IOException;
+    void setContent(ByteBuf buffer) throws IOException;
 
     /**
      * Add the content from the ChannelBuffer
-     * <p>{@link Buffer#close()} ownership of {@code buffer} is transferred to this {@link HttpData}.
+     * <p>{@link ByteBuf#release()} ownership of {@code buffer} is transferred to this {@link HttpData}.
      *
      * @param buffer
      *            must be not null except if last is set to False
@@ -67,7 +67,7 @@ public interface HttpData extends InterfaceHttpData {
      *            True of the buffer is the last one
      * @throws IOException
      */
-    void addContent(Buffer buffer, boolean last) throws IOException;
+    void addContent(ByteBuf buffer, boolean last) throws IOException;
 
     /**
      * Set the content from the file (erase any previous data)
@@ -132,23 +132,13 @@ public interface HttpData extends InterfaceHttpData {
     byte[] get() throws IOException;
 
     /**
-     * Calls the passed callback to operate on the file item as a Buffer.<br>
+     * Returns the content of the file item as a ByteBuf.<br>
      * Note: this method will allocate a lot of memory, if the data is currently stored on the file system.
      *
-     * <p>Buffer ownersip:</p>
-     * The ownership of the buffer passed to the callack is not transferred and remains to this HttpData interface.
-     * <ul>
-     *     <li> for memory based http data, the internal buffer is directly passed to the callback.</li>
-     *     <li> for disk based http data, a copy of the file content is passed to the callback and is immediately
-     *     closed once the callback returns.</li>
-     * </ul>
-     *
-     * @param callback The file item buffer callback
-     * @param <E> the type of the exception thrown by the callback
-     * @throws IOException if the method can't load the buffer from disk
-     * @throws E if the callback throws that exception
+     * @return the content of the file item as a ByteBuf
+     * @throws IOException
      */
-    <E extends Exception> void usingBuffer(ThrowingConsumer<Buffer, E> callback) throws IOException, E;
+    ByteBuf getByteBuf() throws IOException;
 
     /**
      * Returns a ChannelBuffer for the content from the current position with at
@@ -156,11 +146,10 @@ public interface HttpData extends InterfaceHttpData {
      * read. Once it arrives at the end, it returns an EMPTY_BUFFER and it
      * resets the current position to 0.
      *
-     * <p>Buffer ownersip: The buffer ownership of the returned buffer is transferred to the caller
      * @return a ChannelBuffer for the content from the current position or an
      *         EMPTY_BUFFER if there is no more data to return
      */
-    Buffer getChunk(int length) throws IOException;
+    ByteBuf getChunk(int length) throws IOException;
 
     /**
      * Returns the contents of the file item as a String, using the default
@@ -228,32 +217,27 @@ public interface HttpData extends InterfaceHttpData {
      */
     File getFile() throws IOException;
 
-    /**
-     * Calls the passed callback to operate on the file item as a Buffer.<br>
-     * Note: this method will allocate a lot of memory, if the data is currently stored on the file system.
-     *
-     * <p>Buffer ownersip:</p>
-     * The ownership of the buffer passed to the callack is not transferred and remains to this HttpData interface.
-     * <ul>
-     *     <li> for memory based http data, the internal buffer is directly passed to the callback.</li>
-     *     <li> for disk based http data, a copy of the file content is passed to the callback and is immediately
-     *     closed once the callback returns.</li>
-     * </ul>
-     *
-     * @param callback The file item buffer callback
-     * @param <E> the type of the exception thrown by the callback
-     * @throws E if the callback throws that exception
-     */
-    <E extends Exception> void usingContent(ThrowingConsumer<Buffer, E> callback) throws E;
-
-    /**
-     * Creates a deep copy of this {@link HttpData}.
-     */
+    @Override
     HttpData copy();
 
-    /**
-     * Returns a new {@link HttpData} which contains the specified {@code content}.
-     */
-    HttpData replace(Buffer content);
+    @Override
+    HttpData duplicate();
 
+    @Override
+    HttpData retainedDuplicate();
+
+    @Override
+    HttpData replace(ByteBuf content);
+
+    @Override
+    HttpData retain();
+
+    @Override
+    HttpData retain(int increment);
+
+    @Override
+    HttpData touch();
+
+    @Override
+    HttpData touch(Object hint);
 }

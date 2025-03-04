@@ -15,17 +15,15 @@
  */
 package io.netty.contrib.handler.codec.http.multipart;
 
-import io.netty5.buffer.Buffer;
-import io.netty5.buffer.DefaultBufferAllocators;
-import io.netty5.buffer.Owned;
-import io.netty5.buffer.internal.InternalBufferUtils;
-import io.netty5.channel.ChannelException;
-import io.netty5.handler.codec.http.HttpConstants;
-import io.netty5.util.Send;
-import io.netty5.util.internal.ObjectUtil;
+import io.netty.buffer.ByteBuf;
+import io.netty.channel.ChannelException;
+import io.netty.handler.codec.http.HttpConstants;
+import io.netty.util.internal.ObjectUtil;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
+
+import static io.netty.buffer.Unpooled.wrappedBuffer;
 
 /**
  * Memory implementation of Attributes
@@ -64,16 +62,15 @@ public class MemoryAttribute extends AbstractMemoryHttpData implements Attribute
 
     @Override
     public String getValue() {
-        return byteBuf.toString(getCharset());
+        return getByteBuf().toString(getCharset());
     }
 
     @Override
     public void setValue(String value) throws IOException {
-        checkAccessible();
-        ObjectUtil.checkNotNullWithIAE(value, "value");
+        ObjectUtil.checkNotNull(value, "value");
         byte [] bytes = value.getBytes(getCharset());
         checkSize(bytes.length);
-        Buffer buffer = DefaultBufferAllocators.preferredAllocator().copyOf(bytes);
+        ByteBuf buffer = wrappedBuffer(bytes);
         if (definedSize > 0) {
             definedSize = buffer.readableBytes();
         }
@@ -81,13 +78,12 @@ public class MemoryAttribute extends AbstractMemoryHttpData implements Attribute
     }
 
     @Override
-    public void addContent(Buffer buffer, boolean last) throws IOException {
-        checkAccessible(buffer);
+    public void addContent(ByteBuf buffer, boolean last) throws IOException {
         int localsize = buffer.readableBytes();
         try {
             checkSize(size + localsize);
         } catch (IOException e) {
-            buffer.close();
+            buffer.release();
             throw e;
         }
         if (definedSize > 0 && definedSize < size + localsize) {
@@ -130,12 +126,38 @@ public class MemoryAttribute extends AbstractMemoryHttpData implements Attribute
 
     @Override
     public Attribute copy() {
-        return replace(byteBuf != null ? byteBuf.copy() : null);
+        final ByteBuf content = content();
+        return replace(content != null ? content.copy() : null);
     }
 
     @Override
-    public Attribute replace(Buffer content) {
-        checkAccessible(content);
+    public Attribute duplicate() {
+        final ByteBuf content = content();
+        return replace(content != null ? content.duplicate() : null);
+    }
+
+    @Override
+    public Attribute retainedDuplicate() {
+        ByteBuf content = content();
+        if (content != null) {
+            content = content.retainedDuplicate();
+            boolean success = false;
+            try {
+                Attribute duplicate = replace(content);
+                success = true;
+                return duplicate;
+            } finally {
+                if (!success) {
+                    content.release();
+                }
+            }
+        } else {
+            return replace(null);
+        }
+    }
+
+    @Override
+    public Attribute replace(ByteBuf content) {
         MemoryAttribute attr = new MemoryAttribute(getName());
         attr.setCharset(getCharset());
         if (content != null) {
@@ -150,22 +172,26 @@ public class MemoryAttribute extends AbstractMemoryHttpData implements Attribute
     }
 
     @Override
-    protected Owned<AbstractHttpData> prepareSend() {
-        Send<Buffer> send = byteBuf.send();
-        return drop -> {
-            Buffer received = send.receive();
-            MemoryAttribute attr = new MemoryAttribute(getName());
-            attr.setCharset(getCharset());
-            attr.setContentInternal(received, received.readableBytes());
-            attr.setMaxSize(getMaxSize());
-            attr.setCompleted(isCompleted());
-            attr.definedSize = definedSize;
-            return attr;
-        };
+    public Attribute retain() {
+        super.retain();
+        return this;
     }
 
     @Override
-    protected RuntimeException createResourceClosedException() {
-        return InternalBufferUtils.bufferIsClosed(byteBuf);
+    public Attribute retain(int increment) {
+        super.retain(increment);
+        return this;
+    }
+
+    @Override
+    public Attribute touch() {
+        super.touch();
+        return this;
+    }
+
+    @Override
+    public Attribute touch(Object hint) {
+        super.touch(hint);
+        return this;
     }
 }

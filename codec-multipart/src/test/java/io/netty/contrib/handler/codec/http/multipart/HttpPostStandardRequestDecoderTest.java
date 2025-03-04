@@ -15,25 +15,21 @@
  */
 package io.netty.contrib.handler.codec.http.multipart;
 
-import io.netty5.buffer.Buffer;
-import io.netty5.buffer.BufferAllocator;
-import io.netty5.buffer.DefaultBufferAllocators;
-import io.netty5.handler.codec.http.DefaultHttpContent;
-import io.netty5.handler.codec.http.DefaultHttpRequest;
-import io.netty5.handler.codec.http.DefaultLastHttpContent;
-import io.netty5.handler.codec.http.HttpContent;
-import io.netty5.handler.codec.http.HttpMethod;
-import io.netty5.handler.codec.http.HttpRequest;
-import io.netty5.handler.codec.http.HttpVersion;
-import java.nio.charset.StandardCharsets;
-
-import io.netty5.handler.codec.http.LastHttpContent;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+import io.netty.handler.codec.http.DefaultHttpContent;
+import io.netty.handler.codec.http.DefaultHttpRequest;
+import io.netty.handler.codec.http.DefaultLastHttpContent;
+import io.netty.handler.codec.http.HttpMethod;
+import io.netty.handler.codec.http.HttpRequest;
+import io.netty.handler.codec.http.HttpVersion;
+import io.netty.handler.codec.http.LastHttpContent;
+import io.netty.util.CharsetUtil;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static io.netty.handler.codec.http.DefaultHttpHeadersFactory.headersFactory;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
-@ExtendWith(GCExtension.class)
 class HttpPostStandardRequestDecoderTest {
 
     @Test
@@ -43,15 +39,153 @@ class HttpPostStandardRequestDecoderTest {
         HttpRequest request = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/upload");
 
         HttpPostStandardRequestDecoder decoder = new HttpPostStandardRequestDecoder(httpDiskDataFactory(), request);
-        Buffer buf = DefaultBufferAllocators.preferredAllocator().copyOf(requestBody.getBytes(StandardCharsets.UTF_8));
-        try (DefaultLastHttpContent httpContent = new DefaultLastHttpContent(buf)) {
-            decoder.offer(httpContent);
+        ByteBuf buf = Unpooled.wrappedBuffer(requestBody.getBytes(CharsetUtil.UTF_8));
+        DefaultHttpContent httpContent = new DefaultLastHttpContent(buf);
+        decoder.offer(httpContent);
 
-            assertEquals(2, decoder.getBodyHttpDatas().size());
-            assertMemoryAttribute(decoder.getBodyHttpData("key1"), "value1");
-            assertMemoryAttribute(decoder.getBodyHttpData("key2"), "value2");
-            decoder.destroy();
-        }
+        assertEquals(2, decoder.getBodyHttpDatas().size());
+        assertMemoryAttribute(decoder.getBodyHttpData("key1"), "value1");
+        assertMemoryAttribute(decoder.getBodyHttpData("key2"), "value2");
+        decoder.destroy();
+    }
+
+    @Test
+    void testDecodeSingleAttributeWithNoValue() {
+        String requestBody = "key1";
+
+        HttpRequest request = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/upload",
+                headersFactory().newHeaders().add("Content-Type", "application/x-www-form-urlencoded"));
+
+        HttpPostStandardRequestDecoder decoder = new HttpPostStandardRequestDecoder(httpDiskDataFactory(), request);
+        ByteBuf buf = Unpooled.wrappedBuffer(requestBody.getBytes(CharsetUtil.UTF_8));
+        DefaultHttpContent httpContent = new DefaultLastHttpContent(buf);
+        decoder.offer(httpContent);
+
+        assertEquals(1, decoder.getBodyHttpDatas().size());
+        assertMemoryAttribute(decoder.getBodyHttpData("key1"), "");
+        decoder.destroy();
+    }
+
+    @Test
+    void testDecodeSingleAttributeWithNoValueEmptyLast() {
+        String requestBody = "key1";
+
+        HttpRequest request = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/upload",
+                headersFactory().newHeaders().add("Content-Type", "application/x-www-form-urlencoded"));
+
+        HttpPostStandardRequestDecoder decoder = new HttpPostStandardRequestDecoder(httpDiskDataFactory(), request);
+        ByteBuf buf = Unpooled.wrappedBuffer(requestBody.getBytes(CharsetUtil.UTF_8));
+        DefaultHttpContent httpContent = new DefaultHttpContent(buf);
+        decoder.offer(httpContent);
+
+        decoder.offer(LastHttpContent.EMPTY_LAST_CONTENT);
+
+        assertEquals(1, decoder.getBodyHttpDatas().size());
+        assertMemoryAttribute(decoder.getBodyHttpData("key1"), "");
+        decoder.destroy();
+    }
+
+    @Test
+    void testDecodeEndAttributeWithNoValue() {
+        String requestBody = "key1=value1&key2";
+
+        HttpRequest request = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/upload",
+                headersFactory().newHeaders().add("Content-Type", "application/x-www-form-urlencoded"));
+
+        HttpPostStandardRequestDecoder decoder = new HttpPostStandardRequestDecoder(httpDiskDataFactory(), request);
+        ByteBuf buf = Unpooled.wrappedBuffer(requestBody.getBytes(CharsetUtil.UTF_8));
+        DefaultHttpContent httpContent = new DefaultLastHttpContent(buf);
+        decoder.offer(httpContent);
+
+        assertEquals(2, decoder.getBodyHttpDatas().size());
+        assertMemoryAttribute(decoder.getBodyHttpData("key1"), "value1");
+        assertMemoryAttribute(decoder.getBodyHttpData("key2"), "");
+        decoder.destroy();
+    }
+
+    @Test
+    void testDecodeJsonAttributeAsEmpty() {
+        String requestBody = "{\"iAm\": \" a JSON!\"}";
+
+        HttpRequest request = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/upload",
+                headersFactory().newHeaders().add("Content-Type", "application/json"));
+
+        HttpPostStandardRequestDecoder decoder = new HttpPostStandardRequestDecoder(httpDiskDataFactory(), request);
+        ByteBuf buf = Unpooled.wrappedBuffer(requestBody.getBytes(CharsetUtil.UTF_8));
+        DefaultHttpContent httpContent = new DefaultLastHttpContent(buf);
+        decoder.offer(httpContent);
+
+        assertEquals(0, decoder.getBodyHttpDatas().size());
+        decoder.destroy();
+    }
+
+    @Test
+    void testDecodeJsonAttributeAsEmptyAndNoHeaders() {
+        String requestBody = "{\"iAm\": \" a JSON!\"}";
+
+        HttpRequest request = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/upload");
+
+        HttpPostStandardRequestDecoder decoder = new HttpPostStandardRequestDecoder(httpDiskDataFactory(), request);
+        ByteBuf buf = Unpooled.wrappedBuffer(requestBody.getBytes(CharsetUtil.UTF_8));
+        DefaultHttpContent httpContent = new DefaultLastHttpContent(buf);
+        decoder.offer(httpContent);
+
+        assertEquals(0, decoder.getBodyHttpDatas().size());
+        decoder.destroy();
+    }
+
+    @Test
+    void testDecodeStartAttributeWithNoValue() {
+        String requestBody = "key1&key2=value2";
+
+        HttpRequest request = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/upload");
+
+        HttpPostStandardRequestDecoder decoder = new HttpPostStandardRequestDecoder(httpDiskDataFactory(), request);
+        ByteBuf buf = Unpooled.wrappedBuffer(requestBody.getBytes(CharsetUtil.UTF_8));
+        DefaultHttpContent httpContent = new DefaultLastHttpContent(buf);
+        decoder.offer(httpContent);
+
+        assertEquals(2, decoder.getBodyHttpDatas().size());
+        assertMemoryAttribute(decoder.getBodyHttpData("key1"), "");
+        assertMemoryAttribute(decoder.getBodyHttpData("key2"), "value2");
+        decoder.destroy();
+    }
+
+    @Test
+    void testDecodeMultipleAttributesWithNoValue() {
+        String requestBody = "key1&key2&key3";
+
+        HttpRequest request = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/upload",
+                headersFactory().newHeaders().add("Content-Type", "application/x-www-form-urlencoded"));
+
+        HttpPostStandardRequestDecoder decoder = new HttpPostStandardRequestDecoder(httpDiskDataFactory(), request);
+        ByteBuf buf = Unpooled.wrappedBuffer(requestBody.getBytes(CharsetUtil.UTF_8));
+        DefaultHttpContent httpContent = new DefaultLastHttpContent(buf);
+        decoder.offer(httpContent);
+
+        assertEquals(3, decoder.getBodyHttpDatas().size());
+        assertMemoryAttribute(decoder.getBodyHttpData("key1"), "");
+        assertMemoryAttribute(decoder.getBodyHttpData("key2"), "");
+        assertMemoryAttribute(decoder.getBodyHttpData("key3"), "");
+        decoder.destroy();
+    }
+
+    @Test
+    void testDecodeNestedAttributeWithNoValue() {
+        String requestBody = "key1=value1&key2&key3=value3";
+
+        HttpRequest request = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/upload");
+
+        HttpPostStandardRequestDecoder decoder = new HttpPostStandardRequestDecoder(httpDiskDataFactory(), request);
+        ByteBuf buf = Unpooled.wrappedBuffer(requestBody.getBytes(CharsetUtil.UTF_8));
+        DefaultHttpContent httpContent = new DefaultLastHttpContent(buf);
+        decoder.offer(httpContent);
+
+        assertEquals(3, decoder.getBodyHttpDatas().size());
+        assertMemoryAttribute(decoder.getBodyHttpData("key1"), "value1");
+        assertMemoryAttribute(decoder.getBodyHttpData("key2"), "");
+        assertMemoryAttribute(decoder.getBodyHttpData("key3"), "value3");
+        decoder.destroy();
     }
 
     @Test
@@ -61,10 +195,9 @@ class HttpPostStandardRequestDecoderTest {
         HttpRequest request = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/upload");
 
         HttpPostStandardRequestDecoder decoder = new HttpPostStandardRequestDecoder(httpDiskDataFactory(), request);
-        Buffer buf = DefaultBufferAllocators.preferredAllocator().copyOf(requestBody.getBytes(StandardCharsets.UTF_8));
-        try (DefaultLastHttpContent httpContent = new DefaultLastHttpContent(buf)) {
-            decoder.offer(httpContent);
-        }
+        ByteBuf buf = Unpooled.wrappedBuffer(requestBody.getBytes(CharsetUtil.UTF_8));
+        DefaultHttpContent httpContent = new DefaultLastHttpContent(buf);
+        decoder.offer(httpContent);
 
         assertEquals(1, decoder.getBodyHttpDatas().size());
         assertMemoryAttribute(decoder.getBodyHttpData("key1"), "value1");
@@ -78,35 +211,12 @@ class HttpPostStandardRequestDecoderTest {
         HttpRequest request = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/upload");
 
         HttpPostStandardRequestDecoder decoder = new HttpPostStandardRequestDecoder(httpDiskDataFactory(), request);
-        Buffer buf = DefaultBufferAllocators.preferredAllocator().copyOf(requestBody.getBytes(StandardCharsets.UTF_8));
-        try (DefaultLastHttpContent httpContent = new DefaultLastHttpContent(buf)) {
-            decoder.offer(httpContent);
-        }
+        ByteBuf buf = Unpooled.wrappedBuffer(requestBody.getBytes(CharsetUtil.UTF_8));
+        DefaultHttpContent httpContent = new DefaultLastHttpContent(buf);
+        decoder.offer(httpContent);
 
         assertEquals(0, decoder.getBodyHttpDatas().size());
         decoder.destroy();
-    }
-
-    @Test
-    void testPercentDecode() {
-        String requestBody = "key1=va%20lue1";
-
-        HttpRequest request = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/upload");
-
-        BufferAllocator alloc = DefaultBufferAllocators.preferredAllocator();
-        for (int splitIndex = 0; splitIndex < requestBody.length(); splitIndex++) {
-            Buffer full = alloc.copyOf(requestBody, StandardCharsets.UTF_8);
-            HttpPostStandardRequestDecoder decoder = new HttpPostStandardRequestDecoder(httpDiskDataFactory(), request);
-            try (HttpContent<?> left = new DefaultHttpContent(full.readSplit(splitIndex))) {
-                decoder.offer(left);
-            }
-            try (LastHttpContent<?> right = new DefaultLastHttpContent(full)) {
-                decoder.offer(right);
-            }
-            assertEquals(1, decoder.getBodyHttpDatas().size());
-            assertMemoryAttribute(decoder.getBodyHttpData("key1"), "va lue1");
-            decoder.destroy();
-        }
     }
 
     private static DefaultHttpDataFactory httpDiskDataFactory() {
@@ -115,7 +225,7 @@ class HttpPostStandardRequestDecoderTest {
 
     private static void assertMemoryAttribute(InterfaceHttpData data, String expectedValue) {
         assertEquals(InterfaceHttpData.HttpDataType.Attribute, data.getHttpDataType());
-        assertEquals(expectedValue, ((MemoryAttribute) data).getValue());
+        assertEquals(((MemoryAttribute) data).getValue(), expectedValue);
     }
 
 }

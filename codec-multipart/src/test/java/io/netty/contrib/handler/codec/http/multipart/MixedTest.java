@@ -15,50 +15,62 @@
  */
 package io.netty.contrib.handler.codec.http.multipart;
 
-import io.netty5.buffer.Buffer;
-import io.netty5.buffer.DefaultBufferAllocators;
-import java.nio.charset.StandardCharsets;
+import io.netty.buffer.Unpooled;
+import io.netty.util.CharsetUtil;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 
+import java.io.File;
 import java.io.IOException;
 
-@ExtendWith(GCExtension.class)
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 public class MixedTest {
     @Test
-    public void mixAttributeClosed() throws IOException {
+    public void mixedAttributeRefCnt() throws IOException {
         MixedAttribute attribute = new MixedAttribute("foo", 100);
-        byte[] bytes1 = new byte[90];
-        Buffer buf1 = DefaultBufferAllocators.onHeapAllocator().allocate(bytes1.length);
-        buf1.writeBytes(bytes1);
-        attribute.setContent(buf1);
-        Assertions.assertTrue(buf1.isAccessible());
+        Assertions.assertEquals(1, attribute.refCnt());
+        attribute.retain();
+        Assertions.assertEquals(2, attribute.refCnt());
 
-        byte[] bytes2 = new byte[110];
-        Buffer buf2 = DefaultBufferAllocators.onHeapAllocator().allocate(bytes2.length);
-        buf2.writeBytes(bytes2);
-        attribute.setContent(buf2); // buf1 should be closed because we have changed to Disk. buf2 should be also closed.
-        Assertions.assertFalse(buf1.isAccessible());
-        Assertions.assertFalse(buf2.isAccessible());
-        attribute.close();
+        attribute.addContent(Unpooled.wrappedBuffer(new byte[90]), false);
+        Assertions.assertEquals(2, attribute.refCnt());
+
+        attribute.addContent(Unpooled.wrappedBuffer(new byte[90]), true);
+        Assertions.assertEquals(2, attribute.refCnt());
+
+        attribute.release(2);
     }
 
     @Test
-    public void mixedFileUploadClosed() throws IOException {
-        MixedFileUpload upload = new MixedFileUpload("foo", "foo", "foo", "UTF-8", StandardCharsets.UTF_8, 0, 100);
-        byte[] bytes1 = new byte[90];
-        Buffer buf1 = DefaultBufferAllocators.onHeapAllocator().allocate(bytes1.length);
-        buf1.writeBytes(bytes1);
-        upload.setContent(buf1);
-        Assertions.assertTrue(buf1.isAccessible());
+    public void mixedFileUploadRefCnt() throws IOException {
+        MixedFileUpload upload = new MixedFileUpload("foo", "foo", "foo", "UTF-8", CharsetUtil.UTF_8, 0, 100);
+        Assertions.assertEquals(1, upload.refCnt());
+        upload.retain();
+        Assertions.assertEquals(2, upload.refCnt());
 
-        byte[] bytes2 = new byte[110];
-        Buffer buf2 = DefaultBufferAllocators.onHeapAllocator().allocate(bytes2.length);
-        buf2.writeBytes(bytes2);
-        upload.setContent(buf2); // buf1 should be closed because we have changed to Disk. buf2 should be also closed.
-        Assertions.assertFalse(buf1.isAccessible());
-        Assertions.assertFalse(buf2.isAccessible());
-        upload.close();
+        upload.addContent(Unpooled.wrappedBuffer(new byte[90]), false);
+        Assertions.assertEquals(2, upload.refCnt());
+
+        upload.addContent(Unpooled.wrappedBuffer(new byte[90]), true);
+        Assertions.assertEquals(2, upload.refCnt());
+
+        upload.release(2);
+    }
+
+    @Test
+    public void testSpecificCustomBaseDir() throws IOException {
+        File baseDir = new File("target/MixedTest/testSpecificCustomBaseDir");
+        baseDir.mkdirs(); // we don't need to clean it since it is in volatile files anyway
+        MixedFileUpload upload = new MixedFileUpload("foo", "foo", "foo", "UTF-8", CharsetUtil.UTF_8, 1000, 100,
+                                                     baseDir.getAbsolutePath(), true);
+
+        upload.addContent(Unpooled.wrappedBuffer(new byte[1000]), true);
+
+        assertTrue(upload.getFile().getAbsolutePath().startsWith(baseDir.getAbsolutePath()));
+        assertTrue(upload.getFile().exists());
+        assertEquals(1000, upload.getFile().length());
+        upload.delete();
     }
 }

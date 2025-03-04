@@ -1,6 +1,6 @@
 package io.netty.contrib.handler.codec.http.multipart;
 
-import io.netty5.handler.codec.http.HttpHeaderValues;
+import io.netty.handler.codec.http.HttpHeaderValues;
 
 final class MultipartContentDisposition extends ParmParser implements ContentDisposition {
     private final String headerValue;

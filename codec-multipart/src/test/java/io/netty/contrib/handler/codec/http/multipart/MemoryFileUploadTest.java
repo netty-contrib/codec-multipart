@@ -16,17 +16,15 @@
 package io.netty.contrib.handler.codec.http.multipart;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-@ExtendWith(GCExtension.class)
 public class MemoryFileUploadTest {
+
     @Test
     public final void testMemoryFileUploadEquals() {
-        try (MemoryFileUpload f1 =
-                new MemoryFileUpload("m1", "m1", "application/json", null, null, 100)) {
-            assertEquals(f1, f1);
-        }
+        MemoryFileUpload f1 =
+                new MemoryFileUpload("m1", "m1", "application/json", null, null, 100);
+        assertEquals(f1, f1);
     }
 }

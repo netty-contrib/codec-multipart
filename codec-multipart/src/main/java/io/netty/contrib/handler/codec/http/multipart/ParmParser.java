@@ -15,7 +15,7 @@
  */
 package io.netty.contrib.handler.codec.http.multipart;
 
-import io.netty5.handler.codec.http.QueryStringDecoder;
+import io.netty.handler.codec.http.QueryStringDecoder;
 
 import java.nio.charset.Charset;
 import java.nio.charset.IllegalCharsetNameException;

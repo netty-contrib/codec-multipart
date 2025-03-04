@@ -15,47 +15,26 @@
  */
 package io.netty.contrib.handler.codec.http.multipart;
 
-import io.netty5.util.internal.ObjectUtil;
-import io.netty5.buffer.Buffer;
-import io.netty5.buffer.DefaultBufferAllocators;
-import io.netty5.buffer.Drop;
-import io.netty5.buffer.Owned;
-import io.netty5.buffer.internal.ResourceSupport;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+import io.netty.util.AbstractReferenceCounted;
+import io.netty.util.internal.ObjectUtil;
 
 import java.nio.charset.Charset;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
 
 /**
- * This Attribute is only for Encoder and is used to insert special command between object if needed
+ * This Attribute is only for Encoder use to insert special command between object if needed
  * (like Multipart Mixed mode)
  */
-final class InternalAttribute extends ResourceSupport<HttpData, InternalAttribute> implements InterfaceHttpData {
-    private List<Buffer> value;
+final class InternalAttribute extends AbstractReferenceCounted implements InterfaceHttpData {
+    private final List<ByteBuf> value = new ArrayList<ByteBuf>();
     private final Charset charset;
     private int size;
 
-    private final static Drop<InternalAttribute> drop = new Drop<>() {
-        @Override
-        public void drop(InternalAttribute data) {
-        }
-
-        @Override
-        public Drop<InternalAttribute> fork() {
-            return this;
-        }
-
-        @Override
-        public void attach(InternalAttribute mixedFileUpload) {
-        }
-    };
-
     InternalAttribute(Charset charset) {
-        super(drop);
         this.charset = charset;
-        this.value = new ArrayList<>();
     }
 
     @Override
@@ -64,26 +43,26 @@ final class InternalAttribute extends ResourceSupport<HttpData, InternalAttribut
     }
 
     public void addValue(String value) {
-        ObjectUtil.checkNotNullWithIAE(value, "value");
-        Buffer buf = Helpers.copiedBuffer(value, charset);
+        ObjectUtil.checkNotNull(value, "value");
+        ByteBuf buf = Unpooled.copiedBuffer(value, charset);
         this.value.add(buf);
         size += buf.readableBytes();
     }
 
     public void addValue(String value, int rank) {
-        ObjectUtil.checkNotNullWithIAE(value, "value");
-        Buffer buf = Helpers.copiedBuffer(value, charset);
+        ObjectUtil.checkNotNull(value, "value");
+        ByteBuf buf = Unpooled.copiedBuffer(value, charset);
         this.value.add(rank, buf);
         size += buf.readableBytes();
     }
 
     public void setValue(String value, int rank) {
-        ObjectUtil.checkNotNullWithIAE(value, "value");
-        Buffer buf = Helpers.copiedBuffer(value, charset);
-        Buffer old = this.value.set(rank, buf);
+        ObjectUtil.checkNotNull(value, "value");
+        ByteBuf buf = Unpooled.copiedBuffer(value, charset);
+        ByteBuf old = this.value.set(rank, buf);
         if (old != null) {
             size -= old.readableBytes();
-            old.close();
+            old.release();
         }
         size += buf.readableBytes();
     }
@@ -118,7 +97,7 @@ final class InternalAttribute extends ResourceSupport<HttpData, InternalAttribut
     @Override
     public String toString() {
         StringBuilder result = new StringBuilder();
-        for (Buffer elt : value) {
+        for (ByteBuf elt : value) {
             result.append(elt.toString(charset));
         }
         return result.toString();
@@ -128,16 +107,8 @@ final class InternalAttribute extends ResourceSupport<HttpData, InternalAttribut
         return size;
     }
 
-    /**
-     * Returns a buffer composed of all values added in this class.
-     * <br> The returned buffer must be closed by the caller.</br>
-     *
-     * @return a fresh composite buffer containing all values added in this class.
-     * The buffer must be closed by the user.
-     */
-    public Buffer toBuffer() {
-        return DefaultBufferAllocators.onHeapAllocator()
-                .compose(value.stream().map(Buffer::send).collect(Collectors.toList()));
+    public ByteBuf toByteBuf() {
+        return Unpooled.compositeBuffer().addComponents(value).writerIndex(size()).readerIndex(0);
     }
 
     @Override
@@ -146,20 +117,40 @@ final class InternalAttribute extends ResourceSupport<HttpData, InternalAttribut
     }
 
     @Override
-    protected RuntimeException createResourceClosedException() {
-        return new RuntimeException("Resource closed");
+    protected void deallocate() {
+        // Do nothing
     }
 
     @Override
-    protected Owned<InternalAttribute> prepareSend() {
-        return drop -> {
-            InternalAttribute copy = new InternalAttribute(charset);
-            copy.value = this.value;
-            copy.size = this.size;
-            this.value = Collections.emptyList(); // immutable list
-            this.size = 0;
-            return copy;
-        };
+    public InterfaceHttpData retain() {
+        for (ByteBuf buf: value) {
+            buf.retain();
+        }
+        return this;
+    }
+
+    @Override
+    public InterfaceHttpData retain(int increment) {
+        for (ByteBuf buf: value) {
+            buf.retain(increment);
+        }
+        return this;
+    }
+
+    @Override
+    public InterfaceHttpData touch() {
+        for (ByteBuf buf: value) {
+            buf.touch();
+        }
+        return this;
+    }
+
+    @Override
+    public InterfaceHttpData touch(Object hint) {
+        for (ByteBuf buf: value) {
+            buf.touch(hint);
+        }
+        return this;
     }
 }
 

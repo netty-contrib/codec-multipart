@@ -15,12 +15,11 @@
  */
 package io.netty.contrib.handler.codec.http.multipart;
 
-import io.netty5.buffer.Buffer;
-import io.netty5.handler.codec.http.HttpConstants;
-import io.netty5.handler.codec.http.HttpHeaderNames;
-import io.netty5.handler.codec.http.HttpHeaderValues;
-import io.netty5.util.Send;
-import io.netty5.util.internal.StringUtil;
+import io.netty.buffer.ByteBuf;
+import io.netty.handler.codec.http.HttpConstants;
+import io.netty.handler.codec.http.HttpHeaderNames;
+import io.netty.handler.codec.http.HttpHeaderValues;
+import io.netty.util.internal.StringUtil;
 
 import java.nio.charset.Charset;
 import java.nio.charset.IllegalCharsetNameException;
@@ -37,9 +36,9 @@ final class MultipartDecoder extends AbstractDecoder {
     private final String multipartDataBoundary;
 
     private State state = State.HEADERDELIMITER;
-    private Buffer buffer;
+    private ByteBuf buffer;
 
-    private Buffer undecodedPartData;
+    private ByteBuf undecodedPartData;
     private Charset partCharset;
     private String mixedBoundary;
     private String headerKey;
@@ -66,7 +65,7 @@ final class MultipartDecoder extends AbstractDecoder {
     }
 
     @Override
-    public void add(Send<Buffer> buffer) {
+    public void add(ByteBuf buffer) {
         super.add(buffer);
         if (quirkMode) {
             quirkHeaderStart = -1;
@@ -75,7 +74,7 @@ final class MultipartDecoder extends AbstractDecoder {
 
     private void clearPartData() {
         if (undecodedPartData != null) {
-            undecodedPartData.close();
+            undecodedPartData.release();
             undecodedPartData = null;
         }
         partCharset = null;
@@ -110,7 +109,7 @@ final class MultipartDecoder extends AbstractDecoder {
                         return null;
                     }
                     if (!HttpPostMultipartRequestDecoder.skipOneLine(buffer)) {
-                        int readerIndex = buffer.readerOffset();
+                        int readerIndex = buffer.readerIndex();
                         if (quirkMode && quirkHeaderStart == -1) {
                             quirkHeaderStart = readerIndex;
                         }
@@ -120,7 +119,7 @@ final class MultipartDecoder extends AbstractDecoder {
                             newline = HttpPostMultipartRequestDecoder.readLineOptimized(buffer, charset);
                         } catch (HttpPostRequestDecoder.NotEnoughDataDecoderException ignored) {
                             // todo: do we need to reset the control chars?
-                            buffer.readerOffset(quirkMode ? quirkHeaderStart : readerIndex);
+                            buffer.readerIndex(quirkMode ? quirkHeaderStart : readerIndex);
                             return null;
                         }
                         if (quirkMode) {
@@ -139,7 +138,7 @@ final class MultipartDecoder extends AbstractDecoder {
                     }
                 case CONTENT:
                     if (undecodedPartData != null) {
-                        undecodedPartData.close();
+                        undecodedPartData.release();
                         undecodedPartData = null;
                     }
                     if (buffer == null) {
@@ -323,12 +322,12 @@ final class MultipartDecoder extends AbstractDecoder {
         return quirkHeader;
     }
 
-    Send<Buffer> sendUndecodedPartContent() {
-        return undecodedPartData.send();
+    ByteBuf sendUndecodedPartContent() {
+        return undecodedPartData;
     }
 
     @Override
-    public Send<Buffer> decodedContent() {
+    public ByteBuf decodedContent() {
         if (undecodedPartData == null) {
             throw new IllegalStateException("Not a CONTENT event");
         }
@@ -353,12 +352,12 @@ final class MultipartDecoder extends AbstractDecoder {
 
     private DelimiterType findMultipartDelimiter(String delimiter) {
         // --AaB03x or --AaB03x--
-        int readerIndex = buffer.readerOffset();
+        int readerIndex = buffer.readerIndex();
         try {
             HttpPostMultipartRequestDecoder.skipControlCharacters(buffer, quirkMode);
         } catch (HttpPostRequestDecoder.NotEnoughDataDecoderException ignored) {
             // todo: do we need to reset here?
-            buffer.readerOffset(readerIndex);
+            buffer.readerIndex(readerIndex);
             return null;
         }
         HttpPostMultipartRequestDecoder.skipOneLine(buffer);
@@ -366,7 +365,7 @@ final class MultipartDecoder extends AbstractDecoder {
         try {
             newline = HttpPostMultipartRequestDecoder.readDelimiterOptimized(buffer, delimiter, charset);
         } catch (HttpPostRequestDecoder.NotEnoughDataDecoderException ignored) {
-            buffer.readerOffset(readerIndex);
+            buffer.readerIndex(readerIndex);
             return null;
         }
         if (newline.equals(delimiter)) {
@@ -375,11 +374,11 @@ final class MultipartDecoder extends AbstractDecoder {
         if (newline.equals(delimiter + "--")) {
             return DelimiterType.CLOSEDELIMITER;
         }
-        buffer.readerOffset(readerIndex);
+        buffer.readerIndex(readerIndex);
         throw new HttpPostRequestDecoder.ErrorDataDecoderException("No Multipart delimiter found");
     }
 
-    private boolean loadContent(Buffer undecodedChunk, String delimiter) {
+    private boolean loadContent(ByteBuf undecodedChunk, String delimiter) {
         assert !quirkMode;
         assert undecodedPartData == null;
         byte[] bdelimiter = delimiter.getBytes(currentCharset());
@@ -387,10 +386,10 @@ final class MultipartDecoder extends AbstractDecoder {
         // -2 if we expect a CR or LF next
         // -1 if we expect an LF next because we just saw a CR
         int j = receivedLength > 0 ? -2 : 0;
-        int fieldEnd = undecodedChunk.readerOffset();
+        int fieldEnd = undecodedChunk.readerIndex();
         boolean delimiterFound = false;
         // TODO: this loop has a data dependency (j) and is probably pretty slow. use SWAR search instead
-        for (int i = undecodedChunk.readerOffset(); i < undecodedChunk.writerOffset(); i++) {
+        for (int i = undecodedChunk.readerIndex(); i < undecodedChunk.writerIndex(); i++) {
             byte b = undecodedChunk.getByte(i);
             if (j >= 0) {
                 if (b == bdelimiter[j]) {
@@ -417,21 +416,21 @@ final class MultipartDecoder extends AbstractDecoder {
                 }
             }
         }
-        int n = fieldEnd - undecodedChunk.readerOffset();
+        int n = fieldEnd - undecodedChunk.readerIndex();
         if (n > 0) {
-            undecodedPartData = undecodedChunk.readSplit(n);
+            undecodedPartData = undecodedChunk.readRetainedSlice(n);
             addReceivedLength(undecodedPartData.readableBytes());
         }
         return delimiterFound;
     }
 
-    private boolean loadContentQuirk(Buffer undecodedChunk, String delimiter) {
+    private boolean loadContentQuirk(ByteBuf undecodedChunk, String delimiter) {
         assert quirkMode;
         assert undecodedPartData == null;
         if (undecodedChunk.readableBytes() == 0) {
             return false;
         }
-        final int startReaderIndex = undecodedChunk.readerOffset();
+        final int startReaderIndex = undecodedChunk.readerIndex();
         final byte[] bdelimiter = delimiter.getBytes(currentCharset());
         int posDelimiter = HttpPostBodyUtil.findDelimiter(undecodedChunk, startReaderIndex, bdelimiter, true);
         if (posDelimiter < 0) {
@@ -470,12 +469,12 @@ final class MultipartDecoder extends AbstractDecoder {
             }
             // Not fully but still some bytes to provide: httpData is not yet finished since delimiter not found
             addReceivedLength(posDelimiter);
-            undecodedPartData = undecodedChunk.readSplit(posDelimiter);
+            undecodedPartData = undecodedChunk.readRetainedSlice(posDelimiter);
             return false;
         }
         // Delimiter found at posDelimiter, including LF or CRLF, so httpData has its last chunk
         addReceivedLength(posDelimiter);
-        undecodedPartData = undecodedChunk.readSplit(posDelimiter);
+        undecodedPartData = undecodedChunk.readRetainedSlice(posDelimiter);
         return true;
     }
 
@@ -509,7 +508,8 @@ final class MultipartDecoder extends AbstractDecoder {
     public void close() {
         super.close();
         if (undecodedPartData != null) {
-            undecodedPartData.close();
+            undecodedPartData.release();
+            undecodedPartData = null;
         }
     }
 

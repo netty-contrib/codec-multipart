@@ -15,7 +15,7 @@
  */
 package io.netty.contrib.handler.codec.http.multipart;
 
-import io.netty5.handler.codec.http.HttpContent;
+import io.netty.handler.codec.http.HttpContent;
 
 import java.util.List;
 
@@ -92,7 +92,7 @@ public interface InterfaceHttpPostRequestDecoder {
      *             if there is a problem with the charset decoding or other
      *             errors
      */
-    InterfaceHttpPostRequestDecoder offer(HttpContent<?> content);
+    InterfaceHttpPostRequestDecoder offer(HttpContent content);
 
     /**
      * True if at current getStatus, there is an available decoded
@@ -111,7 +111,7 @@ public interface InterfaceHttpPostRequestDecoder {
      * is called, there is no more available InterfaceHttpData. A subsequent
      * call to offer(httpChunk) could enable more data.
      *
-     * Be sure to call {@link InterfaceHttpData#close()} after you are done
+     * Be sure to call {@link InterfaceHttpData#release()} after you are done
      * with processing to make sure to not leak any resources
      *
      * @return the next available InterfaceHttpData or null if none
