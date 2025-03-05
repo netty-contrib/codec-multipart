@@ -18,6 +18,7 @@ package io.netty.contrib.handler.codec.http.multipart;
 import io.netty5.buffer.Buffer;
 import io.netty5.buffer.BufferAllocator;
 import io.netty5.buffer.DefaultBufferAllocators;
+import io.netty5.handler.codec.DecoderException;
 import io.netty5.handler.codec.DecoderResult;
 import io.netty5.handler.codec.http.DefaultFullHttpRequest;
 import io.netty5.handler.codec.http.DefaultHttpContent;
@@ -31,7 +32,6 @@ import io.netty5.handler.codec.http.HttpMethod;
 import io.netty5.handler.codec.http.HttpRequest;
 import io.netty5.handler.codec.http.HttpVersion;
 import io.netty5.handler.codec.http.LastHttpContent;
-import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.function.Executable;
@@ -39,10 +39,16 @@ import org.junit.jupiter.api.function.Executable;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.charset.UnsupportedCharsetException;
 import java.util.Arrays;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * {@link HttpPostRequestDecoder} test case.
@@ -1059,4 +1065,111 @@ public class HttpPostRequestDecoderTest {
         }
     }
 
+    private static void offer(HttpPostRequestDecoder decoder, String s) {
+        byte[] bytes = "--be38b42a9ad2713f\n".getBytes();
+        try (Buffer content = DefaultBufferAllocators.preferredAllocator().allocate(bytes.length)) {
+            content.writeBytes(bytes);
+            decoder.offer(new DefaultHttpContent(content));
+        }
+    }
+
+    @Test
+    public void testTooManyFormFieldsPostStandardDecoder() {
+        HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/");
+
+        HttpPostRequestDecoder decoder = new HttpPostRequestDecoder(req, 1024, -1);
+
+        int num = 0;
+        while (true) {
+            try {
+                offer(decoder, "foo=bar&");
+            } catch (DecoderException e) {
+                assertEquals(HttpPostRequestDecoder.TooManyFormFieldsException.class, e.getClass());
+                break;
+            }
+            assertTrue(num++ < 1024);
+        }
+        assertEquals(1024, num);
+    }
+
+    @Test
+    public void testTooManyFormFieldsPostMultipartDecoder() {
+        HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/");
+        req.headers().add("Content-Type", "multipart/form-data;boundary=be38b42a9ad2713f");
+
+        HttpPostRequestDecoder decoder = new HttpPostRequestDecoder(req, 1024, -1);
+        offer(decoder, "--be38b42a9ad2713f\n");
+
+        int num = 0;
+        while (true) {
+            try {
+                offer(decoder, "content-disposition: form-data; name=\"title\"\n" +
+                        "content-length: 10\n" +
+                        "content-type: text/plain; charset=UTF-8\n" +
+                        "\n" +
+                        "bar-stream\n" +
+                        "--be38b42a9ad2713f\n");
+            } catch (DecoderException e) {
+                assertEquals(HttpPostRequestDecoder.TooManyFormFieldsException.class, e.getClass());
+                break;
+            }
+            assertTrue(num++ < 1024);
+        }
+        assertEquals(1024, num);
+    }
+
+    @Test
+    public void testTooLongFormFieldStandardDecoder() {
+        HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/");
+
+        HttpPostRequestDecoder decoder = new HttpPostRequestDecoder(req, -1, 16 * 1024);
+
+        try (Buffer content = DefaultBufferAllocators.preferredAllocator().allocate(16 * 1024 + 1)) {
+            content.writeBytes(new byte[16 * 1024 + 1]);
+            decoder.offer(new DefaultHttpContent(content));
+            fail();
+        } catch (DecoderException e) {
+            assertEquals(HttpPostRequestDecoder.ErrorDataDecoderException.class, e.getClass());
+        }
+    }
+
+    @Test
+    public void testFieldGreaterThanMaxBufferedBytesStandardDecoder() {
+        HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/");
+
+        HttpPostRequestDecoder decoder = new HttpPostRequestDecoder(req, -1, 6);
+
+        offer(decoder, "foo=bar");
+    }
+
+    @Test
+    public void testTooLongFormFieldMultipartDecoder() {
+        HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/");
+        req.headers().add("Content-Type", "multipart/form-data;boundary=be38b42a9ad2713f");
+
+        HttpPostRequestDecoder decoder = new HttpPostRequestDecoder(req, -1, 16 * 1024);
+
+        try (Buffer content = DefaultBufferAllocators.preferredAllocator().allocate(16 * 1024 + 1)) {
+            content.writeBytes(new byte[16 * 1024 + 1]);
+            decoder.offer(new DefaultHttpContent(content));
+            fail();
+        } catch (DecoderException e) {
+            assertEquals(HttpPostRequestDecoder.ErrorDataDecoderException.class, e.getClass());
+        }
+    }
+
+    @Test
+    public void testFieldGreaterThanMaxBufferedBytesMultipartDecoder() {
+        HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/");
+        req.headers().add("Content-Type", "multipart/form-data;boundary=be38b42a9ad2713f");
+
+        String s = "content-disposition: form-data; name=\"title\"\n" +
+                "content-length: 10\n" +
+                "content-type: text/plain; charset=UTF-8\n" +
+                "\n" +
+                "bar-stream\n" +
+                "--be38b42a9ad2713f\n";
+        HttpPostRequestDecoder decoder = new HttpPostRequestDecoder(req, -1, s.length() - 1);
+        offer(decoder, s);
+    }
 }

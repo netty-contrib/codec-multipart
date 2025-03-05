@@ -100,6 +100,7 @@ final class MultipartDecoder extends AbstractDecoder {
                         return null;
                     } else if (delimiter == DelimiterType.DISPOSITION) {
                         state = State.DISPOSITION;
+                        checkNewField();
                         return Event.BEGIN_FIELD;
                     } else {
                         state = State.PREEPILOGUE;

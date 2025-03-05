@@ -123,7 +123,7 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
      *             errors
      */
     public HttpPostMultipartRequestDecoder(HttpRequest request) {
-        this(new DefaultHttpDataFactory(DefaultHttpDataFactory.MINSIZE), request, HttpConstants.DEFAULT_CHARSET);
+        this(new DefaultHttpDataFactory(DefaultHttpDataFactory.MINSIZE), request, PostBodyDecoder.builder());
     }
 
     /**
@@ -139,7 +139,7 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
      *             errors
      */
     public HttpPostMultipartRequestDecoder(HttpDataFactory factory, HttpRequest request) {
-        this(factory, request, HttpConstants.DEFAULT_CHARSET);
+        this(factory, request, PostBodyDecoder.builder());
     }
 
     /**
@@ -157,8 +157,34 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
      *             errors
      */
     public HttpPostMultipartRequestDecoder(HttpDataFactory factory, HttpRequest request, Charset charset) {
+        this(factory, request, PostBodyDecoder.builder().charset(charset));
+    }
+
+    /**
+     *
+     * @param factory
+     *            the factory used to create InterfaceHttpData
+     * @param request
+     *            the request to decode
+     * @param charset
+     *            the charset to use as default
+     * @param maxFields
+     *            the maximum number of fields the form can have, {@code -1} to disable
+     * @param maxBufferedBytes
+     *            the maximum number of bytes the decoder can buffer when decoding a field, {@code -1} to disable
+     * @throws NullPointerException
+     *             for request or charset or factory
+     * @throws ErrorDataDecoderException
+     *             if the default charset was wrong when decoding or other
+     *             errors
+     */
+    public HttpPostMultipartRequestDecoder(HttpDataFactory factory, HttpRequest request, Charset charset,
+                                           int maxFields, int maxBufferedBytes) {
+        this(factory, request, PostBodyDecoder.builder().charset(charset).maxFields(maxFields).undecodedLimit(maxBufferedBytes));
+    }
+
+    private HttpPostMultipartRequestDecoder(HttpDataFactory factory, HttpRequest request, PostBodyDecoder.Builder builder) {
         this.request = checkNotNullWithIAE(request, "request");
-        checkNotNullWithIAE(charset, "charset");
         this.factory = checkNotNullWithIAE(factory, "factory");
         // Fill default values
 
@@ -173,7 +199,7 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
             multipartDataBoundary = dataBoundary[0];
             if (dataBoundary.length > 1 && dataBoundary[1] != null) {
                 try {
-                    charset = Charset.forName(dataBoundary[1]);
+                    builder.charset = Charset.forName(dataBoundary[1]);
                 } catch (IllegalCharsetNameException e) {
                     throw new ErrorDataDecoderException(e);
                 }
@@ -181,9 +207,7 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
         } else {
             multipartDataBoundary = null;
         }
-        decoder = PostBodyDecoder.builder()
-                .charset(charset)
-                .forBoundary0(multipartDataBoundary);
+        decoder = builder.forBoundary0(multipartDataBoundary);
         decoder.quirkMode = true;
 
         try {

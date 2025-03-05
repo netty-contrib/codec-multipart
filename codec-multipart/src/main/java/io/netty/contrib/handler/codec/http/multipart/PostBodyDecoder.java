@@ -195,6 +195,7 @@ public interface PostBodyDecoder extends Closeable {
         int undecodedLimit = DEFAULT_UNDECODED_LIMIT;
         int compactionThreshold = HttpPostRequestDecoder.DEFAULT_DISCARD_THRESHOLD;
         Charset charset = HttpConstants.DEFAULT_CHARSET;
+        int maxFields = 128;
 
         Builder() {
         }
@@ -234,6 +235,17 @@ public interface PostBodyDecoder extends Closeable {
          */
         public Builder charset(Charset charset) {
             this.charset = Objects.requireNonNull(charset, "charset");
+            return this;
+        }
+
+        /**
+         * Maximum number of fields to allow.
+         *
+         * @param maxFields The maximum number of fields
+         * @return This builder
+         */
+        public Builder maxFields(int maxFields) {
+            this.maxFields = maxFields;
             return this;
         }
 
