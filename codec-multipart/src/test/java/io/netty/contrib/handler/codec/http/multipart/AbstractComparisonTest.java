@@ -2,10 +2,10 @@ package io.netty.contrib.handler.codec.http.multipart;
 
 import com.code_intelligence.jazzer.junit.FuzzTest;
 import io.micronaut.fuzzing.util.ByteSplitter;
-import io.netty5.buffer.Buffer;
-import io.netty5.handler.codec.http.DefaultHttpContent;
-import io.netty5.handler.codec.http.DefaultLastHttpContent;
-import io.netty5.handler.codec.http.HttpContent;
+import io.netty.buffer.ByteBuf;
+import io.netty.handler.codec.http.DefaultHttpContent;
+import io.netty.handler.codec.http.DefaultLastHttpContent;
+import io.netty.handler.codec.http.HttpContent;
 import org.junit.jupiter.api.Assertions;
 
 import java.io.Closeable;
@@ -20,7 +20,7 @@ abstract class AbstractComparisonTest extends AbstractFuzzTest {
         try (Runner runner = new Runner()) {
             ByteSplitter.ChunkIterator itr = FUZZ_SPLITTER.splitIterator(bytes);
             while (itr.hasNext() && !runner.failed) {
-                Buffer piece = next(bytes, itr);
+                ByteBuf piece = next(bytes, itr);
                 runner.offer(!itr.hasNext() ? new DefaultLastHttpContent(piece) : new DefaultHttpContent(piece));
             }
         }
@@ -42,7 +42,7 @@ abstract class AbstractComparisonTest extends AbstractFuzzTest {
             b = createNormal();
         }
 
-        void offer(HttpContent<?> content) {
+        void offer(HttpContent content) {
             Exception exc1 = null;
             try {
                 a.offer(content.copy());

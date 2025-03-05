@@ -88,7 +88,7 @@ public class HttpPostMultipartRequestDecoderLegacy implements InterfaceHttpPostR
     /**
      * HttpDatas from Body
      */
-    private final List<InterfaceHttpData> bodyListHttpData = new ArrayList<InterfaceHttpData>();
+    final List<InterfaceHttpData> bodyListHttpData = new ArrayList<InterfaceHttpData>();
 
     /**
      * HttpDatas as Map from Body
@@ -384,7 +384,7 @@ public class HttpPostMultipartRequestDecoderLegacy implements InterfaceHttpPostR
         }
         parseBody();
         if (maxBufferedBytes > 0 && undecodedChunk != null && undecodedChunk.readableBytes() > maxBufferedBytes) {
-            throw new HttpPostRequestDecoder.TooLongFormFieldException();
+            throw new HttpPostRequestDecoder.ErrorDataDecoderException();
         }
         if (undecodedChunk != null && undecodedChunk.writerIndex() > discardThreshold) {
             if (undecodedChunk.refCnt() == 1) {

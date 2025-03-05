@@ -1,7 +1,7 @@
 package io.netty.contrib.handler.codec.http.multipart;
 
-import io.netty5.buffer.DefaultBufferAllocators;
-import io.netty5.handler.codec.http.HttpHeaderNames;
+import io.netty.buffer.Unpooled;
+import io.netty.handler.codec.http.HttpHeaderNames;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
@@ -36,8 +36,7 @@ class UrlEncodedDecoderTest {
     @Test
     public void simple() {
         try (PostBodyDecoder decoder = PostBodyDecoder.builder().forUrlEncodedData()) {
-            decoder.add(DefaultBufferAllocators.preferredAllocator()
-                    .copyOf("foo=bar&fizz=buzz", StandardCharsets.UTF_8).send());
+            decoder.add(Unpooled.copiedBuffer("foo=bar&fizz=buzz", StandardCharsets.UTF_8));
             decoder.endInput();
 
             expectField(decoder, "foo", "bar");
@@ -49,8 +48,7 @@ class UrlEncodedDecoderTest {
     @Test
     public void decodePlus() {
         try (PostBodyDecoder decoder = PostBodyDecoder.builder().forUrlEncodedData()) {
-            decoder.add(DefaultBufferAllocators.preferredAllocator()
-                    .copyOf("foo=xyz+abc", StandardCharsets.UTF_8).send());
+            decoder.add(Unpooled.copiedBuffer("foo=xyz+abc", StandardCharsets.UTF_8));
             decoder.endInput();
 
             expectField(decoder, "foo", "xyz abc");
@@ -61,8 +59,7 @@ class UrlEncodedDecoderTest {
     @Test
     public void decodePercent() {
         try (PostBodyDecoder decoder = PostBodyDecoder.builder().forUrlEncodedData()) {
-            decoder.add(DefaultBufferAllocators.preferredAllocator()
-                    .copyOf("foo=xyz%20abc", StandardCharsets.UTF_8).send());
+            decoder.add(Unpooled.copiedBuffer("foo=xyz%20abc", StandardCharsets.UTF_8));
             decoder.endInput();
 
             expectField(decoder, "foo", "xyz abc");
@@ -73,8 +70,7 @@ class UrlEncodedDecoderTest {
     @Test
     public void special() {
         try (PostBodyDecoder decoder = PostBodyDecoder.builder().forUrlEncodedData()) {
-            decoder.add(DefaultBufferAllocators.preferredAllocator()
-                    .copyOf("foo", StandardCharsets.UTF_8).send());
+            decoder.add(Unpooled.copiedBuffer("foo", StandardCharsets.UTF_8));
             decoder.endInput();
 
             expectField(decoder, "foo", "");

@@ -15,7 +15,7 @@
  */
 package io.netty.contrib.handler.codec.http.multipart;
 
-import io.netty5.buffer.DefaultBufferAllocators;
+import io.netty.buffer.Unpooled;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
@@ -44,7 +44,7 @@ class MultipartDecoderTest {
                 "\r\n" +
                 "-----------------------------9051914041544843365972754266--";
         try (PostBodyDecoder decoder = PostBodyDecoder.builder().forMultipartBoundary("---------------------------9051914041544843365972754266")) {
-            decoder.add(DefaultBufferAllocators.preferredAllocator().copyOf(input, StandardCharsets.UTF_8).send());
+            decoder.add(Unpooled.copiedBuffer(input, StandardCharsets.UTF_8));
 
             Assertions.assertEquals(PostBodyDecoder.Event.BEGIN_FIELD, decoder.next());
             Assertions.assertEquals(PostBodyDecoder.Event.HEADER, decoder.next());

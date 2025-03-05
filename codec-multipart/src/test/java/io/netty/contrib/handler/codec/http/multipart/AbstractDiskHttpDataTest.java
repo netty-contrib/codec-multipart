@@ -96,17 +96,17 @@ public class AbstractDiskHttpDataTest {
         }
 
         @Override
-        public io.netty.handler.codec.http.multipart.HttpData copy() {
+        public HttpData copy() {
             return null;
         }
 
         @Override
-        public io.netty.handler.codec.http.multipart.HttpData duplicate() {
+        public HttpData duplicate() {
             return null;
         }
 
         @Override
-        public io.netty.handler.codec.http.multipart.HttpData retainedDuplicate() {
+        public HttpData retainedDuplicate() {
             return null;
         }
 

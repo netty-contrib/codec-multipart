@@ -18,11 +18,8 @@ package io.netty.contrib.handler.codec.http.multipart;
 import com.code_intelligence.jazzer.Jazzer;
 import com.code_intelligence.jazzer.junit.DictionaryEntries;
 import io.micronaut.fuzzing.util.ByteSplitter;
-import io.netty5.buffer.Buffer;
-import io.netty5.buffer.DefaultBufferAllocators;
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Disabled;
-import org.junit.jupiter.api.Test;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.Extension;
 
@@ -30,7 +27,6 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.stream.Stream;
 
@@ -58,31 +54,6 @@ public abstract class AbstractFuzzTest {
         }
     }
 
-    @Test
-    @Disabled
-    public final void indexOf() {
-        try (Buffer buf = DefaultBufferAllocators.preferredAllocator().copyOf("foobar", StandardCharsets.UTF_8)) {
-            Assertions.assertEquals(-1, indexOf(buf, "ab".getBytes(StandardCharsets.UTF_8)));
-            Assertions.assertEquals(2, indexOf(buf, "ob".getBytes(StandardCharsets.UTF_8)));
-            Assertions.assertEquals(1, indexOf(buf, "o".getBytes(StandardCharsets.UTF_8)));
-        }
-    }
-
-    private static int indexOf(Buffer haystack, byte[] needle) {
-        for (int i = haystack.readerOffset(); i < haystack.writerOffset() - needle.length + 1; i++) {
-            int j;
-            for (j = 0; j < needle.length; j++) {
-                if (haystack.getByte(i + j) != needle[j]) {
-                    break;
-                }
-            }
-            if (j == needle.length) {
-                return i;
-            }
-        }
-        return -1;
-    }
-
     protected static void minimize(Class<? extends AbstractFuzzTest> testClass, String crashPath) throws Throwable {
         Jazzer.main(Stream.concat(
                 JAZZER_ARGS.stream(),
@@ -94,9 +65,9 @@ public abstract class AbstractFuzzTest {
         ).toArray(String[]::new));
     }
 
-    protected Buffer next(byte[] bytes, ByteSplitter.ChunkIterator itr) {
+    protected ByteBuf next(byte[] bytes, ByteSplitter.ChunkIterator itr) {
         itr.proceed();
-        Buffer buffer = DefaultBufferAllocators.preferredAllocator().allocate(itr.length());
+        ByteBuf buffer = ByteBufAllocator.DEFAULT.buffer(itr.length());
         buffer.writeBytes(bytes, itr.start(), itr.length());
         return buffer;
     }

@@ -1,9 +1,9 @@
 package io.netty.contrib.handler.codec.http.multipart;
 
-import io.netty5.handler.codec.http.DefaultHttpRequest;
-import io.netty5.handler.codec.http.HttpMethod;
-import io.netty5.handler.codec.http.HttpRequest;
-import io.netty5.handler.codec.http.HttpVersion;
+import io.netty.handler.codec.http.DefaultHttpRequest;
+import io.netty.handler.codec.http.HttpMethod;
+import io.netty.handler.codec.http.HttpRequest;
+import io.netty.handler.codec.http.HttpVersion;
 
 public class UrlEncodedComparisonTest extends AbstractComparisonTest {
     static final HttpRequest REQUEST = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "/");

@@ -15,11 +15,11 @@
  */
 package io.netty.contrib.handler.codec.http.multipart;
 
-import io.netty5.handler.codec.http.DefaultHttpRequest;
-import io.netty5.handler.codec.http.HttpHeaderNames;
-import io.netty5.handler.codec.http.HttpMethod;
-import io.netty5.handler.codec.http.HttpRequest;
-import io.netty5.handler.codec.http.HttpVersion;
+import io.netty.handler.codec.http.DefaultHttpRequest;
+import io.netty.handler.codec.http.HttpHeaderNames;
+import io.netty.handler.codec.http.HttpMethod;
+import io.netty.handler.codec.http.HttpRequest;
+import io.netty.handler.codec.http.HttpVersion;
 
 /**
  * This fuzz test compares the behavior of {@link HttpPostMultipartRequestDecoder} with that of

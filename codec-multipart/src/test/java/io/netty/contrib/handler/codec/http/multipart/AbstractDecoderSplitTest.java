@@ -17,9 +17,9 @@ package io.netty.contrib.handler.codec.http.multipart;
 
 import com.code_intelligence.jazzer.junit.FuzzTest;
 import io.micronaut.fuzzing.util.ByteSplitter;
-import io.netty5.buffer.Buffer;
-import io.netty5.buffer.CompositeBuffer;
-import io.netty5.buffer.DefaultBufferAllocators;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
+import io.netty.buffer.CompositeByteBuf;
 import org.junit.jupiter.api.Assertions;
 
 import java.io.Closeable;
@@ -38,18 +38,17 @@ abstract class AbstractDecoderSplitTest extends AbstractFuzzTest {
              DecoderWrapper jointDecoder = new DecoderWrapper(createDecoder())) {
             Assertions.assertEquals(jointDecoder.decoder.hasUnparsedHeaderValue(), splitDecoder.decoder.hasUnparsedHeaderValue());
 
-            try (Buffer jointBuffer = DefaultBufferAllocators.preferredAllocator().allocate(bytes.length)) {
-                ByteSplitter.ChunkIterator itr = FUZZ_SPLITTER.splitIterator(bytes);
-                while (itr.hasNext()) {
-                    itr.proceed();
-                    jointBuffer.writeBytes(bytes, itr.start(), itr.length());
-                }
-                jointDecoder.decoder.add(jointBuffer.send());
-            }
-
+            ByteBuf jointBuffer = ByteBufAllocator.DEFAULT.buffer();
             ByteSplitter.ChunkIterator itr = FUZZ_SPLITTER.splitIterator(bytes);
             while (itr.hasNext()) {
-                splitDecoder.decoder.add(next(bytes, itr).send());
+                itr.proceed();
+                jointBuffer.writeBytes(bytes, itr.start(), itr.length());
+            }
+            jointDecoder.decoder.add(jointBuffer);
+
+            itr = FUZZ_SPLITTER.splitIterator(bytes);
+            while (itr.hasNext()) {
+                splitDecoder.decoder.add(next(bytes, itr));
 
                 while (true) {
                     PostBodyDecoder.Event splitEvent;
@@ -88,7 +87,7 @@ abstract class AbstractDecoderSplitTest extends AbstractFuzzTest {
     private static class DecoderWrapper implements Closeable {
         private final PostBodyDecoder decoder;
 
-        CompositeBuffer composite;
+        CompositeByteBuf composite;
 
         DecoderWrapper(PostBodyDecoder decoder) {
             this.decoder = decoder;
@@ -100,13 +99,13 @@ abstract class AbstractDecoderSplitTest extends AbstractFuzzTest {
                 if (event != PostBodyDecoder.Event.CONTENT && event != PostBodyDecoder.Event.FIELD_COMPLETE) {
                     return event;
                 }
-                composite = DefaultBufferAllocators.preferredAllocator().compose();
+                composite = ByteBufAllocator.DEFAULT.compositeBuffer();
             }
             while (event != PostBodyDecoder.Event.FIELD_COMPLETE) {
                 if (event == null) {
                     return null;
                 }
-                composite.extendWith(decoder.decodedContent());
+                composite.addComponent(true, decoder.decodedContent());
                 event = decoder.next();
             }
             return PostBodyDecoder.Event.FIELD_COMPLETE;
@@ -120,7 +119,7 @@ abstract class AbstractDecoderSplitTest extends AbstractFuzzTest {
 
         void clearBuffer() {
             if (composite != null) {
-                composite.close();
+                composite.release();
                 composite = null;
             }
         }

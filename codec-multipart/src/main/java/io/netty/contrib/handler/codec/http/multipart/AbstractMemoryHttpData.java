@@ -38,7 +38,7 @@ import static io.netty.buffer.Unpooled.wrappedBuffer;
  */
 public abstract class AbstractMemoryHttpData extends AbstractHttpData {
 
-    private ByteBuf byteBuf;
+    ByteBuf byteBuf;
     private int chunkPosition;
 
     protected AbstractMemoryHttpData(String name, Charset charset, long size) {

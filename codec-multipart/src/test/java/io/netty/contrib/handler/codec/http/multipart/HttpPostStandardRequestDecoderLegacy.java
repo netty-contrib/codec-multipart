@@ -21,7 +21,6 @@ import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestDecoder.EndO
 import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestDecoder.ErrorDataDecoderException;
 import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestDecoder.MultiPartStatus;
 import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestDecoder.NotEnoughDataDecoderException;
-import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestDecoder.TooLongFormFieldException;
 import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestDecoder.TooManyFormFieldsException;
 import io.netty.handler.codec.http.HttpConstants;
 import io.netty.handler.codec.http.HttpContent;
@@ -85,7 +84,7 @@ public class HttpPostStandardRequestDecoderLegacy implements InterfaceHttpPostRe
     /**
      * HttpDatas from Body
      */
-    private final List<InterfaceHttpData> bodyListHttpData = new ArrayList<InterfaceHttpData>();
+    final List<InterfaceHttpData> bodyListHttpData = new ArrayList<InterfaceHttpData>();
 
     /**
      * HttpDatas as Map from Body
@@ -338,7 +337,7 @@ public class HttpPostStandardRequestDecoderLegacy implements InterfaceHttpPostRe
         }
         parseBody();
         if (maxBufferedBytes > 0 && undecodedChunk != null && undecodedChunk.readableBytes() > maxBufferedBytes) {
-            throw new TooLongFormFieldException();
+            throw new HttpPostRequestDecoder.ErrorDataDecoderException("Undecoded data limit exceeded");
         }
         if (undecodedChunk != null && undecodedChunk.writerIndex() > discardThreshold) {
             if (undecodedChunk.refCnt() == 1) {

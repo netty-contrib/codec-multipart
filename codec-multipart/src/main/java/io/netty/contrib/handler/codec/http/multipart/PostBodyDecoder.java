@@ -17,6 +17,7 @@ package io.netty.contrib.handler.codec.http.multipart;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestDecoder.ErrorDataDecoderException;
+import io.netty.handler.codec.http.HttpConstants;
 
 import java.io.Closeable;
 import java.nio.charset.Charset;

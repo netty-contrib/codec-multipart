@@ -182,6 +182,16 @@ public class AbstractMemoryHttpDataTest {
         }
 
         @Override
+        public HttpData duplicate() {
+            throw reject();
+        }
+
+        @Override
+        public HttpData retainedDuplicate() {
+            throw reject();
+        }
+
+        @Override
         public int compareTo(InterfaceHttpData o) {
             throw reject();
         }

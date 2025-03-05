@@ -287,7 +287,7 @@ public abstract class AbstractDiskHttpData extends AbstractHttpData {
 
             // If you turn on deleteOnExit make sure it is executed.
             if (deleteOnExit() && filePath != null) {
-                io.netty.handler.codec.http.multipart.DeleteFileOnExitHook.remove(filePath);
+                DeleteFileOnExitHook.remove(filePath);
             }
             file = null;
         }
@@ -473,7 +473,7 @@ public abstract class AbstractDiskHttpData extends AbstractHttpData {
     }
 
     @Override
-    public io.netty.handler.codec.http.multipart.HttpData touch() {
+    public HttpData touch() {
         return this;
     }
 
