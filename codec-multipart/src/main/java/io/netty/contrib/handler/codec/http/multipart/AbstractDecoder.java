@@ -9,6 +9,7 @@ abstract class AbstractDecoder implements PostBodyDecoder {
     final int undecodedLimit;
     final Charset charset;
     int compactionThreshold;
+    private int remainingFieldLimit;
 
     ByteBuf buffer;
     boolean eof;
@@ -17,6 +18,13 @@ abstract class AbstractDecoder implements PostBodyDecoder {
         this.undecodedLimit = builder.undecodedLimit;
         this.charset = builder.charset;
         this.compactionThreshold = builder.compactionThreshold;
+        this.remainingFieldLimit = builder.maxFields < 0 ? Integer.MAX_VALUE : builder.maxFields;
+    }
+
+    final void checkNewField() {
+        if (--remainingFieldLimit < 0) {
+            throw new HttpPostRequestDecoder.TooManyFormFieldsException();
+        }
     }
 
     @Override

@@ -60,6 +60,7 @@ final class UrlEncodedDecoder extends AbstractDecoder {
                             buffer.readerIndex(buffer.readerIndex() - 1);
                         }
                         state = State.EMIT_HEADER_1;
+                        checkNewField();
                         return Event.BEGIN_FIELD;
                     } else {
                         return null;

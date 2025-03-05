@@ -36,7 +36,6 @@ final class MultipartDecoder extends AbstractDecoder {
     private final String multipartDataBoundary;
 
     private State state = State.HEADERDELIMITER;
-    private ByteBuf buffer;
 
     private ByteBuf undecodedPartData;
     private Charset partCharset;
@@ -99,6 +98,7 @@ final class MultipartDecoder extends AbstractDecoder {
                         return null;
                     } else if (delimiter == DelimiterType.DISPOSITION) {
                         state = State.DISPOSITION;
+                        checkNewField();
                         return Event.BEGIN_FIELD;
                     } else {
                         state = State.PREEPILOGUE;

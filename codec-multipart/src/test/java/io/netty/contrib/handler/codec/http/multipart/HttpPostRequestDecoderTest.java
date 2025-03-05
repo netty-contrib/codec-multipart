@@ -323,7 +323,7 @@ public class HttpPostRequestDecoderTest {
                 new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/");
 
         HttpPostRequestDecoder decoder = new HttpPostRequestDecoder(defaultHttpRequest,
-                140, HttpPostRequestDecoder.DEFAULT_MAX_BUFFERED_BYTES);
+                140, 4096);
 
         int firstChunk = 10;
         int middleChunk = 1024;
@@ -903,7 +903,7 @@ public class HttpPostRequestDecoderTest {
             new HttpPostRequestDecoder(req);
             fail("Was expecting an ErrorDataDecoderException");
         } catch (HttpPostRequestDecoder.ErrorDataDecoderException e) {
-            assertEquals("Invalid hex byte at index '0' in string: '%'", e.getMessage());
+            assertEquals("Invalid hex byte", e.getMessage());
         } finally {
             assertTrue(req.release());
         }
@@ -920,7 +920,7 @@ public class HttpPostRequestDecoderTest {
             new HttpPostRequestDecoder(req);
             fail("Was expecting an ErrorDataDecoderException");
         } catch (HttpPostRequestDecoder.ErrorDataDecoderException e) {
-            assertEquals("Invalid hex byte at index '0' in string: '%2'", e.getMessage());
+            assertEquals("Invalid hex byte", e.getMessage());
         } finally {
             assertTrue(req.release());
         }
@@ -937,7 +937,7 @@ public class HttpPostRequestDecoderTest {
             new HttpPostRequestDecoder(req);
             fail("Was expecting an ErrorDataDecoderException");
         } catch (HttpPostRequestDecoder.ErrorDataDecoderException e) {
-            assertEquals("Invalid hex byte at index '0' in string: '%Zc'", e.getMessage());
+            assertEquals("Invalid hex byte", e.getMessage());
         } finally {
             assertTrue(req.release());
         }
@@ -954,7 +954,7 @@ public class HttpPostRequestDecoderTest {
             new HttpPostRequestDecoder(req);
             fail("Was expecting an ErrorDataDecoderException");
         } catch (HttpPostRequestDecoder.ErrorDataDecoderException e) {
-            assertEquals("Invalid hex byte at index '0' in string: '%2g'", e.getMessage());
+            assertEquals("Invalid hex byte", e.getMessage());
         } finally {
             assertTrue(req.release());
         }
