@@ -19,7 +19,6 @@ import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestDecoder.Erro
 import io.netty5.buffer.Buffer;
 import io.netty5.handler.codec.http.HttpConstants;
 import io.netty5.util.Send;
-import io.netty5.util.internal.ObjectUtil;
 
 import java.io.Closeable;
 import java.nio.charset.Charset;
@@ -209,7 +208,11 @@ public interface PostBodyDecoder extends Closeable {
          * @return This builder
          */
         public Builder undecodedLimit(int undecodedLimit) {
-            this.undecodedLimit = ObjectUtil.checkPositiveOrZero(undecodedLimit, "undecodedLimit");
+            if (undecodedLimit < 0) {
+                // compatibility
+                undecodedLimit = Integer.MAX_VALUE;
+            }
+            this.undecodedLimit = undecodedLimit;
             return this;
         }
 

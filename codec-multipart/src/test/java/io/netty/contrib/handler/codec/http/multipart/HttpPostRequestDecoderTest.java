@@ -332,7 +332,8 @@ public class HttpPostRequestDecoderTest {
         DefaultHttpRequest defaultHttpRequest =
                 new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/");
 
-        HttpPostRequestDecoder decoder = new HttpPostRequestDecoder(defaultHttpRequest);
+        HttpPostRequestDecoder decoder = new HttpPostRequestDecoder(defaultHttpRequest,
+                140, 4096);
 
         int firstChunk = 10;
         int middleChunk = 1024;
@@ -931,7 +932,7 @@ public class HttpPostRequestDecoderTest {
             new HttpPostRequestDecoder(req);
             fail("Was expecting an ErrorDataDecoderException");
         } catch (HttpPostRequestDecoder.ErrorDataDecoderException e) {
-            assertEquals("Invalid hex byte at index '0' in string: '%'", e.getMessage());
+            assertEquals("Invalid hex byte", e.getMessage());
         } finally {
             req.close();
         }
@@ -948,7 +949,7 @@ public class HttpPostRequestDecoderTest {
             new HttpPostRequestDecoder(req);
             fail("Was expecting an ErrorDataDecoderException");
         } catch (HttpPostRequestDecoder.ErrorDataDecoderException e) {
-            assertEquals("Invalid hex byte at index '0' in string: '%2'", e.getMessage());
+            assertEquals("Invalid hex byte", e.getMessage());
         } finally {
             req.close();
         }
@@ -964,7 +965,7 @@ public class HttpPostRequestDecoderTest {
             new HttpPostRequestDecoder(req);
             fail("Was expecting an ErrorDataDecoderException");
         } catch (HttpPostRequestDecoder.ErrorDataDecoderException e) {
-            assertEquals("Invalid hex byte at index '0' in string: '%Zc'", e.getMessage());
+            assertEquals("Invalid hex byte", e.getMessage());
         }
     }
 
@@ -978,7 +979,7 @@ public class HttpPostRequestDecoderTest {
             new HttpPostRequestDecoder(req);
             fail("Was expecting an ErrorDataDecoderException");
         } catch (HttpPostRequestDecoder.ErrorDataDecoderException e) {
-            assertEquals("Invalid hex byte at index '0' in string: '%2g'", e.getMessage());
+            assertEquals("Invalid hex byte", e.getMessage());
         }
     }
 
@@ -1066,7 +1067,7 @@ public class HttpPostRequestDecoderTest {
     }
 
     private static void offer(HttpPostRequestDecoder decoder, String s) {
-        byte[] bytes = "--be38b42a9ad2713f\n".getBytes();
+        byte[] bytes = s.getBytes();
         try (Buffer content = DefaultBufferAllocators.preferredAllocator().allocate(bytes.length)) {
             content.writeBytes(bytes);
             decoder.offer(new DefaultHttpContent(content));
@@ -1115,7 +1116,7 @@ public class HttpPostRequestDecoderTest {
             }
             assertTrue(num++ < 1024);
         }
-        assertEquals(1024, num);
+        assertEquals(1023, num);
     }
 
     @Test
@@ -1127,6 +1128,7 @@ public class HttpPostRequestDecoderTest {
         try (Buffer content = DefaultBufferAllocators.preferredAllocator().allocate(16 * 1024 + 1)) {
             content.writeBytes(new byte[16 * 1024 + 1]);
             decoder.offer(new DefaultHttpContent(content));
+            decoder.offer(new DefaultHttpContent(DefaultBufferAllocators.preferredAllocator().allocate(0)));
             fail();
         } catch (DecoderException e) {
             assertEquals(HttpPostRequestDecoder.ErrorDataDecoderException.class, e.getClass());
@@ -1152,6 +1154,7 @@ public class HttpPostRequestDecoderTest {
         try (Buffer content = DefaultBufferAllocators.preferredAllocator().allocate(16 * 1024 + 1)) {
             content.writeBytes(new byte[16 * 1024 + 1]);
             decoder.offer(new DefaultHttpContent(content));
+            decoder.offer(new DefaultHttpContent(DefaultBufferAllocators.preferredAllocator().allocate(0)));
             fail();
         } catch (DecoderException e) {
             assertEquals(HttpPostRequestDecoder.ErrorDataDecoderException.class, e.getClass());

@@ -37,7 +37,6 @@ final class MultipartDecoder extends AbstractDecoder {
     private final String multipartDataBoundary;
 
     private State state = State.HEADERDELIMITER;
-    private Buffer buffer;
 
     private Buffer undecodedPartData;
     private Charset partCharset;
