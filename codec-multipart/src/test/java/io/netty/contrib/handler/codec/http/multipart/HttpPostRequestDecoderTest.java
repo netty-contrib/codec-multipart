@@ -1080,7 +1080,7 @@ public class HttpPostRequestDecoderTest {
             }
             assertTrue(num++ < 1024);
         }
-        assertEquals(1024, num);
+        assertEquals(1023, num);
         decoder.destroy();
     }
 
@@ -1092,6 +1092,7 @@ public class HttpPostRequestDecoderTest {
 
         try {
             decoder.offer(new DefaultHttpContent(Unpooled.wrappedBuffer(new byte[16 * 1024 + 1])));
+            decoder.offer(new DefaultHttpContent(Unpooled.wrappedBuffer(new byte[1])));
             fail();
         } catch (DecoderException e) {
             assertEquals(HttpPostRequestDecoder.ErrorDataDecoderException.class, e.getClass());
@@ -1118,6 +1119,7 @@ public class HttpPostRequestDecoderTest {
 
         try {
             decoder.offer(new DefaultHttpContent(Unpooled.wrappedBuffer(new byte[16 * 1024 + 1])));
+            decoder.offer(new DefaultHttpContent(Unpooled.wrappedBuffer(new byte[1])));
             fail();
         } catch (DecoderException e) {
             assertEquals(HttpPostRequestDecoder.ErrorDataDecoderException.class, e.getClass());

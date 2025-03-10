@@ -32,11 +32,11 @@ final class UrlEncodedDecoder extends AbstractDecoder {
                     int keyEnd = buffer.forEachByte(FIND_KEY_END);
                     boolean noValueAtEof = keyEnd == -1 && eof && buffer.readableBytes() > 0;
                     if (noValueAtEof) {
-                        keyEnd = buffer.readableBytes();
+                        keyEnd = buffer.writerIndex();
                     }
                     if (keyEnd >= 0) {
                         boolean hasValue;
-                        ByteBuf keyByteBuf = buffer.readRetainedSlice(keyEnd);
+                        ByteBuf keyByteBuf = buffer.readRetainedSlice(keyEnd - buffer.readerIndex());
                         try {
                             hasValue = !noValueAtEof && buffer.readByte() == '=';
                             if (!hasValue && keyByteBuf.readableBytes() == 0) {
@@ -49,7 +49,7 @@ final class UrlEncodedDecoder extends AbstractDecoder {
                                 key = HttpPostStandardRequestDecoder.decodeAttribute(keyByteBuf.toString(charset), charset);
                             } else {
                                 // whatwg spec first does percent decoding, then utf-8 decoding
-                                decodeComponent(keyByteBuf);
+                                decodeComponent(keyByteBuf, true);
                                 key = keyByteBuf.toString(charset);
                             }
                         } finally {
@@ -86,7 +86,7 @@ final class UrlEncodedDecoder extends AbstractDecoder {
                         return null;
                     }
                     int valueEnd = buffer == null ? 0 : buffer.forEachByte(FIND_VALUE_END);
-                    boolean endAttribute = valueEnd == 0;
+                    boolean endAttribute = buffer == null || valueEnd == buffer.readerIndex();
                     if (endAttribute && quirkMode && buffer != null && buffer.readableBytes() == 1 && buffer.getByte(buffer.readerIndex()) == '\r' && !eof) {
                         endAttribute = false;
                     }
@@ -110,24 +110,11 @@ final class UrlEncodedDecoder extends AbstractDecoder {
                         }
                         return Event.FIELD_COMPLETE;
                     } else {
-                        if (quirkMode && !eof && valueEnd >= 0 && buffer.getByte(buffer.readerIndex() + valueEnd) == '\r') {
-                            // in quirk mode, delay processing (potentially invalid) trailing escape until we can check
-                            // for sure whether a terminating CRLF is valid.
-                            int trailing = findTrailingEscape(buffer, buffer.readerIndex() + valueEnd);
-                            if (trailing != -1) {
-                                if (!earlyEolCheck(buffer.readerIndex() + valueEnd)) {
-                                    valueEnd = trailing - buffer.readerIndex();
-                                    if (valueEnd == 0) {
-                                        return null;
-                                    }
-                                }
-                            }
-                        }
-                        if (!eof && valueEnd < 0) {
+                        if (!quirkMode && !eof && valueEnd < 0) {
                             int trailing = findTrailingEscape(buffer, buffer.writerIndex());
                             if (trailing != -1) {
-                                valueEnd = trailing - buffer.readerIndex();
-                                if (valueEnd == 0) {
+                                valueEnd = trailing;
+                                if (valueEnd == buffer.readerIndex()) {
                                     return null;
                                 }
                             }
@@ -136,10 +123,10 @@ final class UrlEncodedDecoder extends AbstractDecoder {
                         if (valueEnd < 0) {
                             undecodedContent = buffer;
                             buffer = null;
-                        } else if (valueEnd == 0) {
+                        } else if (valueEnd == buffer.readerIndex()) {
                             return null;
                         } else {
-                            undecodedContent = buffer.readRetainedSlice(valueEnd);
+                            undecodedContent = buffer.readRetainedSlice(valueEnd - buffer.readerIndex());
                         }
                         if (quirkMode && buffer != null) {
                             earlyEolCheck(buffer.readerIndex());
@@ -242,7 +229,7 @@ final class UrlEncodedDecoder extends AbstractDecoder {
         ByteBuf b = undecodedContent;
         try {
             undecodedContent = null;
-            decodeComponent(b);
+            decodeComponent(b, false);
             return b;
         } catch (Exception e) {
             b.release();
@@ -250,7 +237,13 @@ final class UrlEncodedDecoder extends AbstractDecoder {
         }
     }
 
-    private void decodeComponent(ByteBuf buffer) {
+    ByteBuf undecodedContent() {
+        ByteBuf b = undecodedContent;
+        this.undecodedContent = null;
+        return b;
+    }
+
+    void decodeComponent(ByteBuf buffer, boolean key) {
         int wi = buffer.readerIndex();
         for (int ri = wi; ri < buffer.writerIndex(); wi++, ri++) {
             byte b = buffer.getByte(ri);
@@ -264,11 +257,11 @@ final class UrlEncodedDecoder extends AbstractDecoder {
                         continue;
                     } else if (quirkMode) {
                         // whatwg URL spec allows this
-                        failPercentDecode();
+                        failPercentDecode(key);
                     }
                 } else if (quirkMode) {
                     // whatwg URL spec allows this
-                    failPercentDecode();
+                    failPercentDecode(key);
                 }
             }
             if (b == '+') {
@@ -282,9 +275,9 @@ final class UrlEncodedDecoder extends AbstractDecoder {
         buffer.writerIndex(wi);
     }
 
-    private void failPercentDecode() {
+    private void failPercentDecode(boolean key) {
         assert quirkMode;
-        if (state == State.KEY) {
+        if (key) {
             throw new HttpPostRequestDecoder.ErrorDataDecoderException("Bad string");
         } else {
             throw new HttpPostRequestDecoder.ErrorDataDecoderException("Invalid hex byte");

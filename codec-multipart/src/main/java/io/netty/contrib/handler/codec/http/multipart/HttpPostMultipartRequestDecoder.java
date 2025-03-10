@@ -109,7 +109,10 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
 
     private boolean destroyed;
 
-    private final static ByteProcessor CTRLSPACE_PROCESSOR = value -> Character.isISOControl(value) || Character.isWhitespace(value);
+    private final static ByteProcessor CTRLSPACE_PROCESSOR = value -> {
+        char c = (char) (value & 0xff);
+        return Character.isISOControl(c) || Character.isWhitespace(c);
+    };
 
     /**
      *
@@ -344,7 +347,7 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
         }
 
         ByteBuf buf = content.content();
-        decoder.add(buf);
+        decoder.add(buf.retain());
         parseBody();
         return this;
     }
@@ -536,9 +539,9 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
 
     private static void skipControlCharactersStandard(ByteBuf undecodedChunk, boolean quirk) {
         int processed = undecodedChunk.forEachByte(CTRLSPACE_PROCESSOR);
-        if (processed > 0) {
-            undecodedChunk.readerIndex(undecodedChunk.readerIndex() + processed);
-        } else if (!quirk && processed == -1) {
+        if (processed > undecodedChunk.readerIndex()) {
+            undecodedChunk.readerIndex(processed);
+        } else if (processed == -1) {
             undecodedChunk.readerIndex(undecodedChunk.writerIndex());
         }
     }
@@ -810,11 +813,6 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
      */
     private void clearCurrentFieldAttributes() {
         if (currentFieldAttributes != null) {
-            currentFieldAttributes.forEach((charSequence, attribute) -> {
-                if (attribute.refCnt() > 0) {
-                    attribute.release();
-                }
-            });
             currentFieldAttributes = null;
         }
     }

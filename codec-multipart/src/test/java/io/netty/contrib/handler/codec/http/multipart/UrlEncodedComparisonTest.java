@@ -5,6 +5,8 @@ import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpVersion;
 
+import java.nio.charset.StandardCharsets;
+
 public class UrlEncodedComparisonTest extends AbstractComparisonTest {
     static final HttpRequest REQUEST = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "/");
     static final HttpDataFactory FACTORY = new DefaultHttpDataFactory(false);
@@ -16,11 +18,11 @@ public class UrlEncodedComparisonTest extends AbstractComparisonTest {
 
     @Override
     protected InterfaceHttpPostRequestDecoder createNormal() {
-        return new HttpPostStandardRequestDecoder(FACTORY, REQUEST);
+        return new HttpPostStandardRequestDecoder(FACTORY, REQUEST, StandardCharsets.UTF_8, 128, -1);
     }
 
     @Override
     protected InterfaceHttpPostRequestDecoder createLegacy() {
-        return new HttpPostStandardRequestDecoderLegacy(FACTORY, REQUEST);
+        return new HttpPostStandardRequestDecoderLegacy(FACTORY, REQUEST, StandardCharsets.UTF_8, 128, -1);
     }
 }

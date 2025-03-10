@@ -247,6 +247,9 @@ public interface PostBodyDecoder extends Closeable {
          * @return This builder
          */
         public Builder maxFields(int maxFields) {
+            if (maxFields < 0) {
+                maxFields = Integer.MAX_VALUE;
+            }
             this.maxFields = maxFields;
             return this;
         }

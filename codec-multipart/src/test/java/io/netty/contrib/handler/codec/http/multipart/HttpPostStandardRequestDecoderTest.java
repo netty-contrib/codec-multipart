@@ -25,6 +25,7 @@ import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.util.CharsetUtil;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import static io.netty.handler.codec.http.DefaultHttpHeadersFactory.headersFactory;
@@ -104,6 +105,7 @@ class HttpPostStandardRequestDecoderTest {
     }
 
     @Test
+    @Disabled // https://github.com/netty/netty/pull/13998
     void testDecodeJsonAttributeAsEmpty() {
         String requestBody = "{\"iAm\": \" a JSON!\"}";
 
@@ -120,6 +122,7 @@ class HttpPostStandardRequestDecoderTest {
     }
 
     @Test
+    @Disabled // https://github.com/netty/netty/pull/13998
     void testDecodeJsonAttributeAsEmptyAndNoHeaders() {
         String requestBody = "{\"iAm\": \" a JSON!\"}";
 

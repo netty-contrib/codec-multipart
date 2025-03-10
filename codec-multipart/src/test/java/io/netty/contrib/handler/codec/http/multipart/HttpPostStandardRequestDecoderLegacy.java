@@ -24,8 +24,6 @@ import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestDecoder.NotE
 import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestDecoder.TooManyFormFieldsException;
 import io.netty.handler.codec.http.HttpConstants;
 import io.netty.handler.codec.http.HttpContent;
-import io.netty.handler.codec.http.HttpHeaderNames;
-import io.netty.handler.codec.http.HttpHeaderValues;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.handler.codec.http.QueryStringDecoder;
@@ -609,7 +607,7 @@ public class HttpPostStandardRequestDecoderLegacy implements InterfaceHttpPostRe
         int idx = b.forEachByte(urlDecode);
         if (urlDecode.nextEscapedIdx != 0) { // incomplete hex byte
             if (idx == -1) {
-                idx = b.readableBytes() - 1;
+                idx = b.writerIndex() - 1;
             }
             idx -= urlDecode.nextEscapedIdx - 1;
             buf.release();
@@ -668,12 +666,7 @@ public class HttpPostStandardRequestDecoderLegacy implements InterfaceHttpPostRe
      * Check if request has headers indicating that it contains form body
      */
     private boolean hasFormBody() {
-        String contentHeaderValue = request.headers().get(HttpHeaderNames.CONTENT_TYPE);
-        if (contentHeaderValue == null) {
-            return false;
-        }
-        return HttpHeaderValues.APPLICATION_X_WWW_FORM_URLENCODED.contentEquals(contentHeaderValue)
-                || HttpHeaderValues.MULTIPART_FORM_DATA.contentEquals(contentHeaderValue);
+        return true; // see https://github.com/netty/netty/pull/13998
     }
 
     private static final class UrlEncodedDetector implements ByteProcessor {

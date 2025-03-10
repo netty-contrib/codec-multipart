@@ -49,6 +49,7 @@ final class MultipartDecoder extends AbstractDecoder {
      * parsing.
      */
     private int quirkHeaderStart = -1;
+    private boolean quirkMixed = false;
     private String[] quirkHeader;
     /**
      * Old implementation would fail late on invalid charset.
@@ -68,6 +69,7 @@ final class MultipartDecoder extends AbstractDecoder {
         super.add(buffer);
         if (quirkMode) {
             quirkHeaderStart = -1;
+            quirkMixed = false;
         }
     }
 
@@ -118,8 +120,14 @@ final class MultipartDecoder extends AbstractDecoder {
                             HttpPostMultipartRequestDecoder.skipControlCharacters(buffer, quirkMode);
                             newline = HttpPostMultipartRequestDecoder.readLineOptimized(buffer, charset);
                         } catch (HttpPostRequestDecoder.NotEnoughDataDecoderException ignored) {
-                            // todo: do we need to reset the control chars?
-                            buffer.readerIndex(quirkMode ? quirkHeaderStart : readerIndex);
+                            if (quirkMode) {
+                                buffer.readerIndex(quirkHeaderStart);
+                                if (quirkMixed) {
+                                    mixedBoundary = null;
+                                }
+                            } else {
+                                buffer.readerIndex(readerIndex);
+                            }
                             return null;
                         }
                         if (quirkMode) {
@@ -132,6 +140,7 @@ final class MultipartDecoder extends AbstractDecoder {
                         // no more headers
                         if (quirkMode) {
                             quirkHeaderStart = -1;
+                            quirkMixed = false;
                         }
                         state = State.CONTENT;
                         return Event.HEADERS_COMPLETE;
@@ -307,6 +316,7 @@ final class MultipartDecoder extends AbstractDecoder {
                 }
                 String values = StringUtil.substringAfter(quirkHeader[2], '=');
                 mixedBoundary = "--" + values;
+                quirkMixed = true;
             } else {
                 for (int i = 1; i < quirkHeader.length; i++) {
                     final String charsetHeader = HttpHeaderValues.CHARSET.toString();
@@ -323,7 +333,9 @@ final class MultipartDecoder extends AbstractDecoder {
     }
 
     ByteBuf sendUndecodedPartContent() {
-        return undecodedPartData;
+        ByteBuf d = undecodedPartData;
+        this.undecodedPartData = null;
+        return d;
     }
 
     @Override

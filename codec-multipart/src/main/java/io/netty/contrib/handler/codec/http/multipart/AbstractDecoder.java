@@ -39,7 +39,8 @@ abstract class AbstractDecoder implements PostBodyDecoder {
         if (this.buffer == null) {
             this.buffer = buffer;
         } else {
-            if (compactionThreshold >= 0 && this.buffer.writerIndex() >= compactionThreshold) {
+            if ((compactionThreshold >= 0 && this.buffer.writerIndex() >= compactionThreshold) ||
+                    this.buffer.writerIndex() + buffer.readableBytes() > buffer.maxCapacity()) {
                 this.buffer.discardSomeReadBytes();
             }
             if (this.buffer.readableBytes() > undecodedLimit) {
@@ -51,6 +52,12 @@ abstract class AbstractDecoder implements PostBodyDecoder {
                 ((CompositeByteBuf) this.buffer).addComponent(true, buffer);
             } else {
                 try {
+                    if (this.buffer.writerIndex() + buffer.readableBytes() > buffer.maxCapacity()) {
+                        ByteBuf newBuffer = this.buffer.alloc().buffer();
+                        newBuffer.writeBytes(this.buffer);
+                        this.buffer.release();
+                        this.buffer = newBuffer;
+                    }
                     this.buffer.writeBytes(buffer);
                 } finally {
                     buffer.release();

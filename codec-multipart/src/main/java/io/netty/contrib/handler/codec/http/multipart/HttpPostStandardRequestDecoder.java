@@ -20,7 +20,6 @@ import io.netty.buffer.Unpooled;
 import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestDecoder.EndOfDataDecoderException;
 import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestDecoder.ErrorDataDecoderException;
 import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestDecoder.NotEnoughDataDecoderException;
-import io.netty.handler.codec.http.HttpConstants;
 import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.LastHttpContent;
@@ -56,6 +55,11 @@ public class HttpPostStandardRequestDecoder implements InterfaceHttpPostRequestD
     private final HttpRequest request;
 
     private final UrlEncodedDecoder decoder;
+
+    /**
+     * The maximum number of fields allows by the form
+     */
+    private final int maxFields;
 
     /**
      * HttpDatas from Body
@@ -148,12 +152,17 @@ public class HttpPostStandardRequestDecoder implements InterfaceHttpPostRequestD
      */
     public HttpPostStandardRequestDecoder(HttpDataFactory factory, HttpRequest request, Charset charset,
                                           int maxFields, int maxBufferedBytes) {
-        this(factory, request, PostBodyDecoder.builder().charset(charset).maxFields(maxFields).undecodedLimit(maxBufferedBytes));
+        this(factory, request, PostBodyDecoder.builder().charset(charset).maxFields(maxFields).undecodedLimit(maxBufferedBytes == 0 ? Integer.MAX_VALUE : maxBufferedBytes));
     }
 
     private HttpPostStandardRequestDecoder(HttpDataFactory factory, HttpRequest request, PostBodyDecoder.Builder builder) {
         this.request = checkNotNullWithIAE(request, "request");
         this.factory = checkNotNullWithIAE(factory, "factory");
+        // we do our own maxFields checks to pass the legacy comparison fuzzer
+        this.maxFields = builder.maxFields;
+        if (builder.maxFields < Integer.MAX_VALUE) {
+            builder.maxFields++;
+        }
 
         this.decoder = (UrlEncodedDecoder) builder.forUrlEncodedData();
         decoder.quirkMode = true;
@@ -288,7 +297,7 @@ public class HttpPostStandardRequestDecoder implements InterfaceHttpPostRequestD
         checkDestroyed();
 
         ByteBuf buf = content.content();
-        decoder.add(buf);
+        decoder.add(buf.retain());
         if (content instanceof LastHttpContent) {
             decoder.endInput();
         }
@@ -364,6 +373,9 @@ public class HttpPostStandardRequestDecoder implements InterfaceHttpPostRequestD
         if (data == null) {
             return;
         }
+        if (maxFields > 0 && bodyListHttpData.size() >= maxFields) {
+            throw new HttpPostRequestDecoder.TooManyFormFieldsException();
+        }
         List<InterfaceHttpData> datas = bodyMapHttpData.get(data.getName());
         if (datas == null) {
             datas = new ArrayList<InterfaceHttpData>(1);
@@ -391,9 +403,19 @@ public class HttpPostStandardRequestDecoder implements InterfaceHttpPostRequestD
                 if (event == PostBodyDecoder.Event.HEADER) {
                     currentAttribute = factory.createAttribute(request, ((ContentDisposition) decoder.parsedHeaderValue()).name());
                 } else if (event == PostBodyDecoder.Event.CONTENT) {
-                    currentAttribute.addContent(decoder.decodedContent(), false);
+                    currentAttribute.addContent(decoder.undecodedContent(), false);
                 } else if (event == PostBodyDecoder.Event.FIELD_COMPLETE) {
                     currentAttribute.addContent(Unpooled.EMPTY_BUFFER, true);
+                    // in netty 4, decoding happens late
+                    ByteBuf bb = currentAttribute.getByteBuf().retain();
+                    try {
+                        decoder.decodeComponent(bb, false);
+                    } catch (Exception e) {
+                        bb.release();
+                        throw e;
+                    }
+                    currentAttribute.setContent(bb);
+
                     addHttpData(currentAttribute);
                     currentAttribute = null;
                 }
