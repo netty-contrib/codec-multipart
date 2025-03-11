@@ -108,6 +108,8 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
      */
     private Attribute currentAttribute;
 
+    private boolean mixed;
+
     private boolean destroyed;
 
     private final static ByteProcessor CTRLSPACE_PROCESSOR = value -> Character.isISOControl(value) || Character.isWhitespace(value);
@@ -419,12 +421,18 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
             }
             switch (event) {
                 case BEGIN_FIELD:
-                    clearCurrentFieldAttributes();
-                    cleanMixedAttributes();
-                    currentFieldAttributes = new TreeMap<CharSequence, Attribute>(CaseIgnoringComparator.INSTANCE);
+                    if (!mixed) {
+                        clearCurrentFieldAttributes();
+                        currentFieldAttributes = new TreeMap<CharSequence, Attribute>(CaseIgnoringComparator.INSTANCE);
+                    } else {
+                        cleanMixedAttributes();
+                    }
                     break;
                 case HEADER:
                     handleHeader(decoder.getQuirkHeader());
+                    break;
+                case BEGIN_MIXED:
+                    mixed = true;
                     break;
                 case HEADERS_COMPLETE:
                     // Is it a FileUpload
@@ -448,14 +456,20 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
                     }
                     break;
                 case FIELD_COMPLETE:
-                    try {
-                        ((HttpData) currentPartialHttpData()).addContent(DefaultBufferAllocators.onHeapAllocator().allocate(0), true);
-                    } catch (IOException e) {
-                        throw new ErrorDataDecoderException(e);
+                    HttpData partial = (HttpData) currentPartialHttpData();
+                    if (partial != null) {
+                        try {
+                            partial.addContent(DefaultBufferAllocators.onHeapAllocator().allocate(0), true);
+                        } catch (IOException e) {
+                            throw new ErrorDataDecoderException(e);
+                        }
+                        addHttpData(currentPartialHttpData());
+                        currentFileUpload = null;
+                        currentAttribute = null;
+                    } else {
+                        assert mixed;
+                        mixed = false;
                     }
-                    addHttpData(currentPartialHttpData());
-                    currentFileUpload = null;
-                    currentAttribute = null;
                     break;
             }
         }

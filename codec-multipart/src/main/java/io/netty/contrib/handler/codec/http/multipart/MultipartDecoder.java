@@ -16,9 +16,10 @@
 package io.netty.contrib.handler.codec.http.multipart;
 
 import io.netty5.buffer.Buffer;
-import io.netty5.handler.codec.http.HttpConstants;
+import io.netty5.buffer.ByteCursor;
 import io.netty5.handler.codec.http.HttpHeaderNames;
 import io.netty5.handler.codec.http.HttpHeaderValues;
+import io.netty5.util.ByteProcessor;
 import io.netty5.util.Send;
 import io.netty5.util.internal.StringUtil;
 
@@ -41,6 +42,7 @@ final class MultipartDecoder extends AbstractDecoder {
     private Buffer undecodedPartData;
     private Charset partCharset;
     private String mixedBoundary;
+    private boolean mixedHeader;
     private String headerKey;
     private String headerValue;
     private long receivedLength;
@@ -78,7 +80,6 @@ final class MultipartDecoder extends AbstractDecoder {
             undecodedPartData = null;
         }
         partCharset = null;
-        mixedBoundary = null;
         receivedLength = 0;
         if (quirkMode) {
             quirkDefinedLength = 0;
@@ -94,7 +95,7 @@ final class MultipartDecoder extends AbstractDecoder {
                     if (buffer == null) {
                         return null;
                     }
-                    DelimiterType delimiter = findMultipartDelimiter(multipartDataBoundary);
+                    DelimiterType delimiter = findMultipartDelimiter(mixedBoundary == null ? multipartDataBoundary : mixedBoundary);
                     if (delimiter == null) {
                         return null;
                     } else if (delimiter == DelimiterType.DISPOSITION) {
@@ -102,7 +103,12 @@ final class MultipartDecoder extends AbstractDecoder {
                         checkNewField();
                         return Event.BEGIN_FIELD;
                     } else {
-                        state = State.PREEPILOGUE;
+                        if (mixedBoundary == null) {
+                            state = State.PREEPILOGUE;
+                        } else {
+                            mixedBoundary = null;
+                            return Event.FIELD_COMPLETE;
+                        }
                         break;
                     }
                 case DISPOSITION:
@@ -119,12 +125,25 @@ final class MultipartDecoder extends AbstractDecoder {
                             HttpPostMultipartRequestDecoder.skipControlCharacters(buffer, quirkMode);
                             newline = HttpPostMultipartRequestDecoder.readLineOptimized(buffer, charset);
                         } catch (HttpPostRequestDecoder.NotEnoughDataDecoderException ignored) {
-                            // todo: do we need to reset the control chars?
-                            buffer.readerOffset(quirkMode ? quirkHeaderStart : readerIndex);
+                            if (quirkMode) {
+                                buffer.readerOffset(quirkHeaderStart);
+                                if (mixedHeader) {
+                                    mixedBoundary = null;
+                                    mixedHeader = false;
+                                }
+                            } else {
+                                buffer.readerOffset(readerIndex);
+                            }
                             return null;
                         }
                         if (quirkMode) {
                             parseHeaderQuirk(newline);
+                            if (mixedHeader) {
+                                // quirk mode does not parse more headers after the multipart/mixed header
+                                mixedHeader = false;
+                                state = State.HEADERDELIMITER;
+                                return Event.BEGIN_MIXED;
+                            }
                         } else {
                             parseHeader(newline);
                         }
@@ -134,8 +153,14 @@ final class MultipartDecoder extends AbstractDecoder {
                         if (quirkMode) {
                             quirkHeaderStart = -1;
                         }
-                        state = State.CONTENT;
-                        return Event.HEADERS_COMPLETE;
+                        if (mixedHeader) {
+                            mixedHeader = false;
+                            state = State.HEADERDELIMITER;
+                            return Event.BEGIN_MIXED;
+                        } else {
+                            state = State.CONTENT;
+                            return Event.HEADERS_COMPLETE;
+                        }
                     }
                 case CONTENT:
                     if (undecodedPartData != null) {
@@ -145,24 +170,36 @@ final class MultipartDecoder extends AbstractDecoder {
                     if (buffer == null) {
                         return null;
                     }
-                    if (quirkMode ?
-                            loadContentQuirk(buffer, mixedBoundary != null ? mixedBoundary : multipartDataBoundary) :
-                            loadContent(buffer, mixedBoundary != null ? mixedBoundary : multipartDataBoundary)) {
-                        state = State.CONTENT_DONE;
-                        if (undecodedPartData == null) {
-                            break;
-                        } else {
-                            return Event.CONTENT;
-                        }
-                    } else {
-                        if (undecodedPartData != null) {
-                            return Event.CONTENT;
-                        } else {
-                            return null;
+                    int normal = findDelimiter(buffer, multipartDataBoundary.getBytes(currentCharset()));
+                    boolean earlyMixedEnd = false;
+                    if (mixedBoundary != null) {
+                        int fullEnd = normal;
+                        normal = findDelimiter(buffer, mixedBoundary.getBytes(currentCharset()));
+                        if (fullEnd < normal) {
+                            // we found the multipart delimiter before the mixed delimiter
+                            earlyMixedEnd = true;
+                            normal = fullEnd;
                         }
                     }
-                case CONTENT_DONE:
-                    clearPartData();
+                    if (normal < 0) {
+                        clearPartData();
+                        state = State.HEADERDELIMITER;
+                        if (earlyMixedEnd) {
+                            state = State.EARLY_MIXED_END;
+                        }
+                        return Event.FIELD_COMPLETE;
+                    } else {
+                        if (normal == 0) {
+                            return null;
+                        }
+                        undecodedPartData = buffer.readSplit(normal);
+                        addReceivedLength(normal);
+                        return Event.CONTENT;
+                    }
+                case EARLY_MIXED_END:
+                    if (buffer == null) {
+                        return null;
+                    }
                     state = State.HEADERDELIMITER;
                     return Event.FIELD_COMPLETE;
                 default:
@@ -273,8 +310,11 @@ final class MultipartDecoder extends AbstractDecoder {
                 }
             };
             parser.run(headerValue);
-            if (parser.mixed && mixedBoundary == null) {
-                throw new HttpPostRequestDecoder.ErrorDataDecoderException("No boundary found for multipart/mixed");
+            if (parser.mixed) {
+                if (mixedBoundary == null) {
+                    throw new HttpPostRequestDecoder.ErrorDataDecoderException("No boundary found for multipart/mixed");
+                }
+                mixedHeader = true;
             }
         }
     }
@@ -308,6 +348,7 @@ final class MultipartDecoder extends AbstractDecoder {
                 }
                 String values = StringUtil.substringAfter(quirkHeader[2], '=');
                 mixedBoundary = "--" + values;
+                mixedHeader = true;
             } else {
                 for (int i = 1; i < quirkHeader.length; i++) {
                     final String charsetHeader = HttpHeaderValues.CHARSET.toString();
@@ -379,104 +420,94 @@ final class MultipartDecoder extends AbstractDecoder {
         throw new HttpPostRequestDecoder.ErrorDataDecoderException("No Multipart delimiter found");
     }
 
-    private boolean loadContent(Buffer undecodedChunk, String delimiter) {
-        assert !quirkMode;
-        assert undecodedPartData == null;
-        byte[] bdelimiter = delimiter.getBytes(currentCharset());
-        // this variable is either the position in bdelimiter or:
-        // -2 if we expect a CR or LF next
-        // -1 if we expect an LF next because we just saw a CR
-        int j = receivedLength > 0 ? -2 : 0;
-        int fieldEnd = undecodedChunk.readerOffset();
-        boolean delimiterFound = false;
-        // TODO: this loop has a data dependency (j) and is probably pretty slow. use SWAR search instead
-        for (int i = undecodedChunk.readerOffset(); i < undecodedChunk.writerOffset(); i++) {
-            byte b = undecodedChunk.getByte(i);
-            if (j >= 0) {
-                if (b == bdelimiter[j]) {
-                    if (j == bdelimiter.length - 1) {
-                        delimiterFound = true;
-                        break;
+    /**
+     * Find the given delimiter, preceded by a newline (CRLF or LF), in the given buffer.
+     * <p>
+     * If the delimiter is found at the start of the input (readerOffset), this method returns the <i>binary inverse</i>
+     * length of the delimiter including the preceding newline. This is the only case where this method returns a
+     * negative number.
+     * <p>
+     * In all other cases, this method returns the number of bytes that can be safely read before reaching the
+     * delimiter, or a part of the potential delimiter.
+     *
+     * @param buffer The buffer to search
+     * @param delimiter The delimiter to search for
+     * @return The inverse length of the delimiter if found at the start of the buffer, or the number of bytes that can
+     * be safely read from the buffer before reaching the delimiter.
+     */
+    int findDelimiter(Buffer buffer, byte[] delimiter) {
+        if ((receivedLength == 0 || quirkMode) && startsWith(buffer.openCursor(), delimiter)) {
+            // special case at start of buffer
+            return ~delimiter.length;
+        }
+
+        int i = buffer.readerOffset();
+        int lfOffset = -1;
+        while (true) {
+            ByteCursor cursor = buffer.openCursor(i, buffer.writerOffset() - i);
+            int lf = cursor.process(ByteProcessor.FIND_LF);
+            if (lf == -1) {
+                if (quirkMode) {
+                    int lastLf = quirkLfMatch(buffer, delimiter.length);
+                    if (lastLf != -1) {
+                        return lastLf;
                     }
-                    j++;
+                }
+
+                if (lfOffset == -1) {
+                    lfOffset = buffer.writerOffset();
+                }
+                if (buffer.writerOffset() - lfOffset > delimiter.length) {
+                    return buffer.readableBytes();
+                }
+                if (buffer.readerOffset() < lfOffset && buffer.getByte(lfOffset - 1) == '\r') {
+                    if (!quirkMode || quirkDefinedLength == receivedLength + buffer.readableBytes() - 1) {
+                        lfOffset--;
+                    }
+                }
+                return lfOffset - buffer.readerOffset();
+            }
+            lfOffset = i + lf;
+            boolean crlf = lfOffset > buffer.readerOffset() && buffer.getByte(lfOffset - 1) == '\r';
+            if (cursor.bytesLeft() >= delimiter.length && startsWith(cursor, delimiter)) {
+                int start = crlf ? lfOffset - 1 : lfOffset;
+                if (start == buffer.readerOffset()) {
+                    // found at start of buffer.
+                    return ~(delimiter.length + (crlf ? 2 : 1));
                 } else {
-                    j = -2;
+                    return start - buffer.readerOffset();
                 }
             }
-            if (j < 0) {
-                if (b == HttpConstants.CR) {
-                    fieldEnd = i;
-                    j = -1;
-                } else if (b == HttpConstants.LF) {
-                    if (j == -2) {
-                        fieldEnd = i;
-                    }
-                    j = 0;
-                } else {
-                    j = -2;
-                }
-            }
+            i += lf + 1;
         }
-        int n = fieldEnd - undecodedChunk.readerOffset();
-        if (n > 0) {
-            undecodedPartData = undecodedChunk.readSplit(n);
-            addReceivedLength(undecodedPartData.readableBytes());
-        }
-        return delimiterFound;
     }
 
-    private boolean loadContentQuirk(Buffer undecodedChunk, String delimiter) {
-        assert quirkMode;
-        assert undecodedPartData == null;
-        if (undecodedChunk.readableBytes() == 0) {
-            return false;
-        }
-        final int startReaderIndex = undecodedChunk.readerOffset();
-        final byte[] bdelimiter = delimiter.getBytes(currentCharset());
-        int posDelimiter = HttpPostBodyUtil.findDelimiter(undecodedChunk, startReaderIndex, bdelimiter, true);
-        if (posDelimiter < 0) {
-            // Not found but however perhaps because incomplete so search LF or CRLF from the end.
-            // Possible last bytes contain partially delimiter
-            // (delimiter is possibly partially there, at least 1 missing byte),
-            // therefore searching last delimiter.length +1 (+1 for CRLF instead of LF)
-            int readableBytes = undecodedChunk.readableBytes();
-            int lastPosition = readableBytes - bdelimiter.length - 1;
-            if (lastPosition < 0) {
-                // Not enough bytes, but at most delimiter.length bytes available so can still try to find CRLF there
-                lastPosition = 0;
-            }
-            posDelimiter = HttpPostBodyUtil.findLastLineBreak(undecodedChunk, startReaderIndex + lastPosition);
-            // No LineBreak, however CR can be at the end of the buffer, LF not yet there (issue #11668)
-            // Check if last CR (if any) shall not be in the content (definedLength vs actual length + buffer - 1)
-            if (posDelimiter < 0 &&
-                    (quirkDefinedLength == receivedLength + readableBytes - 1) &&
-                    undecodedChunk.getByte(readableBytes + startReaderIndex - 1) == HttpConstants.CR) {
-                // Last CR shall precede a future LF
-                lastPosition = 0;
-                posDelimiter = readableBytes - 1;
-            }
-            if (posDelimiter < 0) {
-                // not found so this chunk can be fully added
-                addReceivedLength(buffer.readableBytes());
-                undecodedPartData = buffer;
-                buffer = null;
+    private static boolean startsWith(ByteCursor haystack, byte[] needle) {
+        for (byte b : needle) {
+            haystack.readByte();
+            if (haystack.getByte() != b) {
                 return false;
             }
-            // posDelimiter is not from startReaderIndex but from startReaderIndex + lastPosition
-            posDelimiter += lastPosition;
-            if (posDelimiter == 0) {
-                // Nothing to add
-                return false;
-            }
-            // Not fully but still some bytes to provide: httpData is not yet finished since delimiter not found
-            addReceivedLength(posDelimiter);
-            undecodedPartData = undecodedChunk.readSplit(posDelimiter);
-            return false;
         }
-        // Delimiter found at posDelimiter, including LF or CRLF, so httpData has its last chunk
-        addReceivedLength(posDelimiter);
-        undecodedPartData = undecodedChunk.readSplit(posDelimiter);
         return true;
+    }
+
+    private int quirkLfMatch(Buffer buffer, int delimiterLength) {
+        assert quirkMode;
+        if (buffer.readableBytes() > 0) {
+            int lastLf = buffer.openReverseCursor(buffer.writerOffset() - 1, Math.min(buffer.readableBytes(), delimiterLength + 1))
+                    .process(ByteProcessor.FIND_LF);
+            if (lastLf != -1) {
+                lastLf = buffer.readableBytes() - lastLf - 1;
+                if (lastLf > 0 &&
+                        lastLf + delimiterLength >= buffer.readableBytes() &&
+                        buffer.getByte(buffer.readerOffset() + lastLf - 1) == '\r') {
+                    lastLf--;
+                }
+                return lastLf;
+            }
+        }
+        return -1;
     }
 
     private void addReceivedLength(int extra) {
@@ -517,8 +548,8 @@ final class MultipartDecoder extends AbstractDecoder {
         HEADERDELIMITER,
         DISPOSITION,
         CONTENT,
-        CONTENT_DONE,
         PREEPILOGUE,
+        EARLY_MIXED_END,
     }
 
     private enum DelimiterType {

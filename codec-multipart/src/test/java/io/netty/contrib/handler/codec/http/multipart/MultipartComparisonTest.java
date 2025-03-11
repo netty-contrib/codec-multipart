@@ -21,6 +21,8 @@ import io.netty5.handler.codec.http.HttpMethod;
 import io.netty5.handler.codec.http.HttpRequest;
 import io.netty5.handler.codec.http.HttpVersion;
 
+import java.nio.charset.StandardCharsets;
+
 /**
  * This fuzz test compares the behavior of {@link HttpPostMultipartRequestDecoder} with that of
  * {@link HttpPostMultipartRequestDecoderLegacy}, a copy of the old decoder implementation.
@@ -45,7 +47,7 @@ public class MultipartComparisonTest extends AbstractComparisonTest {
 
     @Override
     protected InterfaceHttpPostRequestDecoder createNormal() {
-        return new HttpPostMultipartRequestDecoder(FACTORY, REQUEST);
+        return new HttpPostMultipartRequestDecoder(FACTORY, REQUEST, StandardCharsets.UTF_8, -1, -1);
     }
 
     @Override

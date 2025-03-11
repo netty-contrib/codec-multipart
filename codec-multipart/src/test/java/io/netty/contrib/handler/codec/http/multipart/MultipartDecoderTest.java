@@ -15,6 +15,7 @@
  */
 package io.netty.contrib.handler.codec.http.multipart;
 
+import io.netty5.buffer.Buffer;
 import io.netty5.buffer.DefaultBufferAllocators;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -84,6 +85,109 @@ class MultipartDecoderTest {
             Assertions.assertEquals(PostBodyDecoder.Event.CONTENT, decoder.next());
             Assertions.assertEquals("<!DOCTYPE html><title>Content of a.html.</title>\n", decoder.decodedContentString());
             Assertions.assertEquals(PostBodyDecoder.Event.FIELD_COMPLETE, decoder.next());
+        }
+    }
+
+    @Test
+    public void testMixed() {
+        String input = "--a\r\n" +
+                "content-disposition: form-data; name=\"normal\"\r\n" +
+                "\r\n" +
+                "xyz\r\n" +
+                "--a\r\n" +
+                "content-disposition: form-data; name=\"mix\"\r\n" +
+                "content-type: multipart/mixed; boundary=b\r\n" +
+                "\r\n" +
+                "--b\r\n" +
+                "content-disposition: file; filename=\"1.txt\"\r\n" +
+                "\r\n" +
+                "file1\r\n" +
+                "--b\r\n" +
+                "content-disposition: file; filename=\"2.txt\"\r\n" +
+                "\r\n" +
+                "file2\r\n" +
+                "--b--\r\n" +
+                "--a--\r\n";
+        try (PostBodyDecoder decoder = PostBodyDecoder.builder().forMultipartBoundary("a")) {
+            decoder.add(DefaultBufferAllocators.preferredAllocator().copyOf(input, StandardCharsets.UTF_8).send());
+
+            Assertions.assertEquals(PostBodyDecoder.Event.BEGIN_FIELD, decoder.next());
+            Assertions.assertEquals(PostBodyDecoder.Event.HEADER, decoder.next());
+            Assertions.assertEquals("content-disposition", decoder.headerName());
+            Assertions.assertEquals("form-data; name=\"normal\"", decoder.headerValue());
+            Assertions.assertEquals("normal", ((ContentDisposition) decoder.parsedHeaderValue()).name());
+            Assertions.assertNull(((ContentDisposition) decoder.parsedHeaderValue()).fileName());
+            Assertions.assertEquals(PostBodyDecoder.Event.HEADERS_COMPLETE, decoder.next());
+            Assertions.assertEquals(PostBodyDecoder.Event.CONTENT, decoder.next());
+            Assertions.assertEquals("xyz", decoder.decodedContentString());
+            Assertions.assertEquals(PostBodyDecoder.Event.FIELD_COMPLETE, decoder.next());
+
+            Assertions.assertEquals(PostBodyDecoder.Event.BEGIN_FIELD, decoder.next());
+            Assertions.assertEquals(PostBodyDecoder.Event.HEADER, decoder.next());
+            Assertions.assertEquals("content-disposition", decoder.headerName());
+            Assertions.assertEquals("form-data; name=\"mix\"", decoder.headerValue());
+            Assertions.assertEquals("mix", ((ContentDisposition) decoder.parsedHeaderValue()).name());
+            Assertions.assertNull(((ContentDisposition) decoder.parsedHeaderValue()).fileName());
+            Assertions.assertEquals(PostBodyDecoder.Event.HEADER, decoder.next());
+            Assertions.assertEquals("content-type", decoder.headerName());
+            Assertions.assertEquals("multipart/mixed; boundary=b", decoder.headerValue());
+            Assertions.assertEquals(PostBodyDecoder.Event.BEGIN_MIXED, decoder.next());
+
+            Assertions.assertEquals(PostBodyDecoder.Event.BEGIN_FIELD, decoder.next());
+            Assertions.assertEquals(PostBodyDecoder.Event.HEADER, decoder.next());
+            Assertions.assertEquals("content-disposition", decoder.headerName());
+            Assertions.assertEquals("file; filename=\"1.txt\"", decoder.headerValue());
+            Assertions.assertEquals("1.txt", ((ContentDisposition) decoder.parsedHeaderValue()).fileName());
+            Assertions.assertNull(((ContentDisposition) decoder.parsedHeaderValue()).name());
+            Assertions.assertEquals(PostBodyDecoder.Event.HEADERS_COMPLETE, decoder.next());
+            Assertions.assertEquals(PostBodyDecoder.Event.CONTENT, decoder.next());
+            Assertions.assertEquals("file1", decoder.decodedContentString());
+            Assertions.assertEquals(PostBodyDecoder.Event.FIELD_COMPLETE, decoder.next());
+
+            Assertions.assertEquals(PostBodyDecoder.Event.BEGIN_FIELD, decoder.next());
+            Assertions.assertEquals(PostBodyDecoder.Event.HEADER, decoder.next());
+            Assertions.assertEquals("content-disposition", decoder.headerName());
+            Assertions.assertEquals("file; filename=\"2.txt\"", decoder.headerValue());
+            Assertions.assertEquals("2.txt", ((ContentDisposition) decoder.parsedHeaderValue()).fileName());
+            Assertions.assertNull(((ContentDisposition) decoder.parsedHeaderValue()).name());
+            Assertions.assertEquals(PostBodyDecoder.Event.HEADERS_COMPLETE, decoder.next());
+            Assertions.assertEquals(PostBodyDecoder.Event.CONTENT, decoder.next());
+            Assertions.assertEquals("file2", decoder.decodedContentString());
+            Assertions.assertEquals(PostBodyDecoder.Event.FIELD_COMPLETE, decoder.next());
+
+            Assertions.assertEquals(PostBodyDecoder.Event.FIELD_COMPLETE, decoder.next()); // end of mixed
+            Assertions.assertNull(decoder.next());
+        }
+    }
+
+    @Test
+    public void findDelimiter() {
+        for (int ro = 0; ro < 4; ro++) {
+            Assertions.assertEquals(0, findDelimiter(ro, "\r\n", "abc"));
+            Assertions.assertEquals(0, findDelimiter(ro, "\n", "abc"));
+            Assertions.assertEquals(0, findDelimiter(ro, "\r\na", "abc"));
+            Assertions.assertEquals(0, findDelimiter(ro, "\na", "abc"));
+            Assertions.assertEquals(0, findDelimiter(ro, "\r\nab", "abc"));
+            Assertions.assertEquals(0, findDelimiter(ro, "\nab", "abc"));
+            Assertions.assertEquals(2, findDelimiter(ro, "ab\r\nab", "abc"));
+            Assertions.assertEquals(2, findDelimiter(ro, "ab\nab", "abc"));
+            Assertions.assertEquals(~5, findDelimiter(ro, "\r\nabc", "abc"));
+            Assertions.assertEquals(~4, findDelimiter(ro, "\nabc", "abc"));
+            Assertions.assertEquals(~5, findDelimiter(ro, "\r\nabcx", "abc"));
+            Assertions.assertEquals(~4, findDelimiter(ro, "\nabcx", "abc"));
+            Assertions.assertEquals(~3, findDelimiter(ro, "abcx", "abc"));
+            Assertions.assertEquals(2, findDelimiter(ro, "\n\n\n", "abc"));
+        }
+    }
+
+    private static int findDelimiter(int readerOffset, String input, String delimiter) {
+        try (Buffer b = DefaultBufferAllocators.preferredAllocator().allocate(input.length() + readerOffset);
+             MultipartDecoder decoder = PostBodyDecoder.builder().forBoundary0("a")) {
+            b.skipWritableBytes(readerOffset);
+            b.skipReadableBytes(readerOffset);
+
+            b.writeBytes(input.getBytes(StandardCharsets.UTF_8));
+            return decoder.findDelimiter(b, delimiter.getBytes(StandardCharsets.UTF_8));
         }
     }
 }

@@ -15,7 +15,6 @@
  */
 package io.netty.contrib.handler.codec.http.multipart;
 
-import java.nio.charset.StandardCharsets;
 import io.netty5.buffer.Buffer;
 import io.netty5.buffer.DefaultBufferAllocators;
 import io.netty5.handler.codec.http.DefaultFullHttpRequest;
@@ -32,11 +31,17 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 @ExtendWith(GCExtension.class)
 public class HttpPostMultiPartRequestDecoderTest {
@@ -168,7 +173,7 @@ public class HttpPostMultiPartRequestDecoderTest {
         request.headers().set("content-type", "multipart/form-data; boundary=861fbeab-cd20-470c-9609-d40a0f704466");
         request.headers().set("content-length", String.valueOf(prefix.length() + fileSize + suffix.length()));
 
-        HttpPostMultipartRequestDecoder decoder = new HttpPostMultipartRequestDecoder(factory, request);
+        HttpPostMultipartRequestDecoder decoder = new HttpPostMultipartRequestDecoder(factory, request, StandardCharsets.UTF_8, -1, -1);
         Buffer buf = Helpers.copiedBuffer(prefix.getBytes(StandardCharsets.UTF_8));
         DefaultHttpContent httpContent = new DefaultHttpContent(buf);
         decoder.offer(httpContent);
