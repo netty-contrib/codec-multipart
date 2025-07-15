@@ -130,7 +130,10 @@ public abstract class AbstractFuzzTest {
             "\"",
             ",",
             ":",
-            FUZZ_SEPARATOR_STR
+            FUZZ_SEPARATOR_STR,
+
+            "content-type: multipart/mixed; boundary=b",
+            "--b", "--b--"
     })
     @interface MultipartFuzzTest {
     }

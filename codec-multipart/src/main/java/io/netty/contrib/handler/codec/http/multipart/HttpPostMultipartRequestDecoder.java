@@ -424,8 +424,6 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
                     if (!mixed) {
                         clearCurrentFieldAttributes();
                         currentFieldAttributes = new TreeMap<CharSequence, Attribute>(CaseIgnoringComparator.INSTANCE);
-                    } else {
-                        cleanMixedAttributes();
                     }
                     break;
                 case HEADER:
@@ -437,16 +435,24 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
                 case HEADERS_COMPLETE:
                     // Is it a FileUpload
                     Attribute filenameAttribute = currentFieldAttributes.get(HttpHeaderValues.FILENAME);
+                    Charset c;
                     if (filenameAttribute != null) {
                         // FileUpload
                         currentStatus = MultiPartStatus.FILEUPLOAD;
-                        getFileUpload();
+                        FileUpload fileUpload = getFileUpload();
+                        c = fileUpload.getCharset();
                     } else {
+                        if (mixed) {
+                            throw new ErrorDataDecoderException("Filename not found");
+                        }
+
                         // Field
                         currentStatus = MultiPartStatus.FIELD;
                         // do not change the buffer position
-                        getAttribute();
+                        Attribute attribute = getAttribute();
+                        c = attribute.getCharset();
                     }
+                    decoder.quirkPartCharset = c;
                     break;
                 case CONTENT:
                     try {
@@ -464,6 +470,7 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
                             throw new ErrorDataDecoderException(e);
                         }
                         addHttpData(currentPartialHttpData());
+                        cleanMixedAttributes();
                         currentFileUpload = null;
                         currentAttribute = null;
                     } else {
@@ -663,6 +670,13 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
     }
 
     private void putCurrentFieldAttribute(CharSequence name, Attribute attribute) {
+        if (HttpHeaderNames.CONTENT_LENGTH.contentEqualsIgnoreCase(name)) {
+            try {
+                decoder.quirkDefinedLength = Long.parseLong(HttpPostMultipartRequestDecoder.cleanString(attribute.getValue()));
+            } catch (NumberFormatException | IOException e) {
+                decoder.quirkDefinedLength = 0;
+            }
+        }
         currentFieldAttributes.compute(attribute.getName(), (key, old) -> {
             if (old != null) {
                 old.close();
@@ -709,7 +723,7 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
      * @return the InterfaceHttpData if any
      * @throws ErrorDataDecoderException
      */
-    private InterfaceHttpData getFileUpload() {
+    private FileUpload getFileUpload() {
         // eventually restart from existing FileUpload
         // Now get value according to Content-Type and Charset
         Attribute encoding = currentFieldAttributes.get(HttpHeaderNames.CONTENT_TRANSFER_ENCODING);
