@@ -76,8 +76,6 @@
 
   <modules>
     <module>codec-multipart</module>
-    <module>examples</module>
-    <module>benchmarks</module>
   </modules>
 
   <build>
