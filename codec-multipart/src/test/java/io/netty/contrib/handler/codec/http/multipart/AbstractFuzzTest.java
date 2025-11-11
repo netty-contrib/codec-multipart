@@ -31,6 +31,8 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.stream.Stream;
 
@@ -84,6 +86,9 @@ public abstract class AbstractFuzzTest {
     }
 
     protected static void minimize(Class<? extends AbstractFuzzTest> testClass, String crashPath) throws Throwable {
+        if (!Files.exists(Path.of(crashPath))) {
+            throw new IllegalArgumentException();
+        }
         Jazzer.main(Stream.concat(
                 JAZZER_ARGS.stream(),
                 Stream.of(
