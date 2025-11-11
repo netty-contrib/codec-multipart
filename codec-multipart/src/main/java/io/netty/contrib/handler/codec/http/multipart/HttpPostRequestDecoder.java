@@ -37,6 +37,10 @@ public class HttpPostRequestDecoder implements InterfaceHttpPostRequestDecoder {
 
     static final int DEFAULT_DISCARD_THRESHOLD = 10 * 1024 * 1024;
 
+    static final int DEFAULT_MAX_FIELDS = 128;
+
+    static final int DEFAULT_MAX_BUFFERED_BYTES = 1024;
+
     private final InterfaceHttpPostRequestDecoder decoder;
 
     /**

@@ -23,6 +23,6 @@ public class UrlEncodedComparisonTest extends AbstractComparisonTest {
 
     @Override
     protected InterfaceHttpPostRequestDecoder createLegacy() {
-        return new HttpPostStandardRequestDecoderLegacy(FACTORY, REQUEST);
+        return new HttpPostStandardRequestDecoderLegacy(FACTORY, REQUEST, StandardCharsets.UTF_8, -1, -1);
     }
 }

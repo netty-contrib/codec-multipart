@@ -52,6 +52,6 @@ public class MultipartComparisonTest extends AbstractComparisonTest {
 
     @Override
     protected InterfaceHttpPostRequestDecoder createLegacy() {
-        return new HttpPostMultipartRequestDecoderLegacy(FACTORY, REQUEST);
+        return new HttpPostMultipartRequestDecoderLegacy(FACTORY, REQUEST, StandardCharsets.UTF_8, -1, -1);
     }
 }
