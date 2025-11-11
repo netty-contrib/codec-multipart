@@ -384,7 +384,7 @@ public class HttpPostMultipartRequestDecoderLegacy implements InterfaceHttpPostR
         }
         parseBody();
         if (maxBufferedBytes > 0 && undecodedChunk != null && undecodedChunk.readableBytes() > maxBufferedBytes) {
-            throw new HttpPostRequestDecoder.ErrorDataDecoderException();
+            throw new TooLongFormFieldException();
         }
         if (undecodedChunk != null && undecodedChunk.writerIndex() > discardThreshold) {
             if (undecodedChunk.refCnt() == 1) {
@@ -561,9 +561,7 @@ public class HttpPostMultipartRequestDecoderLegacy implements InterfaceHttpPostR
             if (charsetAttribute != null) {
                 try {
                     localCharset = Charset.forName(charsetAttribute.getValue());
-                } catch (IOException e) {
-                    throw new ErrorDataDecoderException(e);
-                } catch (UnsupportedCharsetException e) {
+                } catch (IOException | UnsupportedCharsetException e) {
                     throw new ErrorDataDecoderException(e);
                 }
             }
@@ -588,11 +586,7 @@ public class HttpPostMultipartRequestDecoderLegacy implements InterfaceHttpPostR
                         currentAttribute = factory.createAttribute(request,
                                 cleanString(nameAttribute.getValue()));
                     }
-                } catch (NullPointerException e) {
-                    throw new ErrorDataDecoderException(e);
-                } catch (IllegalArgumentException e) {
-                    throw new ErrorDataDecoderException(e);
-                } catch (IOException e) {
+                } catch (NullPointerException | IllegalArgumentException | IOException e) {
                     throw new ErrorDataDecoderException(e);
                 }
                 if (localCharset != null) {
@@ -758,9 +752,7 @@ public class HttpPostMultipartRequestDecoderLegacy implements InterfaceHttpPostR
                         Attribute attribute;
                         try {
                             attribute = getContentDispositionAttribute(values);
-                        } catch (NullPointerException e) {
-                            throw new ErrorDataDecoderException(e);
-                        } catch (IllegalArgumentException e) {
+                        } catch (NullPointerException | IllegalArgumentException e) {
                             throw new ErrorDataDecoderException(e);
                         }
                         currentFieldAttributes.put(attribute.getName(), attribute);
@@ -771,9 +763,7 @@ public class HttpPostMultipartRequestDecoderLegacy implements InterfaceHttpPostR
                 try {
                     attribute = factory.createAttribute(request, HttpHeaderNames.CONTENT_TRANSFER_ENCODING.toString(),
                             cleanString(contents[1]));
-                } catch (NullPointerException e) {
-                    throw new ErrorDataDecoderException(e);
-                } catch (IllegalArgumentException e) {
+                } catch (NullPointerException | IllegalArgumentException e) {
                     throw new ErrorDataDecoderException(e);
                 }
 
@@ -783,9 +773,7 @@ public class HttpPostMultipartRequestDecoderLegacy implements InterfaceHttpPostR
                 try {
                     attribute = factory.createAttribute(request, HttpHeaderNames.CONTENT_LENGTH.toString(),
                             cleanString(contents[1]));
-                } catch (NullPointerException e) {
-                    throw new ErrorDataDecoderException(e);
-                } catch (IllegalArgumentException e) {
+                } catch (NullPointerException | IllegalArgumentException e) {
                     throw new ErrorDataDecoderException(e);
                 }
 
@@ -809,9 +797,7 @@ public class HttpPostMultipartRequestDecoderLegacy implements InterfaceHttpPostR
                             Attribute attribute;
                             try {
                                 attribute = factory.createAttribute(request, charsetHeader, cleanString(values));
-                            } catch (NullPointerException e) {
-                                throw new ErrorDataDecoderException(e);
-                            } catch (IllegalArgumentException e) {
+                            } catch (NullPointerException | IllegalArgumentException e) {
                                 throw new ErrorDataDecoderException(e);
                             }
                             currentFieldAttributes.put(HttpHeaderValues.CHARSET, attribute);
@@ -821,9 +807,7 @@ public class HttpPostMultipartRequestDecoderLegacy implements InterfaceHttpPostR
                             Attribute attribute;
                             try {
                                 attribute = factory.createAttribute(request, cleanString(name), values);
-                            } catch (NullPointerException e) {
-                                throw new ErrorDataDecoderException(e);
-                            } catch (IllegalArgumentException e) {
+                            } catch (NullPointerException | IllegalArgumentException e) {
                                 throw new ErrorDataDecoderException(e);
                             }
                             currentFieldAttributes.put(name, attribute);
@@ -832,9 +816,7 @@ public class HttpPostMultipartRequestDecoderLegacy implements InterfaceHttpPostR
                             try {
                                 attribute = factory.createAttribute(request,
                                         cleanString(contents[0]), contents[i]);
-                            } catch (NullPointerException e) {
-                                throw new ErrorDataDecoderException(e);
-                            } catch (IllegalArgumentException e) {
+                            } catch (NullPointerException | IllegalArgumentException e) {
                                 throw new ErrorDataDecoderException(e);
                             }
                             currentFieldAttributes.put(attribute.getName(), attribute);
@@ -890,10 +872,8 @@ public class HttpPostMultipartRequestDecoderLegacy implements InterfaceHttpPostR
                 name = HttpHeaderValues.FILENAME.toString();
                 String[] split = cleanString(value).split("'", 3);
                 value = QueryStringDecoder.decodeComponent(split[2], Charset.forName(split[0]));
-            } catch (ArrayIndexOutOfBoundsException e) {
+            } catch (ArrayIndexOutOfBoundsException | UnsupportedCharsetException e) {
                  throw new ErrorDataDecoderException(e);
-            } catch (UnsupportedCharsetException e) {
-                throw new ErrorDataDecoderException(e);
             }
         } else {
             // otherwise we need to clean the value
@@ -940,9 +920,7 @@ public class HttpPostMultipartRequestDecoderLegacy implements InterfaceHttpPostR
         if (charsetAttribute != null) {
             try {
                 localCharset = Charset.forName(charsetAttribute.getValue());
-            } catch (IOException e) {
-                throw new ErrorDataDecoderException(e);
-            } catch (UnsupportedCharsetException e) {
+            } catch (IOException | UnsupportedCharsetException e) {
                 throw new ErrorDataDecoderException(e);
             }
         }
@@ -970,11 +948,7 @@ public class HttpPostMultipartRequestDecoderLegacy implements InterfaceHttpPostR
                         cleanString(nameAttribute.getValue()), cleanString(filenameAttribute.getValue()),
                         contentType, mechanism.value(), localCharset,
                         size);
-            } catch (NullPointerException e) {
-                throw new ErrorDataDecoderException(e);
-            } catch (IllegalArgumentException e) {
-                throw new ErrorDataDecoderException(e);
-            } catch (IOException e) {
+            } catch (NullPointerException | IllegalArgumentException | IOException e) {
                 throw new ErrorDataDecoderException(e);
             }
         }

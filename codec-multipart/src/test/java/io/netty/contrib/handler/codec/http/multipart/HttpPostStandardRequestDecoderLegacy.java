@@ -335,7 +335,7 @@ public class HttpPostStandardRequestDecoderLegacy implements InterfaceHttpPostRe
         }
         parseBody();
         if (maxBufferedBytes > 0 && undecodedChunk != null && undecodedChunk.readableBytes() > maxBufferedBytes) {
-            throw new HttpPostRequestDecoder.ErrorDataDecoderException("Undecoded data limit exceeded");
+            throw new TooLongFormFieldException();
         }
         if (undecodedChunk != null && undecodedChunk.writerIndex() > discardThreshold) {
             if (undecodedChunk.refCnt() == 1) {
@@ -547,11 +547,7 @@ public class HttpPostStandardRequestDecoderLegacy implements InterfaceHttpPostRe
             // error while decoding
             undecodedChunk.readerIndex(firstpos);
             throw e;
-        } catch (IOException e) {
-            // error while decoding
-            undecodedChunk.readerIndex(firstpos);
-            throw new ErrorDataDecoderException(e);
-        } catch (IllegalArgumentException e) {
+        } catch (IOException | IllegalArgumentException e) {
             // error while decoding
             undecodedChunk.readerIndex(firstpos);
             throw new ErrorDataDecoderException(e);
