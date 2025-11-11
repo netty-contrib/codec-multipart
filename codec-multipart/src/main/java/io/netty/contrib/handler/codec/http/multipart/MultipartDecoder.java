@@ -499,13 +499,12 @@ final class MultipartDecoder extends AbstractDecoder {
             int len = Math.min(buffer.readableBytes(), delimiterLength + 1);
             int lastLf = buffer.forEachByteDesc(buffer.writerIndex() - len, len, ByteProcessor.FIND_LF);
             if (lastLf != -1) {
-                lastLf = buffer.readableBytes() - lastLf - 1;
-                if (lastLf > 0 &&
-                        lastLf + delimiterLength >= buffer.readableBytes() &&
-                        buffer.getByte(buffer.readerIndex() + lastLf - 1) == '\r') {
+                if (lastLf > buffer.readerIndex() &&
+                        lastLf + delimiterLength >= buffer.writerIndex() &&
+                        buffer.getByte(lastLf - 1) == '\r') {
                     lastLf--;
                 }
-                return lastLf;
+                return lastLf - buffer.readerIndex();
             }
         }
         return -1;
