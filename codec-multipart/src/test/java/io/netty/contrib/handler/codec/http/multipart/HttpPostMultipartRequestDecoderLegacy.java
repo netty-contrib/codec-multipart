@@ -833,7 +833,7 @@ public class HttpPostMultipartRequestDecoderLegacy implements InterfaceHttpPostR
     }
 
     private void putCurrentFieldAttribute(CharSequence name, Attribute attribute) {
-        currentFieldAttributes.compute(attribute.getName(), (key, old) -> {
+        currentFieldAttributes.compute(name.toString(), (key, old) -> {
             if (old != null) {
                 old.close();
             }
