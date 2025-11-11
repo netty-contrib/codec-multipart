@@ -47,7 +47,7 @@ public class MultipartComparisonTest extends AbstractComparisonTest {
 
     @Override
     protected InterfaceHttpPostRequestDecoder createNormal() {
-        return new HttpPostMultipartRequestDecoder(FACTORY, REQUEST, StandardCharsets.UTF_8, 128, -1);
+        return new HttpPostMultipartRequestDecoder(FACTORY, REQUEST, StandardCharsets.UTF_8, -1, -1);
     }
 
     @Override

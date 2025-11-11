@@ -38,8 +38,10 @@ import org.junit.jupiter.api.function.Executable;
 
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.nio.charset.UnsupportedCharsetException;
 import java.util.Arrays;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -1142,6 +1144,48 @@ public class HttpPostRequestDecoderTest {
         HttpPostRequestDecoder decoder = new HttpPostRequestDecoder(req, -1, bodyBytes.length - 1);
 
         decoder.offer(new DefaultHttpContent(Unpooled.wrappedBuffer(bodyBytes)));
+        decoder.destroy();
+    }
+
+    @Test
+    public void testMixed() throws Exception {
+        HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/");
+        req.headers().add("Content-Type", "multipart/form-data;boundary=a");
+
+        byte[] bodyBytes = ("--a\r\n" +
+                "content-disposition: form-data; name=\"normal\"\r\n" +
+                "content-type: text/plain; charset=UTF-8\r\n" +
+                "\r\n" +
+                "xyz\r\n" +
+                "--a\r\n" +
+                "content-disposition: form-data; name=\"mix\"\r\n" +
+                "content-type: multipart/mixed; boundary=b\r\n" +
+                "\r\n" +
+                "--b\r\n" +
+                "content-disposition: file; filename=\"1.txt\"\r\n" +
+                "\r\n" +
+                "file1\r\n" +
+                "--b\r\n" +
+                "content-disposition: file; filename=\"2.txt\"\r\n" +
+                "\r\n" +
+                "file2\r\n" +
+                "--b--\r\n" +
+                "--a--\r\n").getBytes(StandardCharsets.UTF_8);
+
+        HttpPostMultipartRequestDecoder decoder = new HttpPostMultipartRequestDecoder(new DefaultHttpDataFactory(), req, StandardCharsets.UTF_8);
+        decoder.offer(new DefaultLastHttpContent(Unpooled.wrappedBuffer(bodyBytes)));
+
+        List<InterfaceHttpData> datas = decoder.getBodyHttpDatas();
+        assertEquals(3, datas.size());
+        assertEquals("normal", datas.get(0).getName());
+        assertEquals("xyz", ((Attribute) datas.get(0)).getValue());
+        assertEquals("mix", datas.get(1).getName());
+        assertEquals("1.txt", ((FileUpload) datas.get(1)).getFilename());
+        assertEquals("file1", ((FileUpload) datas.get(1)).getString());
+        assertEquals("mix", datas.get(2).getName());
+        assertEquals("2.txt", ((FileUpload) datas.get(2)).getFilename());
+        assertEquals("file2", ((FileUpload) datas.get(2)).getString());
+
         decoder.destroy();
     }
 }

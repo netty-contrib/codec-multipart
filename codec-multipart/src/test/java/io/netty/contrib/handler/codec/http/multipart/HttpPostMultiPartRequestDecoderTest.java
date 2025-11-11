@@ -31,6 +31,7 @@ import io.netty.util.CharsetUtil;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -178,7 +179,7 @@ public class HttpPostMultiPartRequestDecoderTest {
         request.headers().set("content-type", "multipart/form-data; boundary=861fbeab-cd20-470c-9609-d40a0f704466");
         request.headers().set("content-length", prefix.length() + fileSize + suffix.length());
 
-        HttpPostMultipartRequestDecoder decoder = new HttpPostMultipartRequestDecoder(factory, request);
+        HttpPostMultipartRequestDecoder decoder = new HttpPostMultipartRequestDecoder(factory, request, StandardCharsets.UTF_8, -1, -1);
         ByteBuf buf = Unpooled.wrappedBuffer(prefix.getBytes(CharsetUtil.UTF_8));
         DefaultHttpContent httpContent = new DefaultHttpContent(buf);
         decoder.offer(httpContent);

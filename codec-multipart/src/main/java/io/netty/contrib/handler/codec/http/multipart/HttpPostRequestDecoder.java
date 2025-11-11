@@ -363,6 +363,11 @@ public class HttpPostRequestDecoder implements InterfaceHttpPostRequestDecoder {
         public NotEnoughDataDecoderException(String msg, Throwable cause) {
             super(msg, cause);
         }
+
+        @Override
+        public synchronized Throwable fillInStackTrace() {
+            return this;
+        }
     }
 
     /**
@@ -392,6 +397,10 @@ public class HttpPostRequestDecoder implements InterfaceHttpPostRequestDecoder {
         public ErrorDataDecoderException(String msg, Throwable cause) {
             super(msg, cause);
         }
+        @Override
+        public synchronized Throwable fillInStackTrace() {
+            return this;
+        }
     }
 
     /**
@@ -399,5 +408,10 @@ public class HttpPostRequestDecoder implements InterfaceHttpPostRequestDecoder {
      */
     public static final class TooManyFormFieldsException extends DecoderException {
         private static final long serialVersionUID = 1336267941020800769L;
+
+        @Override
+        public synchronized Throwable fillInStackTrace() {
+            return this;
+        }
     }
 }

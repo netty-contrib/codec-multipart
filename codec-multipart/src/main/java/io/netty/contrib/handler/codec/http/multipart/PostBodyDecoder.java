@@ -70,7 +70,11 @@ public interface PostBodyDecoder extends Closeable {
     /**
      * Attempt to parse some input. The events returned by this method have the following structure:
      * <p>
-     * {@code (BEGIN_FIELD HEADER* HEADERS_COMPLETE CONTENT* FIELD_COMPLETE)*}
+     * <pre>{@code
+     * regular-part := BEGIN_FIELD HEADER* HEADERS_COMPLETE CONTENT* FIELD_COMPLETE
+     * mixed-part   := BEGIN_FIELD HEADER* BEGIN_MIXED regular-part* FIELD_COMPLETE
+     * part         := (regular-part | mixed-part)*
+     * }</pre>
      *
      * @return The next parsed event, or {@code null} if more input is needed.
      * @throws ErrorDataDecoderException On invalid input
@@ -177,6 +181,10 @@ public interface PostBodyDecoder extends Closeable {
          */
         HEADERS_COMPLETE,
         /**
+         * End of headers for a mixed part. Now come the pieces of the mixed part.
+         */
+        BEGIN_MIXED,
+        /**
          * A piece of field content. May be fired multiple times, or never, per field. Boundaries between different
          * content buffers have no meaning, the caller should treat all content events as a combined content.
          */
@@ -248,6 +256,7 @@ public interface PostBodyDecoder extends Closeable {
          */
         public Builder maxFields(int maxFields) {
             if (maxFields < 0) {
+                // compatibility
                 maxFields = Integer.MAX_VALUE;
             }
             this.maxFields = maxFields;
