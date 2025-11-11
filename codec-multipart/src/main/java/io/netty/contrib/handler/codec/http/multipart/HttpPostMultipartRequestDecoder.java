@@ -677,12 +677,7 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
                 decoder.quirkDefinedLength = 0;
             }
         }
-        currentFieldAttributes.compute(attribute.getName(), (key, old) -> {
-            if (old != null) {
-                old.close();
-            }
-            return attribute;
-        });
+        currentFieldAttributes.put(attribute.getName(), attribute);
     }
 
     private static final String FILENAME_ENCODED = HttpHeaderValues.FILENAME.toString() + '*';
