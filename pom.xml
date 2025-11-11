@@ -68,6 +68,7 @@
   <properties>
     <netty.version>5.0.0.Alpha6-SNAPSHOT</netty.version>
     <netty.build.version>31</netty.build.version>
+    <jazzer.version>0.26.0</jazzer.version>
     <project.scm.id>github</project.scm.id>
     <release.gpg.keyname />
     <release.gpg.passphrase />
