@@ -1,2 +1,5 @@
 [pom.xml]
 indent_size = 2
+
+[codec-multipart/pom.xml]
+indent_size = 4
