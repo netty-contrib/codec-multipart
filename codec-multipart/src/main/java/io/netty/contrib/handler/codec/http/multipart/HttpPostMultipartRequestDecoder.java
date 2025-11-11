@@ -472,6 +472,7 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
                             throw new ErrorDataDecoderException(e);
                         }
                         addHttpData(currentPartialHttpData());
+                        cleanMixedAttributes();
                         currentFileUpload = null;
                         currentAttribute = null;
                     } else {
@@ -837,6 +838,20 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
     private void clearCurrentFieldAttributes() {
         if (currentFieldAttributes != null) {
             currentFieldAttributes = null;
+        }
+    }
+
+    /**
+     * Remove all Attributes that should be cleaned between two FileUpload in
+     * Mixed mode
+     */
+    private void cleanMixedAttributes() {
+        if (currentFieldAttributes != null) {
+            currentFieldAttributes.remove(HttpHeaderValues.CHARSET);
+            currentFieldAttributes.remove(HttpHeaderNames.CONTENT_LENGTH);
+            currentFieldAttributes.remove(HttpHeaderNames.CONTENT_TRANSFER_ENCODING);
+            currentFieldAttributes.remove(HttpHeaderNames.CONTENT_TYPE);
+            currentFieldAttributes.remove(HttpHeaderValues.FILENAME);
         }
     }
 
