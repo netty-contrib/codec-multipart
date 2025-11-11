@@ -64,7 +64,7 @@
         <dependency>
             <groupId>com.code-intelligence</groupId>
             <artifactId>jazzer-junit</artifactId>
-            <version>0.22.1</version>
+            <version>${jazzer.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -85,7 +85,7 @@
                 <dependency>
                     <groupId>jazzer-runtime</groupId>
                     <artifactId>jazzer-runtime</artifactId>
-                    <version>0.22.1</version>
+                    <version>${jazzer.version}</version>
                     <systemPath>${JAZZER_STANDALONE}</systemPath>
                     <scope>system</scope>
                 </dependency>
