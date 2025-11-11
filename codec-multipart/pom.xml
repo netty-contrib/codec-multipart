@@ -70,7 +70,7 @@
         <dependency>
             <groupId>io.micronaut.fuzzing</groupId>
             <artifactId>micronaut-fuzzing-api</artifactId>
-            <version>0.1.13</version>
+            <version>${micronaut-fuzzing.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
