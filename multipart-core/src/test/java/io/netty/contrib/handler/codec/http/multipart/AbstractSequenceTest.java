@@ -1,6 +1,8 @@
 package io.netty.contrib.handler.codec.http.multipart;
 
 import com.code_intelligence.jazzer.junit.FuzzTest;
+import io.netty.contrib.multipart.PostBodyDecoder;
+import io.netty.contrib.multipart.TooManyFormFieldsException;
 import io.netty5.buffer.DefaultBufferAllocators;
 import org.junit.jupiter.api.Assertions;
 
@@ -18,7 +20,7 @@ public abstract class AbstractSequenceTest extends AbstractFuzzTest {
                 Assertions.assertEquals(PostBodyDecoder.Event.BEGIN_FIELD, next(decoder));
                 checkField(decoder, false);
             }
-        } catch (HttpPostRequestDecoder.ErrorDataDecoderException | HttpPostRequestDecoder.TooManyFormFieldsException ignored) {
+        } catch (HttpPostRequestDecoder.ErrorDataDecoderException | TooManyFormFieldsException ignored) {
         }
     }
 

@@ -1,12 +1,16 @@
-package io.netty.contrib.handler.codec.http.multipart;
+package io.netty.contrib.multipart;
 
+import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestDecoder;
 import io.netty5.buffer.Buffer;
 import io.netty5.handler.codec.http.HttpHeaderNames;
+import io.netty5.handler.codec.http.QueryStringDecoder;
 import io.netty5.util.ByteProcessor;
 import io.netty5.util.Send;
 import io.netty5.util.internal.StringUtil;
 
-final class UrlEncodedDecoder extends AbstractDecoder {
+import java.nio.charset.Charset;
+
+final class UrlEncodedDecoder extends AbstractDecoder implements VintageAccess.UrlEncodedDecoder {
     private static final ByteProcessor FIND_KEY_END = value -> value != '=' && value != '&';
     private static final ByteProcessor FIND_VALUE_END = value -> value != '&' && value != '\r' && value != '\n';
 
@@ -45,7 +49,7 @@ final class UrlEncodedDecoder extends AbstractDecoder {
                             }
                             if (quirkMode) {
                                 // old impl does charset decoding first. this is subtly different wrt invalid sequences
-                                key = HttpPostStandardRequestDecoder.decodeAttribute(keyBuffer.toString(charset), charset);
+                                key = decodeAttribute(keyBuffer.toString(charset), charset);
                             } else {
                                 // whatwg spec first does percent decoding, then utf-8 decoding
                                 decodeComponent(keyBuffer);
@@ -291,6 +295,44 @@ final class UrlEncodedDecoder extends AbstractDecoder {
             undecodedContent.close();
             undecodedContent = null;
         }
+    }
+
+    /**
+     * Decode component
+     *
+     * @return the decoded component
+     */
+    private static String decodeAttribute(String s, Charset charset) {
+        try {
+            return QueryStringDecoder.decodeComponent(s, charset);
+        } catch (IllegalArgumentException e) {
+            throw new HttpPostRequestDecoder.ErrorDataDecoderException("Bad string: '" + s + '\'', e);
+        }
+    }
+
+    @Override
+    public boolean isQuirkMode() {
+        return quirkMode;
+    }
+
+    @Override
+    public void setQuirkMode(boolean quirkMode) {
+        this.quirkMode = quirkMode;
+    }
+
+    @Override
+    public int getCompactionThreshold() {
+        return compactionThreshold;
+    }
+
+    @Override
+    public void setCompactionThreshold(int compactionThreshold) {
+        this.compactionThreshold = compactionThreshold;
+    }
+
+    @Override
+    public boolean isEof() {
+        return eof;
     }
 
     private enum State {

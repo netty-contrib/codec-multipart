@@ -17,6 +17,7 @@ package io.netty.contrib.handler.codec.http.multipart;
 
 import com.code_intelligence.jazzer.junit.FuzzTest;
 import io.micronaut.fuzzing.util.ByteSplitter;
+import io.netty.contrib.multipart.PostBodyDecoder;
 import io.netty5.buffer.Buffer;
 import io.netty5.buffer.CompositeBuffer;
 import io.netty5.buffer.DefaultBufferAllocators;

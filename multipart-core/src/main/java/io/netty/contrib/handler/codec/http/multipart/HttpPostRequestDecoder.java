@@ -15,6 +15,7 @@
  */
 package io.netty.contrib.handler.codec.http.multipart;
 
+import io.netty.contrib.multipart.HttpPostBodyUtil;
 import io.netty5.handler.codec.DecoderException;
 import io.netty5.handler.codec.http.HttpConstants;
 import io.netty5.handler.codec.http.HttpContent;
@@ -406,15 +407,4 @@ public class HttpPostRequestDecoder implements InterfaceHttpPostRequestDecoder {
         }
     }
 
-    /**
-     * Exception when the maximum number of fields for a given form is reached
-     */
-    public static final class TooManyFormFieldsException extends DecoderException {
-        private static final long serialVersionUID = 1336267941020800769L;
-
-        @Override
-        public synchronized Throwable fillInStackTrace() {
-            return this;
-        }
-    }
 }

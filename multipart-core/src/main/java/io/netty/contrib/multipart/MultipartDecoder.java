@@ -13,10 +13,13 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-package io.netty.contrib.handler.codec.http.multipart;
+package io.netty.contrib.multipart;
 
+import io.netty.contrib.handler.codec.http.multipart.HttpPostMultipartRequestDecoder;
+import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestDecoder;
 import io.netty5.buffer.Buffer;
 import io.netty5.buffer.ByteCursor;
+import io.netty5.handler.codec.http.HttpConstants;
 import io.netty5.handler.codec.http.HttpHeaderNames;
 import io.netty5.handler.codec.http.HttpHeaderValues;
 import io.netty5.util.ByteProcessor;
@@ -27,8 +30,11 @@ import java.nio.charset.Charset;
 import java.nio.charset.IllegalCharsetNameException;
 import java.nio.charset.StandardCharsets;
 import java.nio.charset.UnsupportedCharsetException;
+import java.util.ArrayList;
+import java.util.List;
 
-final class MultipartDecoder extends AbstractDecoder {
+final class MultipartDecoder extends AbstractDecoder implements VintageAccess.MultipartDecoder {
+    public final static ByteProcessor CTRLSPACE_PROCESSOR = value -> Character.isISOControl(value) || Character.isWhitespace(value);
     /**
      * When enabled, try to reproduce exactly the weird behavior of the old {@link HttpPostMultipartRequestDecoder}
      * implementation.
@@ -116,15 +122,15 @@ final class MultipartDecoder extends AbstractDecoder {
                     if (buffer == null) {
                         return null;
                     }
-                    if (!HttpPostMultipartRequestDecoder.skipOneLine(buffer)) {
+                    if (!skipOneLine(buffer)) {
                         int readerIndex = buffer.readerOffset();
                         if (quirkMode && quirkHeaderStart == -1) {
                             quirkHeaderStart = readerIndex;
                         }
                         String newline;
                         try {
-                            HttpPostMultipartRequestDecoder.skipControlCharacters(buffer, quirkMode);
-                            newline = HttpPostMultipartRequestDecoder.readLineOptimized(buffer, charset);
+                            skipControlCharacters(buffer, quirkMode);
+                            newline = readLineOptimized(buffer, charset);
                         } catch (HttpPostRequestDecoder.NotEnoughDataDecoderException ignored) {
                             if (quirkMode) {
                                 buffer.readerOffset(quirkHeaderStart);
@@ -323,9 +329,9 @@ final class MultipartDecoder extends AbstractDecoder {
     }
 
     private void parseHeaderQuirk(String headerLine) {
-        quirkHeader = HttpPostMultipartRequestDecoder.splitMultipartHeader(headerLine);
+        quirkHeader = splitMultipartHeader(headerLine);
         if (HttpHeaderNames.CONTENT_TRANSFER_ENCODING.contentEqualsIgnoreCase(quirkHeader[0])) {
-            String mechanismName = HttpPostMultipartRequestDecoder.cleanString(quirkHeader[1]);
+            String mechanismName = cleanString(quirkHeader[1]);
             if (HttpPostBodyUtil.TransferEncodingMechanism.BIT7.value().equals(mechanismName)) {
                 if (partCharset != null) {
                     partCharset = StandardCharsets.US_ASCII;
@@ -350,11 +356,13 @@ final class MultipartDecoder extends AbstractDecoder {
         }
     }
 
-    String[] getQuirkHeader() {
+    @Override
+    public String[] getQuirkHeader() {
         return quirkHeader;
     }
 
-    Send<Buffer> sendUndecodedPartContent() {
+    @Override
+    public Send<Buffer> sendUndecodedPartContent() {
         return undecodedPartData.send();
     }
 
@@ -367,11 +375,13 @@ final class MultipartDecoder extends AbstractDecoder {
         return sendUndecodedPartContent();
     }
 
-    boolean isMixed() {
+    @Override
+    public boolean isMixed() {
         return mixedBoundary != null;
     }
 
-    int getCurrentAllocatedCapacity() {
+    @Override
+    public int getCurrentAllocatedCapacity() {
         int n = 0;
         if (buffer != null) {
             n += buffer.capacity();
@@ -386,16 +396,16 @@ final class MultipartDecoder extends AbstractDecoder {
         // --AaB03x or --AaB03x--
         int readerIndex = buffer.readerOffset();
         try {
-            HttpPostMultipartRequestDecoder.skipControlCharacters(buffer, quirkMode);
+            skipControlCharacters(buffer, quirkMode);
         } catch (HttpPostRequestDecoder.NotEnoughDataDecoderException ignored) {
             // todo: do we need to reset here?
             buffer.readerOffset(readerIndex);
             return null;
         }
-        HttpPostMultipartRequestDecoder.skipOneLine(buffer);
+        skipOneLine(buffer);
         String newline;
         try {
-            newline = HttpPostMultipartRequestDecoder.readDelimiterOptimized(buffer, delimiter, charset);
+            newline = readDelimiterOptimized(buffer, delimiter, charset);
         } catch (HttpPostRequestDecoder.NotEnoughDataDecoderException ignored) {
             buffer.readerOffset(readerIndex);
             return null;
@@ -524,6 +534,327 @@ final class MultipartDecoder extends AbstractDecoder {
         if (undecodedPartData != null) {
             undecodedPartData.close();
         }
+    }
+
+    /**
+     * Skip control Characters
+     *
+     * @throws HttpPostRequestDecoder.NotEnoughDataDecoderException
+     */
+    static void skipControlCharacters(Buffer undecodedChunk, boolean quirk) throws HttpPostRequestDecoder.NotEnoughDataDecoderException {
+        try {
+            skipControlCharactersStandard(undecodedChunk, quirk);
+        } catch (IndexOutOfBoundsException e1) {
+            throw new HttpPostRequestDecoder.NotEnoughDataDecoderException(e1);
+        }
+    }
+
+    private static void skipControlCharactersStandard(Buffer undecodedChunk, boolean quirk) {
+        ByteCursor cursor = undecodedChunk.openCursor();
+        int processed = cursor.process(CTRLSPACE_PROCESSOR);
+        if (processed > 0) {
+            undecodedChunk.readerOffset(undecodedChunk.readerOffset() + processed);
+        } else if (!quirk && processed == -1) {
+            undecodedChunk.readerOffset(undecodedChunk.writerOffset());
+        }
+    }
+
+    /**
+     * Read one line up to the CRLF or LF
+     *
+     * @return the String from one line
+     * @throws HttpPostRequestDecoder.NotEnoughDataDecoderException
+     *             Need more chunks and reset the {@code readerIndex} to the previous
+     *             value
+     */
+    static String readLineOptimized(Buffer undecodedChunk, Charset charset) {
+        int readerIndex = undecodedChunk.readerOffset();
+        try {
+            if (undecodedChunk.readableBytes() > 0) {
+                int posLfOrCrLf = HttpPostBodyUtil.findLineBreak(undecodedChunk, undecodedChunk.readerOffset());
+                if (posLfOrCrLf <= 0) {
+                    throw new HttpPostRequestDecoder.NotEnoughDataDecoderException();
+                }
+
+                CharSequence lineCharSeq = undecodedChunk.readCharSequence(posLfOrCrLf, charset);
+                byte nextByte = undecodedChunk.readByte();
+                if (nextByte == HttpConstants.CR) {
+                    // force read next byte since LF is the following one
+                    undecodedChunk.readByte();
+                }
+                return lineCharSeq.toString();
+            }
+        } catch (IndexOutOfBoundsException e) {
+            undecodedChunk.readerOffset(readerIndex);
+            throw new HttpPostRequestDecoder.NotEnoughDataDecoderException(e);
+        }
+        undecodedChunk.readerOffset(readerIndex);
+        throw new HttpPostRequestDecoder.NotEnoughDataDecoderException();
+    }
+
+    /**
+     * Read one line up to --delimiter or --delimiter-- and if existing the CRLF
+     * or LF Read one line up to --delimiter or --delimiter-- and if existing
+     * the CRLF or LF. Note that CRLF or LF are mandatory for opening delimiter
+     * (--delimiter) but not for closing delimiter (--delimiter--) since some
+     * clients does not include CRLF in this case.
+     *
+     * @param delimiter
+     *            of the form --string, such that '--' is already included
+     * @return the String from one line as the delimiter searched (opening or
+     *         closing)
+     * @throws HttpPostRequestDecoder.NotEnoughDataDecoderException
+     *             Need more chunks and reset the {@code readerIndex} to the previous
+     *             value
+     */
+    static String readDelimiterOptimized(Buffer undecodedChunk, String delimiter, Charset charset) {
+        final int readerIndex = undecodedChunk.readerOffset();
+        final byte[] bdelimiter = delimiter.getBytes(charset);
+        final int delimiterLength = bdelimiter.length;
+        try {
+            int delimiterPos = HttpPostBodyUtil.findDelimiter(undecodedChunk, readerIndex, bdelimiter, false);
+            if (delimiterPos < 0) {
+                // delimiter not found so break here !
+                undecodedChunk.readerOffset(readerIndex);
+                throw new HttpPostRequestDecoder.NotEnoughDataDecoderException();
+            }
+            StringBuilder sb = new StringBuilder(delimiter);
+            undecodedChunk.readerOffset(readerIndex + delimiterPos + delimiterLength);
+            // Now check if either opening delimiter or closing delimiter
+            if (undecodedChunk.readableBytes() > 0) {
+                byte nextByte = undecodedChunk.readByte();
+                // first check for opening delimiter
+                if (nextByte == HttpConstants.CR) {
+                    nextByte = undecodedChunk.readByte();
+                    if (nextByte == HttpConstants.LF) {
+                        return sb.toString();
+                    } else {
+                        // error since CR must be followed by LF
+                        // delimiter not found so break here !
+                        undecodedChunk.readerOffset(readerIndex);
+                        throw new HttpPostRequestDecoder.NotEnoughDataDecoderException();
+                    }
+                } else if (nextByte == HttpConstants.LF) {
+                    return sb.toString();
+                } else if (nextByte == '-') {
+                    sb.append('-');
+                    // second check for closing delimiter
+                    nextByte = undecodedChunk.readByte();
+                    if (nextByte == '-') {
+                        sb.append('-');
+                        // now try to find if CRLF or LF there
+                        if (undecodedChunk.readableBytes() > 0) {
+                            nextByte = undecodedChunk.readByte();
+                            if (nextByte == HttpConstants.CR) {
+                                nextByte = undecodedChunk.readByte();
+                                if (nextByte == HttpConstants.LF) {
+                                    return sb.toString();
+                                } else {
+                                    // error CR without LF
+                                    // delimiter not found so break here !
+                                    undecodedChunk.readerOffset(readerIndex);
+                                    throw new HttpPostRequestDecoder.NotEnoughDataDecoderException();
+                                }
+                            } else if (nextByte == HttpConstants.LF) {
+                                return sb.toString();
+                            } else {
+                                // No CRLF but ok however (Adobe Flash uploader)
+                                // minus 1 since we read one char ahead but
+                                // should not
+                                undecodedChunk.readerOffset(undecodedChunk.readerOffset() - 1);
+                                return sb.toString();
+                            }
+                        }
+                        // FIXME what do we do here?
+                        // either considering it is fine, either waiting for
+                        // more data to come?
+                        // lets try considering it is fine...
+                        return sb.toString();
+                    }
+                    // only one '-' => not enough
+                    // whatever now => error since incomplete
+                }
+            }
+        } catch (IndexOutOfBoundsException e) {
+            undecodedChunk.readerOffset(readerIndex);
+            throw new HttpPostRequestDecoder.NotEnoughDataDecoderException(e);
+        }
+        undecodedChunk.readerOffset(readerIndex);
+        throw new HttpPostRequestDecoder.NotEnoughDataDecoderException();
+    }
+
+    /**
+     * Clean the String from any unallowed character
+     *
+     * @return the cleaned String
+     */
+    static String cleanString(String field) {
+        int size = field.length();
+        StringBuilder sb = new StringBuilder(size);
+        for (int i = 0; i < size; i++) {
+            char nextChar = field.charAt(i);
+            switch (nextChar) {
+                case HttpConstants.COLON:
+                case HttpConstants.COMMA:
+                case HttpConstants.EQUALS:
+                case HttpConstants.SEMICOLON:
+                case HttpConstants.HT:
+                    sb.append(HttpConstants.SP_CHAR);
+                    break;
+                case HttpConstants.DOUBLE_QUOTE:
+                    // nothing added, just removes it
+                    break;
+                default:
+                    sb.append(nextChar);
+                    break;
+            }
+        }
+        return sb.toString().trim();
+    }
+
+    /**
+     * Skip one empty line
+     *
+     * @return True if one empty line was skipped
+     * @param undecodedChunk
+     */
+    static boolean skipOneLine(Buffer undecodedChunk) {
+        if (undecodedChunk.readableBytes() == 0) {
+            return false;
+        }
+        byte nextByte = undecodedChunk.readByte();
+        if (nextByte == HttpConstants.CR) {
+            if (undecodedChunk.readableBytes() == 0) {
+                undecodedChunk.readerOffset(undecodedChunk.readerOffset() - 1);
+                return false;
+            }
+            nextByte = undecodedChunk.readByte();
+            if (nextByte == HttpConstants.LF) {
+                return true;
+            }
+            undecodedChunk.readerOffset(undecodedChunk.readerOffset() - 2);
+            return false;
+        }
+        if (nextByte == HttpConstants.LF) {
+            return true;
+        }
+        undecodedChunk.readerOffset(undecodedChunk.readerOffset() - 1);
+        return false;
+    }
+
+    /**
+     * Split one header in Multipart
+     *
+     * @return an array of String where rank 0 is the name of the header,
+     *         follows by several values that were separated by ';' or ','
+     */
+    static String[] splitMultipartHeader(String sb) {
+        ArrayList<String> headers = new ArrayList<String>(1);
+        int nameStart;
+        int nameEnd;
+        int colonEnd;
+        int valueStart;
+        int valueEnd;
+        nameStart = HttpPostBodyUtil.findNonWhitespace(sb, 0);
+        for (nameEnd = nameStart; nameEnd < sb.length(); nameEnd++) {
+            char ch = sb.charAt(nameEnd);
+            if (ch == ':' || Character.isWhitespace(ch)) {
+                break;
+            }
+        }
+        for (colonEnd = nameEnd; colonEnd < sb.length(); colonEnd++) {
+            if (sb.charAt(colonEnd) == ':') {
+                colonEnd++;
+                break;
+            }
+        }
+        valueStart = HttpPostBodyUtil.findNonWhitespace(sb, colonEnd);
+        valueEnd = HttpPostBodyUtil.findEndOfString(sb);
+        headers.add(sb.substring(nameStart, nameEnd));
+        String svalue = (valueStart >= valueEnd) ? StringUtil.EMPTY_STRING : sb.substring(valueStart, valueEnd);
+        String[] values;
+        if (svalue.indexOf(';') >= 0) {
+            values = splitMultipartHeaderValues(svalue);
+        } else {
+            values = svalue.split(",");
+        }
+        for (String value : values) {
+            headers.add(value.trim());
+        }
+        String[] array = new String[headers.size()];
+        for (int i = 0; i < headers.size(); i++) {
+            array[i] = headers.get(i);
+        }
+        return array;
+    }
+
+    /**
+     * Split one header value in Multipart
+     * @return an array of String where values that were separated by ';'
+     */
+    private static String[] splitMultipartHeaderValues(String svalue) {
+        List<String> values = new ArrayList<>(1);
+        boolean inQuote = false;
+        boolean escapeNext = false;
+        int start = 0;
+        for (int i = 0; i < svalue.length(); i++) {
+            char c = svalue.charAt(i);
+            if (inQuote) {
+                if (escapeNext) {
+                    escapeNext = false;
+                } else {
+                    if (c == '\\') {
+                        escapeNext = true;
+                    } else if (c == '"') {
+                        inQuote = false;
+                    }
+                }
+            } else {
+                if (c == '"') {
+                    inQuote = true;
+                } else if (c == ';') {
+                    values.add(svalue.substring(start, i));
+                    start = i + 1;
+                }
+            }
+        }
+        values.add(svalue.substring(start));
+        return values.toArray(new String[0]);
+    }
+
+    @Override
+    public boolean isQuirkMode() {
+        return quirkMode;
+    }
+
+    @Override
+    public void setQuirkMode(boolean quirkMode) {
+        this.quirkMode = quirkMode;
+    }
+
+    @Override
+    public int getCompactionThreshold() {
+        return compactionThreshold;
+    }
+
+    @Override
+    public void setCompactionThreshold(int compactionThreshold) {
+        this.compactionThreshold = compactionThreshold;
+    }
+
+    @Override
+    public void setQuirkPartCharset(Charset quirkPartCharset) {
+        this.quirkPartCharset = quirkPartCharset;
+    }
+
+    @Override
+    public void setQuirkDefinedLength(long quirkDefinedLength) {
+        this.quirkDefinedLength = quirkDefinedLength;
+    }
+
+    @Override
+    public Charset getCharset() {
+        return charset;
     }
 
     private enum State {

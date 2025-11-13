@@ -18,12 +18,14 @@ package io.netty.contrib.handler.codec.http.multipart;
 import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestDecoder.EndOfDataDecoderException;
 import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestDecoder.ErrorDataDecoderException;
 import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestDecoder.NotEnoughDataDecoderException;
+import io.netty.contrib.multipart.ContentDisposition;
+import io.netty.contrib.multipart.PostBodyDecoder;
+import io.netty.contrib.multipart.VintageAccess;
 import io.netty5.buffer.Buffer;
 import io.netty5.buffer.DefaultBufferAllocators;
 import io.netty5.handler.codec.http.HttpContent;
 import io.netty5.handler.codec.http.HttpRequest;
 import io.netty5.handler.codec.http.LastHttpContent;
-import io.netty5.handler.codec.http.QueryStringDecoder;
 import io.netty5.util.internal.PlatformDependent;
 
 import java.io.IOException;
@@ -54,7 +56,7 @@ public class HttpPostStandardRequestDecoder implements InterfaceHttpPostRequestD
      */
     private final HttpRequest request;
 
-    private final UrlEncodedDecoder decoder;
+    private final VintageAccess.UrlEncodedDecoder decoder;
 
     /**
      * HttpDatas from Body
@@ -154,8 +156,8 @@ public class HttpPostStandardRequestDecoder implements InterfaceHttpPostRequestD
         this.request = checkNotNullWithIAE(request, "request");
         this.factory = checkNotNullWithIAE(factory, "factory");
 
-        this.decoder = (UrlEncodedDecoder) builder.forUrlEncodedData();
-        decoder.quirkMode = true;
+        this.decoder = (VintageAccess.UrlEncodedDecoder) builder.forUrlEncodedData();
+        decoder.setQuirkMode(true);
         try {
             if (request instanceof HttpContent) {
                 // Offer automatically if the given request is as type of HttpContent
@@ -195,7 +197,7 @@ public class HttpPostStandardRequestDecoder implements InterfaceHttpPostRequestD
      */
     @Override
     public void setDiscardThreshold(int discardThreshold) {
-        decoder.compactionThreshold = checkPositiveOrZero(discardThreshold, "discardThreshold");
+        decoder.setCompactionThreshold(checkPositiveOrZero(discardThreshold, "discardThreshold"));
     }
 
     /**
@@ -203,7 +205,7 @@ public class HttpPostStandardRequestDecoder implements InterfaceHttpPostRequestD
      */
     @Override
     public int getDiscardThreshold() {
-        return decoder.compactionThreshold;
+        return decoder.getCompactionThreshold();
     }
 
     /**
@@ -220,7 +222,7 @@ public class HttpPostStandardRequestDecoder implements InterfaceHttpPostRequestD
     public List<InterfaceHttpData> getBodyHttpDatas() {
         checkDestroyed();
 
-        if (!decoder.eof) {
+        if (!decoder.isEof()) {
             throw new NotEnoughDataDecoderException();
         }
         return bodyListHttpData;
@@ -241,7 +243,7 @@ public class HttpPostStandardRequestDecoder implements InterfaceHttpPostRequestD
     public List<InterfaceHttpData> getBodyHttpDatas(String name) {
         checkDestroyed();
 
-        if (!decoder.eof) {
+        if (!decoder.isEof()) {
             throw new NotEnoughDataDecoderException();
         }
         return bodyMapHttpData.get(name);
@@ -263,7 +265,7 @@ public class HttpPostStandardRequestDecoder implements InterfaceHttpPostRequestD
     public InterfaceHttpData getBodyHttpData(String name) {
         checkDestroyed();
 
-        if (!decoder.eof) {
+        if (!decoder.isEof()) {
             throw new NotEnoughDataDecoderException();
         }
         List<InterfaceHttpData> list = bodyMapHttpData.get(name);
@@ -309,7 +311,7 @@ public class HttpPostStandardRequestDecoder implements InterfaceHttpPostRequestD
     public boolean hasNext() {
         checkDestroyed();
 
-        if (decoder.eof) {
+        if (decoder.isEof()) {
             // OK except if end of list
             if (bodyListHttpDataRank >= bodyListHttpData.size()) {
                 throw new EndOfDataDecoderException();
@@ -414,19 +416,6 @@ public class HttpPostStandardRequestDecoder implements InterfaceHttpPostRequestD
      */
     private void parseBodyAttributes() {
         parseBodyAttributesStandard();
-    }
-
-    /**
-     * Decode component
-     *
-     * @return the decoded component
-     */
-    static String decodeAttribute(String s, Charset charset) {
-        try {
-            return QueryStringDecoder.decodeComponent(s, charset);
-        } catch (IllegalArgumentException e) {
-            throw new ErrorDataDecoderException("Bad string: '" + s + '\'', e);
-        }
     }
 
     /**

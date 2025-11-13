@@ -1,4 +1,4 @@
-package io.netty.contrib.handler.codec.http.multipart;
+package io.netty.contrib.multipart;
 
 import io.netty5.handler.codec.http.HttpHeaderValues;
 

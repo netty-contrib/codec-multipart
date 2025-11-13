@@ -13,7 +13,7 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-package io.netty.contrib.handler.codec.http.multipart;
+package io.netty.contrib.multipart;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;

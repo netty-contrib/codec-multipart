@@ -15,11 +15,13 @@
  */
 package io.netty.contrib.handler.codec.http.multipart;
 
-import io.netty.contrib.handler.codec.http.multipart.HttpPostBodyUtil.TransferEncodingMechanism;
 import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestDecoder.EndOfDataDecoderException;
 import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestDecoder.ErrorDataDecoderException;
 import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestDecoder.MultiPartStatus;
 import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestDecoder.NotEnoughDataDecoderException;
+import io.netty.contrib.multipart.HttpPostBodyUtil;
+import io.netty.contrib.multipart.HttpPostBodyUtil.TransferEncodingMechanism;
+import io.netty.contrib.multipart.TooManyFormFieldsException;
 import io.netty5.buffer.Buffer;
 import io.netty5.buffer.BufferAllocator;
 import io.netty5.buffer.ByteCursor;
@@ -474,7 +476,7 @@ public class HttpPostMultipartRequestDecoderLegacy implements InterfaceHttpPostR
             return;
         }
         if (maxFields > 0 && bodyListHttpData.size() >= maxFields) {
-            throw new HttpPostRequestDecoder.TooManyFormFieldsException();
+            throw new TooManyFormFieldsException();
         }
         List<InterfaceHttpData> datas = bodyMapHttpData.get(data.getName());
         if (datas == null) {

@@ -13,8 +13,9 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-package io.netty.contrib.handler.codec.http.multipart;
+package io.netty.contrib.multipart;
 
+import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestDecoder;
 import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestDecoder.ErrorDataDecoderException;
 import io.netty5.buffer.Buffer;
 import io.netty5.handler.codec.http.HttpConstants;
@@ -198,9 +199,10 @@ public interface PostBodyDecoder extends Closeable {
 
     final class Builder {
         private static final int DEFAULT_UNDECODED_LIMIT = 4096;
+        private static final int DEFAULT_DISCARD_THRESHOLD = 10 * 1024 * 1024;
 
         int undecodedLimit = DEFAULT_UNDECODED_LIMIT;
-        int compactionThreshold = HttpPostRequestDecoder.DEFAULT_DISCARD_THRESHOLD;
+        int compactionThreshold = DEFAULT_DISCARD_THRESHOLD;
         Charset charset = HttpConstants.DEFAULT_CHARSET;
         int maxFields = 128;
 

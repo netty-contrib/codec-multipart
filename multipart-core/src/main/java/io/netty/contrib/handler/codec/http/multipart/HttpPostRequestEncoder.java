@@ -15,6 +15,7 @@
  */
 package io.netty.contrib.handler.codec.http.multipart;
 
+import io.netty.contrib.multipart.HttpPostBodyUtil;
 import io.netty5.buffer.Buffer;
 import io.netty5.buffer.BufferAllocator;
 import io.netty5.buffer.DefaultBufferAllocators;

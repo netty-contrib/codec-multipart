@@ -1,5 +1,7 @@
 package io.netty.contrib.handler.codec.http.multipart;
 
+import io.netty.contrib.multipart.PostBodyDecoder;
+
 public class UrlEncodedDecoderSplitTest extends AbstractDecoderSplitTest {
     @Override
     protected PostBodyDecoder createDecoder() {

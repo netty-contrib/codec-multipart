@@ -1,5 +1,6 @@
-package io.netty.contrib.handler.codec.http.multipart;
+package io.netty.contrib.multipart;
 
+import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestDecoder;
 import io.netty5.buffer.Buffer;
 import io.netty5.buffer.CompositeBuffer;
 import io.netty5.util.Send;
@@ -24,7 +25,7 @@ abstract class AbstractDecoder implements PostBodyDecoder {
 
     final void checkNewField() {
         if (--remainingFieldLimit < 0) {
-            throw new HttpPostRequestDecoder.TooManyFormFieldsException();
+            throw new TooManyFormFieldsException();
         }
     }
 

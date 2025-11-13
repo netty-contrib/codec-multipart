@@ -1,5 +1,7 @@
 package io.netty.contrib.handler.codec.http.multipart;
 
+import io.netty.contrib.multipart.ContentDisposition;
+import io.netty.contrib.multipart.PostBodyDecoder;
 import io.netty5.buffer.DefaultBufferAllocators;
 import io.netty5.handler.codec.http.HttpHeaderNames;
 import org.junit.jupiter.api.Assertions;

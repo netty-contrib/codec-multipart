@@ -15,6 +15,7 @@
  */
 package io.netty.contrib.handler.codec.http.multipart;
 
+import io.netty.contrib.multipart.TooManyFormFieldsException;
 import io.netty5.buffer.Buffer;
 import io.netty5.buffer.BufferAllocator;
 import io.netty5.buffer.DefaultBufferAllocators;
@@ -1086,7 +1087,7 @@ public class HttpPostRequestDecoderTest {
             try {
                 offer(decoder, "foo=bar&");
             } catch (DecoderException e) {
-                assertEquals(HttpPostRequestDecoder.TooManyFormFieldsException.class, e.getClass());
+                assertEquals(TooManyFormFieldsException.class, e.getClass());
                 break;
             }
             assertTrue(num++ < 1024);
@@ -1112,7 +1113,7 @@ public class HttpPostRequestDecoderTest {
                         "bar-stream\n" +
                         "--be38b42a9ad2713f\n");
             } catch (DecoderException e) {
-                assertEquals(HttpPostRequestDecoder.TooManyFormFieldsException.class, e.getClass());
+                assertEquals(TooManyFormFieldsException.class, e.getClass());
                 break;
             }
             assertTrue(num++ < 1024);

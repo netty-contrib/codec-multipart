@@ -13,7 +13,7 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-package io.netty.contrib.handler.codec.http.multipart;
+package io.netty.contrib.multipart;
 
 import io.netty5.buffer.Buffer;
 import io.netty5.buffer.ByteCursor;
@@ -23,7 +23,7 @@ import io.netty5.util.ByteProcessor;
 /**
  * Shared Static object between HttpMessageDecoder, HttpPostRequestDecoder and HttpPostRequestEncoder
  */
-final class HttpPostBodyUtil {
+public final class HttpPostBodyUtil {
 
     public static final int chunkSize = 8096;
 
@@ -87,7 +87,7 @@ final class HttpPostBodyUtil {
      * Find the first non whitespace
      * @return the rank of the first non whitespace
      */
-    static int findNonWhitespace(String sb, int offset) {
+    public static int findNonWhitespace(String sb, int offset) {
         int result;
         for (result = offset; result < sb.length(); result ++) {
             if (!Character.isWhitespace(sb.charAt(result))) {
@@ -101,7 +101,7 @@ final class HttpPostBodyUtil {
      * Find the end of String
      * @return the rank of the end of string
      */
-    static int findEndOfString(String sb) {
+    public static int findEndOfString(String sb) {
         int result;
         for (result = sb.length(); result > 0; result --) {
             if (!Character.isWhitespace(sb.charAt(result - 1))) {
@@ -119,7 +119,7 @@ final class HttpPostBodyUtil {
      * @return a relative position from index > 0 if LF or CRLF is found
      *         or < 0 if not found
      */
-    static int findLineBreak(Buffer buffer, int index) {
+    public static int findLineBreak(Buffer buffer, int index) {
         int toRead = buffer.readableBytes() - (index - buffer.readerOffset());
         ByteCursor cursor = buffer.openCursor(index, toRead);
         int posFirstChar = cursor.process(LF_PROCESSOR);
@@ -142,7 +142,7 @@ final class HttpPostBodyUtil {
      * @return a relative position from index > 0 if LF or CRLF is found
      *         or < 0 if not found
      */
-    static int findLastLineBreak(Buffer buffer, int index) {
+    public static int findLastLineBreak(Buffer buffer, int index) {
         // TODO, see if we can allocate one single Cursor, and pass it as arguments to the
         // findLineBreak method
         int candidate = findLineBreak(buffer, index);
@@ -181,7 +181,7 @@ final class HttpPostBodyUtil {
      * @throws IndexOutOfBoundsException
      *         if {@code offset + delimiter.length} is greater than {@code buffer.capacity}
      */
-    static int findDelimiter(Buffer buffer, int index, byte[] delimiter, boolean precededByLineBreak) {
+    public static int findDelimiter(Buffer buffer, int index, byte[] delimiter, boolean precededByLineBreak) {
         final int delimiterLength = delimiter.length;
         final int readerIndex = buffer.readerOffset();
         final int writerIndex = buffer.writerOffset();
