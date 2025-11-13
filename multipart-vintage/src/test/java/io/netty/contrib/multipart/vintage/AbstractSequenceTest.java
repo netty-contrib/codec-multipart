@@ -1,9 +1,9 @@
 package io.netty.contrib.multipart.vintage;
 
 import com.code_intelligence.jazzer.junit.FuzzTest;
+import io.netty.buffer.Unpooled;
 import io.netty.contrib.multipart.PostBodyDecoder;
 import io.netty.contrib.multipart.TooManyFormFieldsException;
-import io.netty.buffer.Unpooled;
 import org.junit.jupiter.api.Assertions;
 
 public abstract class AbstractSequenceTest extends AbstractFuzzTest {

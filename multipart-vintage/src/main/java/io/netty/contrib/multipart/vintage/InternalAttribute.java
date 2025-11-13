@@ -17,6 +17,7 @@ package io.netty.contrib.multipart.vintage;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.handler.codec.http.multipart.InterfaceHttpData;
 import io.netty.util.AbstractReferenceCounted;
 import io.netty.util.internal.ObjectUtil;
 
@@ -38,8 +39,8 @@ final class InternalAttribute extends AbstractReferenceCounted implements Interf
     }
 
     @Override
-    public HttpDataType getHttpDataType() {
-        return HttpDataType.InternalAttribute;
+    public InterfaceHttpData.HttpDataType getHttpDataType() {
+        return InterfaceHttpData.HttpDataType.InternalAttribute;
     }
 
     public void addValue(String value) {
@@ -153,4 +154,3 @@ final class InternalAttribute extends AbstractReferenceCounted implements Interf
         return this;
     }
 }
-

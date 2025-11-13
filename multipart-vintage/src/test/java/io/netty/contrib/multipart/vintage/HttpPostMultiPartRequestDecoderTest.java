@@ -27,6 +27,11 @@ import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpVersion;
+import io.netty.handler.codec.http.multipart.DefaultHttpDataFactory;
+import io.netty.handler.codec.http.multipart.FileUpload;
+import io.netty.handler.codec.http.multipart.HttpData;
+import io.netty.handler.codec.http.multipart.HttpDataFactory;
+import io.netty.handler.codec.http.multipart.InterfaceHttpData;
 import io.netty.util.CharsetUtil;
 import org.junit.jupiter.api.Test;
 

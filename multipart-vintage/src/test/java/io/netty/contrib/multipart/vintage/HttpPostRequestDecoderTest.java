@@ -15,12 +15,12 @@
  */
 package io.netty.contrib.multipart.vintage;
 
-import io.netty.contrib.multipart.FormDecoderException;
-import io.netty.contrib.multipart.TooManyFormFieldsException;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.Unpooled;
 import io.netty.buffer.UnpooledByteBufAllocator;
+import io.netty.contrib.multipart.FormDecoderException;
+import io.netty.contrib.multipart.TooManyFormFieldsException;
 import io.netty.handler.codec.DecoderException;
 import io.netty.handler.codec.DecoderResult;
 import io.netty.handler.codec.http.DefaultFullHttpRequest;
@@ -34,6 +34,12 @@ import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.LastHttpContent;
+import io.netty.handler.codec.http.multipart.Attribute;
+import io.netty.handler.codec.http.multipart.DefaultHttpDataFactory;
+import io.netty.handler.codec.http.multipart.FileUpload;
+import io.netty.handler.codec.http.multipart.InterfaceHttpData;
+import io.netty.handler.codec.http.multipart.MemoryAttribute;
+import io.netty.handler.codec.http.multipart.MemoryFileUpload;
 import io.netty.util.CharsetUtil;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;

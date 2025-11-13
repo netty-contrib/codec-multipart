@@ -28,6 +28,12 @@ import io.netty.contrib.multipart.vintage.HttpPostRequestDecoder.NotEnoughDataDe
 import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.LastHttpContent;
+import io.netty.handler.codec.http.multipart.Attribute;
+import io.netty.handler.codec.http.multipart.DefaultHttpDataFactory;
+import io.netty.handler.codec.http.multipart.HttpData;
+import io.netty.handler.codec.http.multipart.HttpDataFactory;
+import io.netty.handler.codec.http.multipart.InterfaceHttpData;
+import io.netty.handler.codec.http.multipart.InterfaceHttpPostRequestDecoder;
 import io.netty.util.internal.PlatformDependent;
 
 import java.io.IOException;

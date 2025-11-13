@@ -20,6 +20,9 @@ import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpVersion;
+import io.netty.handler.codec.http.multipart.DefaultHttpDataFactory;
+import io.netty.handler.codec.http.multipart.HttpDataFactory;
+import io.netty.handler.codec.http.multipart.InterfaceHttpPostRequestDecoder;
 
 import java.nio.charset.StandardCharsets;
 

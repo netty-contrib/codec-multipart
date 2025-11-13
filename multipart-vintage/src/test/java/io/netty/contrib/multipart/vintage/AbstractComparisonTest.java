@@ -2,11 +2,14 @@ package io.netty.contrib.multipart.vintage;
 
 import com.code_intelligence.jazzer.junit.FuzzTest;
 import io.micronaut.fuzzing.util.ByteSplitter;
-import io.netty.contrib.multipart.FormDecoderException;
 import io.netty.buffer.ByteBuf;
+import io.netty.contrib.multipart.FormDecoderException;
 import io.netty.handler.codec.http.DefaultHttpContent;
 import io.netty.handler.codec.http.DefaultLastHttpContent;
 import io.netty.handler.codec.http.HttpContent;
+import io.netty.handler.codec.http.multipart.FileUpload;
+import io.netty.handler.codec.http.multipart.HttpData;
+import io.netty.handler.codec.http.multipart.InterfaceHttpPostRequestDecoder;
 import org.junit.jupiter.api.Assertions;
 
 import java.io.Closeable;
@@ -155,6 +158,10 @@ abstract class AbstractComparisonTest extends AbstractFuzzTest {
             Assertions.assertEquals(((FileUpload) a).getContentTransferEncoding(), ((FileUpload) b).getContentTransferEncoding());
             Assertions.assertEquals(((FileUpload) a).getFilename(), ((FileUpload) b).getFilename());
         }
-        Assertions.assertEquals(((AbstractMemoryHttpData) a).byteBuf, ((AbstractMemoryHttpData) b).byteBuf);
+        try {
+            Assertions.assertEquals(a.getByteBuf(), b.getByteBuf());
+        } catch (java.io.IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 }

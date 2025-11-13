@@ -17,11 +17,11 @@ package io.netty.contrib.multipart.vintage;
 
 import com.code_intelligence.jazzer.junit.FuzzTest;
 import io.micronaut.fuzzing.util.ByteSplitter;
-import io.netty.contrib.multipart.FormDecoderException;
-import io.netty.contrib.multipart.PostBodyDecoder;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.CompositeByteBuf;
+import io.netty.contrib.multipart.FormDecoderException;
+import io.netty.contrib.multipart.PostBodyDecoder;
 import org.junit.jupiter.api.Assertions;
 
 import java.io.Closeable;
