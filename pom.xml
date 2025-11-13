@@ -77,7 +77,8 @@
   </properties>
 
   <modules>
-    <module>codec-multipart</module>
+    <module>multipart-core</module>
+    <module>multipart-vintage</module>
   </modules>
 
   <build>
