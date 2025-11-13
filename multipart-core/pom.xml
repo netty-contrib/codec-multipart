@@ -9,12 +9,12 @@
     </parent>
 
     <artifactId>netty-codec-multipart-core</artifactId>
-    <version>${parent.version}</version>
-    <name>Netty/Codec/Multipart/Core</name>
+    <version>${project.parent.version}</version>
+    <name>Netty/Contrib/Multipart/Core</name>
     <packaging>jar</packaging>
 
     <properties>
-        <javaModuleName>io.netty.contrib.codec.multipart.core</javaModuleName>
+        <javaModuleName>io.netty.contrib.multipart</javaModuleName>
     </properties>
 
     <dependencies>

@@ -15,8 +15,8 @@
  */
 package io.netty.contrib.multipart.vintage;
 
-import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestEncoder.EncoderMode;
-import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestEncoder.ErrorDataEncoderException;
+import io.netty.contrib.multipart.vintage.HttpPostRequestEncoder.EncoderMode;
+import io.netty.contrib.multipart.vintage.HttpPostRequestEncoder.ErrorDataEncoderException;
 import io.netty5.buffer.Buffer;
 import io.netty5.buffer.BufferAllocator;
 import io.netty5.buffer.DefaultBufferAllocators;
