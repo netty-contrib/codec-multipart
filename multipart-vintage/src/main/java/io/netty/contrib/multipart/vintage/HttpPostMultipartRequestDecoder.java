@@ -121,7 +121,9 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
      * @throws ErrorDataDecoderException
      *             if the default charset was wrong when decoding or other
      *             errors
+     * @deprecated Use {@link HttpPostRequestDecoder#builder()}
      */
+    @Deprecated
     public HttpPostMultipartRequestDecoder(HttpRequest request) {
         this(new DefaultHttpDataFactory(DefaultHttpDataFactory.MINSIZE), request, PostBodyDecoder.builder());
     }
@@ -137,7 +139,9 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
      * @throws ErrorDataDecoderException
      *             if the default charset was wrong when decoding or other
      *             errors
+     * @deprecated Use {@link HttpPostRequestDecoder#builder()}
      */
+    @Deprecated
     public HttpPostMultipartRequestDecoder(HttpDataFactory factory, HttpRequest request) {
         this(factory, request, PostBodyDecoder.builder());
     }
@@ -155,7 +159,9 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
      * @throws ErrorDataDecoderException
      *             if the default charset was wrong when decoding or other
      *             errors
+     * @deprecated Use {@link HttpPostRequestDecoder#builder()}
      */
+    @Deprecated
     public HttpPostMultipartRequestDecoder(HttpDataFactory factory, HttpRequest request, Charset charset) {
         this(factory, request, PostBodyDecoder.builder().charset(charset));
     }
@@ -177,13 +183,15 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
      * @throws ErrorDataDecoderException
      *             if the default charset was wrong when decoding or other
      *             errors
+     * @deprecated Use {@link HttpPostRequestDecoder#builder()}
      */
+    @Deprecated
     public HttpPostMultipartRequestDecoder(HttpDataFactory factory, HttpRequest request, Charset charset,
                                            int maxFields, int maxBufferedBytes) {
         this(factory, request, PostBodyDecoder.builder().charset(charset).maxFields(maxFields).undecodedLimit(maxBufferedBytes));
     }
 
-    private HttpPostMultipartRequestDecoder(HttpDataFactory factory, HttpRequest request, PostBodyDecoder.Builder builder) {
+    HttpPostMultipartRequestDecoder(HttpDataFactory factory, HttpRequest request, PostBodyDecoder.Builder builder) {
         this.request = checkNotNullWithIAE(request, "request");
         this.factory = checkNotNullWithIAE(factory, "factory");
         // Fill default values

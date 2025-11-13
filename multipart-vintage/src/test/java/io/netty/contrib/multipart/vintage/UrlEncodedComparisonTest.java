@@ -18,7 +18,7 @@ public class UrlEncodedComparisonTest extends AbstractComparisonTest {
 
     @Override
     protected InterfaceHttpPostRequestDecoder createNormal() {
-        return new HttpPostStandardRequestDecoder(FACTORY, REQUEST, StandardCharsets.UTF_8, -1, -1);
+        return HttpPostRequestDecoder.builder().dataFactory(FACTORY).maxFields(-1).undecodedLimit(-1).buildStandard(REQUEST);
     }
 
     @Override

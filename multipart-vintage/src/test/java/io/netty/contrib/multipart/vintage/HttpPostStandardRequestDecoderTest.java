@@ -42,7 +42,7 @@ class HttpPostStandardRequestDecoderTest {
 
         HttpRequest request = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/upload");
 
-        HttpPostStandardRequestDecoder decoder = new HttpPostStandardRequestDecoder(httpDiskDataFactory(), request);
+        HttpPostStandardRequestDecoder decoder = HttpPostRequestDecoder.builder().dataFactory(httpDiskDataFactory()).buildStandard(request);
         Buffer buf = DefaultBufferAllocators.preferredAllocator().copyOf(requestBody.getBytes(StandardCharsets.UTF_8));
         try (DefaultLastHttpContent httpContent = new DefaultLastHttpContent(buf)) {
             decoder.offer(httpContent);
@@ -60,7 +60,7 @@ class HttpPostStandardRequestDecoderTest {
 
         HttpRequest request = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/upload");
 
-        HttpPostStandardRequestDecoder decoder = new HttpPostStandardRequestDecoder(httpDiskDataFactory(), request);
+        HttpPostStandardRequestDecoder decoder = HttpPostRequestDecoder.builder().dataFactory(httpDiskDataFactory()).buildStandard(request);
         Buffer buf = DefaultBufferAllocators.preferredAllocator().copyOf(requestBody.getBytes(StandardCharsets.UTF_8));
         try (DefaultLastHttpContent httpContent = new DefaultLastHttpContent(buf)) {
             decoder.offer(httpContent);
@@ -77,7 +77,7 @@ class HttpPostStandardRequestDecoderTest {
 
         HttpRequest request = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/upload");
 
-        HttpPostStandardRequestDecoder decoder = new HttpPostStandardRequestDecoder(httpDiskDataFactory(), request);
+        HttpPostStandardRequestDecoder decoder = HttpPostRequestDecoder.builder().dataFactory(httpDiskDataFactory()).buildStandard(request);
         Buffer buf = DefaultBufferAllocators.preferredAllocator().copyOf(requestBody.getBytes(StandardCharsets.UTF_8));
         try (DefaultLastHttpContent httpContent = new DefaultLastHttpContent(buf)) {
             decoder.offer(httpContent);
@@ -96,7 +96,7 @@ class HttpPostStandardRequestDecoderTest {
         BufferAllocator alloc = DefaultBufferAllocators.preferredAllocator();
         for (int splitIndex = 0; splitIndex < requestBody.length(); splitIndex++) {
             Buffer full = alloc.copyOf(requestBody, StandardCharsets.UTF_8);
-            HttpPostStandardRequestDecoder decoder = new HttpPostStandardRequestDecoder(httpDiskDataFactory(), request);
+            HttpPostStandardRequestDecoder decoder = HttpPostRequestDecoder.builder().dataFactory(httpDiskDataFactory()).buildStandard(request);
             try (HttpContent<?> left = new DefaultHttpContent(full.readSplit(splitIndex))) {
                 decoder.offer(left);
             }

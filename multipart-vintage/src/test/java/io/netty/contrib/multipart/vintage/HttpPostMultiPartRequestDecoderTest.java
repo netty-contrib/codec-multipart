@@ -50,7 +50,7 @@ public class HttpPostMultiPartRequestDecoderTest {
     public void testDecodeFullHttpRequestWithNoContentTypeHeader() {
         FullHttpRequest req = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/", DefaultBufferAllocators.preferredAllocator().allocate(0));
         try {
-            new HttpPostMultipartRequestDecoder(req);
+            HttpPostRequestDecoder.builder().buildMultipart(req);
             fail("Was expecting an ErrorDataDecoderException");
         } catch (HttpPostRequestDecoder.ErrorDataDecoderException expected) {
             // expected
@@ -66,7 +66,7 @@ public class HttpPostMultiPartRequestDecoderTest {
                 "multipart/form-data; boundary=--89421926422648 [; charset=UTF-8]");
 
         try {
-            new HttpPostMultipartRequestDecoder(req);
+            HttpPostRequestDecoder.builder().buildMultipart(req);
             fail("Was expecting an ErrorDataDecoderException");
         } catch (HttpPostRequestDecoder.ErrorDataDecoderException expected) {
             // expected
@@ -90,7 +90,7 @@ public class HttpPostMultiPartRequestDecoderTest {
         req.headers().set("content-length", String.valueOf(content.length()));
 
         try {
-            new HttpPostMultipartRequestDecoder(req);
+            HttpPostRequestDecoder.builder().buildMultipart(req);
             fail("Was expecting an ErrorDataDecoderException");
         } catch (HttpPostRequestDecoder.ErrorDataDecoderException expected) {
             // expected
@@ -118,7 +118,7 @@ public class HttpPostMultiPartRequestDecoderTest {
 
         // Factory using Memory mode
         HttpDataFactory factory = new DefaultHttpDataFactory(false);
-        HttpPostMultipartRequestDecoder decoder = new HttpPostMultipartRequestDecoder(factory, request);
+        HttpPostMultipartRequestDecoder decoder = HttpPostRequestDecoder.builder().dataFactory(factory).buildMultipart(request);
         Buffer buf = Helpers.copiedBuffer(prefix.getBytes(StandardCharsets.UTF_8));
         DefaultHttpContent httpContent = new DefaultHttpContent(buf);
         decoder.offer(httpContent);
@@ -173,7 +173,7 @@ public class HttpPostMultiPartRequestDecoderTest {
         request.headers().set("content-type", "multipart/form-data; boundary=861fbeab-cd20-470c-9609-d40a0f704466");
         request.headers().set("content-length", String.valueOf(prefix.length() + fileSize + suffix.length()));
 
-        HttpPostMultipartRequestDecoder decoder = new HttpPostMultipartRequestDecoder(factory, request, StandardCharsets.UTF_8, -1, -1);
+        HttpPostMultipartRequestDecoder decoder = HttpPostRequestDecoder.builder().dataFactory(factory).maxFields(-1).undecodedLimit(-1).buildMultipart(request);
         Buffer buf = Helpers.copiedBuffer(prefix.getBytes(StandardCharsets.UTF_8));
         DefaultHttpContent httpContent = new DefaultHttpContent(buf);
         decoder.offer(httpContent);
@@ -316,7 +316,7 @@ public class HttpPostMultiPartRequestDecoderTest {
             req.headers().set("content-type", "multipart/form-data; boundary=861fbeab-cd20-470c-9609-d40a0f704466");
             req.headers().set("content-length", String.valueOf(content.length()));
 
-            HttpPostMultipartRequestDecoder test = new HttpPostMultipartRequestDecoder(req);
+            HttpPostMultipartRequestDecoder test = HttpPostRequestDecoder.builder().buildMultipart(req);
             FileUpload httpData = (FileUpload) test.getBodyHttpDatas("file").get(0);
             assertEquals("audio/ogg", httpData.getContentType());
             test.destroy();
@@ -342,7 +342,7 @@ public class HttpPostMultiPartRequestDecoderTest {
         request.headers().set("content-type", "multipart/form-data; boundary=861fbeab-cd20-470c-9609-d40a0f704466");
         request.headers().set("content-length", String.valueOf(nbItems * (prefix1.length() + prefix2.length() + 2 + bytesPerItem)
                 + suffix.length()));
-        HttpPostMultipartRequestDecoder decoder = new HttpPostMultipartRequestDecoder(factory, request);
+        HttpPostMultipartRequestDecoder decoder = HttpPostRequestDecoder.builder().dataFactory(factory).buildMultipart(request);
         decoder.setDiscardThreshold(maxMemory);
         for (int rank = 0; rank < nbItems; rank++) {
             byte[] bp1 = prefix1.getBytes(StandardCharsets.UTF_8);
@@ -426,7 +426,7 @@ public class HttpPostMultiPartRequestDecoderTest {
         // +4 => 2xCRLF (beginning, end)
         request.headers().set("content-length", String.valueOf(prefix.length() + fileSize + suffix.length() + 4));
 
-        HttpPostMultipartRequestDecoder decoder = new HttpPostMultipartRequestDecoder(factory, request);
+        HttpPostMultipartRequestDecoder decoder = HttpPostRequestDecoder.builder().dataFactory(factory).buildMultipart(request);
         Buffer buf = Helpers.copiedBuffer(prefix.getBytes(StandardCharsets.UTF_8));
         DefaultHttpContent httpContent = new DefaultHttpContent(buf);
         decoder.offer(httpContent);
