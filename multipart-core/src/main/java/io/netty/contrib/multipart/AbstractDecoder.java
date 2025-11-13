@@ -1,6 +1,5 @@
 package io.netty.contrib.multipart;
 
-import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestDecoder;
 import io.netty5.buffer.Buffer;
 import io.netty5.buffer.CompositeBuffer;
 import io.netty5.util.Send;
@@ -46,7 +45,7 @@ abstract class AbstractDecoder implements PostBodyDecoder {
             }
             if (this.buffer.readableBytes() > undecodedLimit) {
                 buffer.close();
-                throw new HttpPostRequestDecoder.ErrorDataDecoderException("Undecoded data limit exceeded");
+                throw new FormDecoderException("Undecoded data limit exceeded");
             }
 
             if (this.buffer instanceof CompositeBuffer) {

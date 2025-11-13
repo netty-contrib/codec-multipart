@@ -15,8 +15,6 @@
  */
 package io.netty.contrib.multipart;
 
-import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestDecoder;
-import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestDecoder.ErrorDataDecoderException;
 import io.netty5.buffer.Buffer;
 import io.netty5.handler.codec.http.HttpConstants;
 import io.netty5.util.Send;
@@ -26,7 +24,7 @@ import java.nio.charset.Charset;
 import java.util.Objects;
 
 /**
- * Base interface for a decoder for a post body. This API supersedes {@link HttpPostRequestDecoder}.
+ * Base interface for a decoder for a post body. This API supersedes {@code HttpPostRequestDecoder}.
  * <p>
  * This API is oriented mostly to the structure of a multipart input. There is also an
  * {@code application/x-www-form-urlencoded} implementation, but that implementation mostly emulates a multipart body.
@@ -57,7 +55,7 @@ public interface PostBodyDecoder extends Closeable {
      * Add a new buffer to this decoder, to be parsed by {@link #next()}.
      *
      * @param buffer The buffer
-     * @throws ErrorDataDecoderException If the {@link Builder#undecodedLimit(int)} has been exceeded. That means that
+     * @throws FormDecoderException If the {@link Builder#undecodedLimit(int)} has been exceeded. That means that
      *                                   either you didn't call {@link #next()} until it returned {@code null} before
      *                                   adding more data, or the input data has tokens that exceed the configured
      *                                   limit (possible attack vector).
@@ -79,7 +77,7 @@ public interface PostBodyDecoder extends Closeable {
      * }</pre>
      *
      * @return The next parsed event, or {@code null} if more input is needed.
-     * @throws ErrorDataDecoderException On invalid input
+     * @throws FormDecoderException On invalid input
      * @see Event
      */
     Event next();
@@ -140,7 +138,7 @@ public interface PostBodyDecoder extends Closeable {
      * @return The content
      * @throws IllegalStateException If the last event was not {@link Event#CONTENT}, or if this method has already
      *                               been called
-     * @throws ErrorDataDecoderException On invalid input
+     * @throws FormDecoderException On invalid input
      */
     Send<Buffer> decodedContent();
 
@@ -151,7 +149,7 @@ public interface PostBodyDecoder extends Closeable {
      * @return The content
      * @throws IllegalStateException If the last event was not {@link Event#CONTENT}, or if this method has already
      *                               been called
-     * @throws ErrorDataDecoderException On invalid input
+     * @throws FormDecoderException On invalid input
      * @see #decodedContent()
      */
     String decodedContentString();

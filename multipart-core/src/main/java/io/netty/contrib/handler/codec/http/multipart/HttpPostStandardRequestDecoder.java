@@ -19,6 +19,7 @@ import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestDecoder.EndO
 import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestDecoder.ErrorDataDecoderException;
 import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestDecoder.NotEnoughDataDecoderException;
 import io.netty.contrib.multipart.ContentDisposition;
+import io.netty.contrib.multipart.FormDecoderException;
 import io.netty.contrib.multipart.PostBodyDecoder;
 import io.netty.contrib.multipart.VintageAccess;
 import io.netty5.buffer.Buffer;
@@ -399,7 +400,7 @@ public class HttpPostStandardRequestDecoder implements InterfaceHttpPostRequestD
                     currentAttribute = null;
                 }
             }
-        } catch (ErrorDataDecoderException e) {
+        } catch (FormDecoderException e) {
             throw e;
         } catch (IOException | IllegalArgumentException e) {
             throw new ErrorDataDecoderException(e);

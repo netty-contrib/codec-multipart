@@ -15,6 +15,7 @@
  */
 package io.netty.contrib.handler.codec.http.multipart;
 
+import io.netty.contrib.multipart.FormDecoderException;
 import io.netty.contrib.multipart.HttpPostBodyUtil;
 import io.netty5.handler.codec.DecoderException;
 import io.netty5.handler.codec.http.HttpConstants;
@@ -384,7 +385,7 @@ public class HttpPostRequestDecoder implements InterfaceHttpPostRequestDecoder {
     /**
      * Exception when an error occurs while decoding
      */
-    public static class ErrorDataDecoderException extends DecoderException {
+    public static class ErrorDataDecoderException extends FormDecoderException {
         private static final long serialVersionUID = 5020247425493164465L;
 
         public ErrorDataDecoderException() {

@@ -1,6 +1,5 @@
 package io.netty.contrib.multipart;
 
-import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestDecoder;
 import io.netty5.buffer.Buffer;
 import io.netty5.handler.codec.http.HttpHeaderNames;
 import io.netty5.handler.codec.http.QueryStringDecoder;
@@ -156,7 +155,7 @@ final class UrlEncodedDecoder extends AbstractDecoder implements VintageAccess.U
                             return null;
                         }
                         if (buffer.getByte(buffer.readerOffset() + 1) != '\n') {
-                            throw new HttpPostRequestDecoder.ErrorDataDecoderException("Bad end of line");
+                            throw new FormDecoderException("Bad end of line");
                         }
                     }
                     state = State.DISCARD_REMAINING;
@@ -193,7 +192,7 @@ final class UrlEncodedDecoder extends AbstractDecoder implements VintageAccess.U
      *
      * @param start The position of the potential CRLF
      * @return {@code true} if this is certainly a valid CRLF, {@code false} if not a CRLF or just a CR for now
-     * @throws io.netty.contrib.handler.codec.http.multipart.HttpPostRequestDecoder.ErrorDataDecoderException on invalid CRLF
+     * @throws FormDecoderException on invalid CRLF
      */
     private boolean earlyEolCheck(int start) {
         assert quirkMode;
@@ -201,7 +200,7 @@ final class UrlEncodedDecoder extends AbstractDecoder implements VintageAccess.U
         if (buffer.writerOffset() > start + 1 &&
                 buffer.getByte(start) == '\r') {
             if (buffer.getByte(start + 1) != '\n') {
-                throw new HttpPostRequestDecoder.ErrorDataDecoderException("Bad end of line");
+                throw new FormDecoderException("Bad end of line");
             } else {
                 return true;
             }
@@ -282,9 +281,9 @@ final class UrlEncodedDecoder extends AbstractDecoder implements VintageAccess.U
     private void failPercentDecode() {
         assert quirkMode;
         if (state == State.KEY) {
-            throw new HttpPostRequestDecoder.ErrorDataDecoderException("Bad string");
+            throw new FormDecoderException("Bad string");
         } else {
-            throw new HttpPostRequestDecoder.ErrorDataDecoderException("Invalid hex byte");
+            throw new FormDecoderException("Invalid hex byte");
         }
     }
 
@@ -306,7 +305,7 @@ final class UrlEncodedDecoder extends AbstractDecoder implements VintageAccess.U
         try {
             return QueryStringDecoder.decodeComponent(s, charset);
         } catch (IllegalArgumentException e) {
-            throw new HttpPostRequestDecoder.ErrorDataDecoderException("Bad string: '" + s + '\'', e);
+            throw new FormDecoderException("Bad string: '" + s + '\'', e);
         }
     }
 

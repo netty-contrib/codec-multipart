@@ -2,6 +2,7 @@ package io.netty.contrib.handler.codec.http.multipart;
 
 import com.code_intelligence.jazzer.junit.FuzzTest;
 import io.micronaut.fuzzing.util.ByteSplitter;
+import io.netty.contrib.multipart.FormDecoderException;
 import io.netty5.buffer.Buffer;
 import io.netty5.handler.codec.http.DefaultHttpContent;
 import io.netty5.handler.codec.http.DefaultLastHttpContent;
@@ -65,7 +66,11 @@ abstract class AbstractComparisonTest extends AbstractFuzzTest {
             }
             Assertions.assertEquals(exc1 == null, exc2 == null);
             if (exc1 != null) {
-                Assertions.assertEquals(exc1.getClass(), exc2.getClass());
+                if (exc2.getClass() == FormDecoderException.class) {
+                    Assertions.assertEquals(HttpPostRequestDecoder.ErrorDataDecoderException.class, exc1.getClass());
+                } else {
+                    Assertions.assertEquals(exc1.getClass(), exc2.getClass());
+                }
                 String m1 = exc1.getMessage();
                 String m2 = exc2.getMessage();
                 m2 = simplifyExcMessage(m2);

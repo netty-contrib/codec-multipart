@@ -15,6 +15,7 @@
  */
 package io.netty.contrib.handler.codec.http.multipart;
 
+import io.netty.contrib.multipart.FormDecoderException;
 import io.netty.contrib.multipart.TooManyFormFieldsException;
 import io.netty5.buffer.Buffer;
 import io.netty5.buffer.BufferAllocator;
@@ -933,7 +934,7 @@ public class HttpPostRequestDecoderTest {
         try {
             new HttpPostRequestDecoder(req);
             fail("Was expecting an ErrorDataDecoderException");
-        } catch (HttpPostRequestDecoder.ErrorDataDecoderException e) {
+        } catch (FormDecoderException e) {
             assertEquals("Invalid hex byte", e.getMessage());
         } finally {
             req.close();
@@ -950,7 +951,7 @@ public class HttpPostRequestDecoderTest {
         try {
             new HttpPostRequestDecoder(req);
             fail("Was expecting an ErrorDataDecoderException");
-        } catch (HttpPostRequestDecoder.ErrorDataDecoderException e) {
+        } catch (FormDecoderException e) {
             assertEquals("Invalid hex byte", e.getMessage());
         } finally {
             req.close();
@@ -966,7 +967,7 @@ public class HttpPostRequestDecoderTest {
         try (FullHttpRequest req = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/", content)) {
             new HttpPostRequestDecoder(req);
             fail("Was expecting an ErrorDataDecoderException");
-        } catch (HttpPostRequestDecoder.ErrorDataDecoderException e) {
+        } catch (FormDecoderException e) {
             assertEquals("Invalid hex byte", e.getMessage());
         }
     }
@@ -980,7 +981,7 @@ public class HttpPostRequestDecoderTest {
         try (FullHttpRequest req = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/", content)) {
             new HttpPostRequestDecoder(req);
             fail("Was expecting an ErrorDataDecoderException");
-        } catch (HttpPostRequestDecoder.ErrorDataDecoderException e) {
+        } catch (FormDecoderException e) {
             assertEquals("Invalid hex byte", e.getMessage());
         }
     }
@@ -1133,7 +1134,7 @@ public class HttpPostRequestDecoderTest {
             decoder.offer(new DefaultHttpContent(DefaultBufferAllocators.preferredAllocator().allocate(0)));
             fail();
         } catch (DecoderException e) {
-            assertEquals(HttpPostRequestDecoder.ErrorDataDecoderException.class, e.getClass());
+            assertEquals(FormDecoderException.class, e.getClass());
         }
     }
 
@@ -1159,7 +1160,7 @@ public class HttpPostRequestDecoderTest {
             decoder.offer(new DefaultHttpContent(DefaultBufferAllocators.preferredAllocator().allocate(0)));
             fail();
         } catch (DecoderException e) {
-            assertEquals(HttpPostRequestDecoder.ErrorDataDecoderException.class, e.getClass());
+            assertEquals(FormDecoderException.class, e.getClass());
         }
     }
 

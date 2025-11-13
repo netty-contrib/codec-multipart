@@ -17,6 +17,7 @@ package io.netty.contrib.handler.codec.http.multipart;
 
 import com.code_intelligence.jazzer.junit.FuzzTest;
 import io.micronaut.fuzzing.util.ByteSplitter;
+import io.netty.contrib.multipart.FormDecoderException;
 import io.netty.contrib.multipart.PostBodyDecoder;
 import io.netty5.buffer.Buffer;
 import io.netty5.buffer.CompositeBuffer;
@@ -56,11 +57,11 @@ abstract class AbstractDecoderSplitTest extends AbstractFuzzTest {
                     PostBodyDecoder.Event splitEvent;
                     try {
                         splitEvent = splitDecoder.next();
-                    } catch (HttpPostRequestDecoder.ErrorDataDecoderException splitE) {
+                    } catch (FormDecoderException splitE) {
                         try {
                             jointDecoder.next();
                             Assertions.fail("Joint decoder should also fail", splitE);
-                        } catch (HttpPostRequestDecoder.ErrorDataDecoderException jointE) {
+                        } catch (FormDecoderException jointE) {
                             Assertions.assertEquals(jointE.getMessage(), splitE.getMessage());
                         }
                         return;

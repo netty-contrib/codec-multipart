@@ -15,8 +15,6 @@
  */
 package io.netty.contrib.multipart;
 
-import io.netty.contrib.handler.codec.http.multipart.HttpPostMultipartRequestDecoder;
-import io.netty.contrib.handler.codec.http.multipart.HttpPostRequestDecoder;
 import io.netty5.buffer.Buffer;
 import io.netty5.buffer.ByteCursor;
 import io.netty5.handler.codec.http.HttpConstants;
@@ -36,7 +34,7 @@ import java.util.List;
 final class MultipartDecoder extends AbstractDecoder implements VintageAccess.MultipartDecoder {
     public final static ByteProcessor CTRLSPACE_PROCESSOR = value -> Character.isISOControl(value) || Character.isWhitespace(value);
     /**
-     * When enabled, try to reproduce exactly the weird behavior of the old {@link HttpPostMultipartRequestDecoder}
+     * When enabled, try to reproduce exactly the weird behavior of the old {@code HttpPostMultipartRequestDecoder}
      * implementation.
      */
     boolean quirkMode = false;
@@ -131,7 +129,7 @@ final class MultipartDecoder extends AbstractDecoder implements VintageAccess.Mu
                         try {
                             skipControlCharacters(buffer, quirkMode);
                             newline = readLineOptimized(buffer, charset);
-                        } catch (HttpPostRequestDecoder.NotEnoughDataDecoderException ignored) {
+                        } catch (NotEnoughDataDecoderException ignored) {
                             if (quirkMode) {
                                 buffer.readerOffset(quirkHeaderStart);
                                 if (mixedHeader) {
@@ -264,7 +262,7 @@ final class MultipartDecoder extends AbstractDecoder implements VintageAccess.Mu
         int valueStart = HttpPostBodyUtil.findNonWhitespace(headerLine, colonEnd);
         int valueEnd = HttpPostBodyUtil.findEndOfString(headerLine);
         if (valueEnd < valueStart) {
-            throw new HttpPostRequestDecoder.ErrorDataDecoderException("Invalid header");
+            throw new FormDecoderException("Invalid header");
         }
         headerKey = headerLine.substring(nameStart, nameEnd);
         headerValue = headerLine.substring(valueStart, valueEnd);
@@ -281,7 +279,7 @@ final class MultipartDecoder extends AbstractDecoder implements VintageAccess.Mu
             } else if (HttpPostBodyUtil.TransferEncodingMechanism.BINARY.value().equals(headerValue)) {
                 // no charset
             } else {
-                throw new HttpPostRequestDecoder.ErrorDataDecoderException("TransferEncoding Unknown: " + headerValue);
+                throw new FormDecoderException("TransferEncoding Unknown: " + headerValue);
             }
         } else if (HttpHeaderNames.CONTENT_TYPE.contentEqualsIgnoreCase(headerKey)) {
             var parser = new ParmParser() {
@@ -294,7 +292,7 @@ final class MultipartDecoder extends AbstractDecoder implements VintageAccess.Mu
                 void visitType(String type) {
                     mixed = HttpHeaderValues.MULTIPART_MIXED.contentEqualsIgnoreCase(type);
                     if (mixed && mixedBoundary != null) {
-                        throw new HttpPostRequestDecoder.ErrorDataDecoderException("Mixed Multipart found in a previous Mixed Multipart");
+                        throw new FormDecoderException("Mixed Multipart found in a previous Mixed Multipart");
                     }
                 }
 
@@ -313,7 +311,7 @@ final class MultipartDecoder extends AbstractDecoder implements VintageAccess.Mu
                         try {
                             partCharset = Charset.forName(value);
                         } catch (UnsupportedCharsetException | IllegalCharsetNameException e) {
-                            throw new HttpPostRequestDecoder.ErrorDataDecoderException(e);
+                            throw new FormDecoderException(e);
                         }
                     }
                 }
@@ -321,7 +319,7 @@ final class MultipartDecoder extends AbstractDecoder implements VintageAccess.Mu
             parser.run(headerValue);
             if (parser.mixed) {
                 if (mixedBoundary == null) {
-                    throw new HttpPostRequestDecoder.ErrorDataDecoderException("No boundary found for multipart/mixed");
+                    throw new FormDecoderException("No boundary found for multipart/mixed");
                 }
                 mixedHeader = true;
             }
@@ -343,11 +341,11 @@ final class MultipartDecoder extends AbstractDecoder implements VintageAccess.Mu
             }
         } else if (HttpHeaderNames.CONTENT_TYPE.contentEqualsIgnoreCase(quirkHeader[0])) {
             if (quirkHeader.length == 1 && !quirkMode) {
-                throw new HttpPostRequestDecoder.ErrorDataDecoderException("Invalid Content-Type header");
+                throw new FormDecoderException("Invalid Content-Type header");
             }
             if (HttpHeaderValues.MULTIPART_MIXED.contentEqualsIgnoreCase(quirkHeader[1])) {
                 if (mixedBoundary != null) {
-                    throw new HttpPostRequestDecoder.ErrorDataDecoderException("Mixed Multipart found in a previous Mixed Multipart");
+                    throw new FormDecoderException("Mixed Multipart found in a previous Mixed Multipart");
                 }
                 String values = StringUtil.substringAfter(quirkHeader[2], '=');
                 mixedBoundary = "--" + values;
@@ -397,7 +395,7 @@ final class MultipartDecoder extends AbstractDecoder implements VintageAccess.Mu
         int readerIndex = buffer.readerOffset();
         try {
             skipControlCharacters(buffer, quirkMode);
-        } catch (HttpPostRequestDecoder.NotEnoughDataDecoderException ignored) {
+        } catch (NotEnoughDataDecoderException ignored) {
             // todo: do we need to reset here?
             buffer.readerOffset(readerIndex);
             return null;
@@ -406,7 +404,7 @@ final class MultipartDecoder extends AbstractDecoder implements VintageAccess.Mu
         String newline;
         try {
             newline = readDelimiterOptimized(buffer, delimiter, charset);
-        } catch (HttpPostRequestDecoder.NotEnoughDataDecoderException ignored) {
+        } catch (NotEnoughDataDecoderException ignored) {
             buffer.readerOffset(readerIndex);
             return null;
         }
@@ -417,7 +415,7 @@ final class MultipartDecoder extends AbstractDecoder implements VintageAccess.Mu
             return DelimiterType.CLOSEDELIMITER;
         }
         buffer.readerOffset(readerIndex);
-        throw new HttpPostRequestDecoder.ErrorDataDecoderException("No Multipart delimiter found");
+        throw new FormDecoderException("No Multipart delimiter found");
     }
 
     /**
@@ -538,14 +536,12 @@ final class MultipartDecoder extends AbstractDecoder implements VintageAccess.Mu
 
     /**
      * Skip control Characters
-     *
-     * @throws HttpPostRequestDecoder.NotEnoughDataDecoderException
      */
-    static void skipControlCharacters(Buffer undecodedChunk, boolean quirk) throws HttpPostRequestDecoder.NotEnoughDataDecoderException {
+    static void skipControlCharacters(Buffer undecodedChunk, boolean quirk) throws NotEnoughDataDecoderException {
         try {
             skipControlCharactersStandard(undecodedChunk, quirk);
         } catch (IndexOutOfBoundsException e1) {
-            throw new HttpPostRequestDecoder.NotEnoughDataDecoderException(e1);
+            throw new NotEnoughDataDecoderException(e1);
         }
     }
 
@@ -563,7 +559,7 @@ final class MultipartDecoder extends AbstractDecoder implements VintageAccess.Mu
      * Read one line up to the CRLF or LF
      *
      * @return the String from one line
-     * @throws HttpPostRequestDecoder.NotEnoughDataDecoderException
+     * @throws NotEnoughDataDecoderException
      *             Need more chunks and reset the {@code readerIndex} to the previous
      *             value
      */
@@ -573,7 +569,7 @@ final class MultipartDecoder extends AbstractDecoder implements VintageAccess.Mu
             if (undecodedChunk.readableBytes() > 0) {
                 int posLfOrCrLf = HttpPostBodyUtil.findLineBreak(undecodedChunk, undecodedChunk.readerOffset());
                 if (posLfOrCrLf <= 0) {
-                    throw new HttpPostRequestDecoder.NotEnoughDataDecoderException();
+                    throw new NotEnoughDataDecoderException();
                 }
 
                 CharSequence lineCharSeq = undecodedChunk.readCharSequence(posLfOrCrLf, charset);
@@ -586,10 +582,10 @@ final class MultipartDecoder extends AbstractDecoder implements VintageAccess.Mu
             }
         } catch (IndexOutOfBoundsException e) {
             undecodedChunk.readerOffset(readerIndex);
-            throw new HttpPostRequestDecoder.NotEnoughDataDecoderException(e);
+            throw new NotEnoughDataDecoderException(e);
         }
         undecodedChunk.readerOffset(readerIndex);
-        throw new HttpPostRequestDecoder.NotEnoughDataDecoderException();
+        throw new NotEnoughDataDecoderException();
     }
 
     /**
@@ -603,7 +599,7 @@ final class MultipartDecoder extends AbstractDecoder implements VintageAccess.Mu
      *            of the form --string, such that '--' is already included
      * @return the String from one line as the delimiter searched (opening or
      *         closing)
-     * @throws HttpPostRequestDecoder.NotEnoughDataDecoderException
+     * @throws NotEnoughDataDecoderException
      *             Need more chunks and reset the {@code readerIndex} to the previous
      *             value
      */
@@ -616,7 +612,7 @@ final class MultipartDecoder extends AbstractDecoder implements VintageAccess.Mu
             if (delimiterPos < 0) {
                 // delimiter not found so break here !
                 undecodedChunk.readerOffset(readerIndex);
-                throw new HttpPostRequestDecoder.NotEnoughDataDecoderException();
+                throw new NotEnoughDataDecoderException();
             }
             StringBuilder sb = new StringBuilder(delimiter);
             undecodedChunk.readerOffset(readerIndex + delimiterPos + delimiterLength);
@@ -632,7 +628,7 @@ final class MultipartDecoder extends AbstractDecoder implements VintageAccess.Mu
                         // error since CR must be followed by LF
                         // delimiter not found so break here !
                         undecodedChunk.readerOffset(readerIndex);
-                        throw new HttpPostRequestDecoder.NotEnoughDataDecoderException();
+                        throw new NotEnoughDataDecoderException();
                     }
                 } else if (nextByte == HttpConstants.LF) {
                     return sb.toString();
@@ -653,7 +649,7 @@ final class MultipartDecoder extends AbstractDecoder implements VintageAccess.Mu
                                     // error CR without LF
                                     // delimiter not found so break here !
                                     undecodedChunk.readerOffset(readerIndex);
-                                    throw new HttpPostRequestDecoder.NotEnoughDataDecoderException();
+                                    throw new NotEnoughDataDecoderException();
                                 }
                             } else if (nextByte == HttpConstants.LF) {
                                 return sb.toString();
@@ -677,10 +673,10 @@ final class MultipartDecoder extends AbstractDecoder implements VintageAccess.Mu
             }
         } catch (IndexOutOfBoundsException e) {
             undecodedChunk.readerOffset(readerIndex);
-            throw new HttpPostRequestDecoder.NotEnoughDataDecoderException(e);
+            throw new NotEnoughDataDecoderException(e);
         }
         undecodedChunk.readerOffset(readerIndex);
-        throw new HttpPostRequestDecoder.NotEnoughDataDecoderException();
+        throw new NotEnoughDataDecoderException();
     }
 
     /**
