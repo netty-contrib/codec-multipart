@@ -15,10 +15,9 @@
  */
 package io.netty.contrib.multipart.vintage;
 
-import io.netty.contrib.multipart.HttpPostBodyUtil;
-import io.netty.contrib.multipart.HttpPostBodyUtil.TransferEncodingMechanism;
 import io.netty.contrib.multipart.PostBodyDecoder;
 import io.netty.contrib.multipart.VintageAccess;
+import io.netty.contrib.multipart.vintage.HttpPostBodyUtil.TransferEncodingMechanism;
 import io.netty.contrib.multipart.vintage.HttpPostRequestDecoder.EndOfDataDecoderException;
 import io.netty.contrib.multipart.vintage.HttpPostRequestDecoder.ErrorDataDecoderException;
 import io.netty.contrib.multipart.vintage.HttpPostRequestDecoder.MultiPartStatus;

@@ -23,7 +23,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
-import static io.netty.contrib.multipart.HttpPostBodyUtil.DEFAULT_TEXT_CONTENT_TYPE;
+import static io.netty.contrib.multipart.vintage.HttpPostBodyUtil.DEFAULT_TEXT_CONTENT_TYPE;
 import static io.netty5.handler.codec.http.HttpHeaderValues.IDENTITY;
 import static io.netty5.handler.codec.http.HttpMethod.POST;
 import static io.netty5.handler.codec.http.HttpVersion.HTTP_1_1;

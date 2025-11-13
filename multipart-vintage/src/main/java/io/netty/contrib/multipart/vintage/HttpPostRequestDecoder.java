@@ -16,7 +16,6 @@
 package io.netty.contrib.multipart.vintage;
 
 import io.netty.contrib.multipart.FormDecoderException;
-import io.netty.contrib.multipart.HttpPostBodyUtil;
 import io.netty5.handler.codec.DecoderException;
 import io.netty5.handler.codec.http.HttpConstants;
 import io.netty5.handler.codec.http.HttpContent;

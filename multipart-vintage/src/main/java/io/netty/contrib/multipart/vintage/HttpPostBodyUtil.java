@@ -1,19 +1,4 @@
-/*
- * Copyright 2012 The Netty Project
- *
- * The Netty Project licenses this file to you under the Apache License,
- * version 2.0 (the "License"); you may not use this file except in compliance
- * with the License. You may obtain a copy of the License at:
- *
- *   https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
- * License for the specific language governing permissions and limitations
- * under the License.
- */
-package io.netty.contrib.multipart;
+package io.netty.contrib.multipart.vintage;
 
 import io.netty5.buffer.Buffer;
 import io.netty5.buffer.ByteCursor;
@@ -24,6 +9,18 @@ import io.netty5.util.ByteProcessor;
  * Shared Static object between HttpMessageDecoder, HttpPostRequestDecoder and HttpPostRequestEncoder
  */
 final class HttpPostBodyUtil {
+
+    public static final int chunkSize = 8096;
+
+    /**
+     * Default Content-Type in binary form
+     */
+    public static final String DEFAULT_BINARY_CONTENT_TYPE = "application/octet-stream";
+
+    /**
+     * Default Content-Type in Text form
+     */
+    public static final String DEFAULT_TEXT_CONTENT_TYPE = "text/plain";
 
     /**
      * Processor used to lookup Line Feed chars.
@@ -120,6 +117,40 @@ final class HttpPostBodyUtil {
             posFirstChar--;
         }
         return posFirstChar;
+    }
+
+    /**
+     * Try to find last LF or CRLF as Line Breaking
+     *
+     * @param buffer the buffer to search in
+     * @param index the index to start from in the buffer
+     * @return a relative position from index > 0 if LF or CRLF is found
+     *         or < 0 if not found
+     */
+    public static int findLastLineBreak(Buffer buffer, int index) {
+        // TODO, see if we can allocate one single Cursor, and pass it as arguments to the
+        // findLineBreak method
+        int candidate = findLineBreak(buffer, index);
+        int findCRLF = 0;
+        if (candidate >= 0) {
+            if (buffer.getByte(index + candidate) == HttpConstants.CR) {
+                findCRLF = 2;
+            } else {
+                findCRLF = 1;
+            }
+            candidate += findCRLF;
+        }
+        int next;
+        while (candidate > 0 && (next = findLineBreak(buffer, index + candidate)) >= 0) {
+            candidate += next;
+            if (buffer.getByte(index + candidate) == HttpConstants.CR) {
+                findCRLF = 2;
+            } else {
+                findCRLF = 1;
+            }
+            candidate += findCRLF;
+        }
+        return candidate - findCRLF;
     }
 
     /**
