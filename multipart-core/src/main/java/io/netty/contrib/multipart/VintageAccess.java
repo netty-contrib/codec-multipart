@@ -1,8 +1,5 @@
 package io.netty.contrib.multipart;
 
-import io.netty5.buffer.Buffer;
-import io.netty5.util.Send;
-
 import java.nio.charset.Charset;
 
 public class VintageAccess {
@@ -20,15 +17,9 @@ public class VintageAccess {
     public interface MultipartDecoder extends PostBodyDecoder {
         String[] getQuirkHeader();
 
-        Send<Buffer> sendUndecodedPartContent();
-
         boolean isMixed();
 
         int getCurrentAllocatedCapacity();
-
-        boolean isQuirkMode();
-
-        void setQuirkMode(boolean quirkMode);
 
         int getCompactionThreshold();
 
@@ -39,11 +30,14 @@ public class VintageAccess {
         void setQuirkDefinedLength(long quirkDefinedLength);
 
         Charset getCharset();
+
+        /**
+         * Whether a specific quirk is enabled.
+         */
+        boolean hasQuirk(DecoderQuirk quirk);
     }
 
     public interface UrlEncodedDecoder extends PostBodyDecoder {
-        boolean isQuirkMode();
-
         void setQuirkMode(boolean quirkMode);
 
         int getCompactionThreshold();

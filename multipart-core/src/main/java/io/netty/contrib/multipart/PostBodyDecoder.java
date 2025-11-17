@@ -21,6 +21,7 @@ import io.netty5.util.Send;
 
 import java.io.Closeable;
 import java.nio.charset.Charset;
+import java.util.EnumSet;
 import java.util.Objects;
 
 /**
@@ -203,6 +204,7 @@ public interface PostBodyDecoder extends Closeable {
         int compactionThreshold = DEFAULT_DISCARD_THRESHOLD;
         Charset charset = HttpConstants.DEFAULT_CHARSET;
         int maxFields = 128;
+        EnumSet<DecoderQuirk> multipartQuirks = EnumSet.noneOf(DecoderQuirk.class);
 
         Builder() {
         }
@@ -261,6 +263,35 @@ public interface PostBodyDecoder extends Closeable {
                 maxFields = Integer.MAX_VALUE;
             }
             this.maxFields = maxFields;
+            return this;
+        }
+
+        /**
+         * Enable all decoder quirks, reproducing the legacy HttpPostRequestDecoder behavior.
+         * By default, no quirks are enabled.
+         */
+        public Builder enableAllQuirks() {
+            this.multipartQuirks = EnumSet.allOf(DecoderQuirk.class);
+            return this;
+        }
+
+        /**
+         * Enable specific decoder quirks.
+         */
+        public Builder enableQuirks(DecoderQuirk... quirks) {
+            for (DecoderQuirk q : quirks) {
+                this.multipartQuirks.add(Objects.requireNonNull(q, "quirk"));
+            }
+            return this;
+        }
+
+        /**
+         * Disable specific decoder quirks.
+         */
+        public Builder disableQuirks(DecoderQuirk... quirks) {
+            for (DecoderQuirk q : quirks) {
+                this.multipartQuirks.remove(Objects.requireNonNull(q, "quirk"));
+            }
             return this;
         }
 

@@ -15,6 +15,7 @@
  */
 package io.netty.contrib.multipart.vintage;
 
+import io.netty.contrib.multipart.DecoderQuirk;
 import io.netty.contrib.multipart.FormDecoderException;
 import io.netty.contrib.multipart.PostBodyDecoder;
 import io.netty5.handler.codec.DecoderException;
@@ -56,7 +57,7 @@ public class HttpPostRequestDecoder implements InterfaceHttpPostRequestDecoder {
      */
     @Deprecated
     public HttpPostRequestDecoder(HttpRequest request) {
-        this(builder(), request);
+        this(builder().enableAllQuirks(), request);
     }
 
     /**
@@ -76,7 +77,7 @@ public class HttpPostRequestDecoder implements InterfaceHttpPostRequestDecoder {
      */
     @Deprecated
     public HttpPostRequestDecoder(HttpRequest request, int maxFields, int maxBufferedBytes) {
-        this(builder().maxFields(maxFields).undecodedLimit(maxBufferedBytes), request);
+        this(builder().enableAllQuirks().maxFields(maxFields).undecodedLimit(maxBufferedBytes), request);
     }
 
     /**
@@ -94,7 +95,7 @@ public class HttpPostRequestDecoder implements InterfaceHttpPostRequestDecoder {
      */
     @Deprecated
     public HttpPostRequestDecoder(HttpDataFactory factory, HttpRequest request) {
-        this(builder().dataFactory(factory), request);
+        this(builder().enableAllQuirks().dataFactory(factory), request);
     }
 
     /**
@@ -114,7 +115,7 @@ public class HttpPostRequestDecoder implements InterfaceHttpPostRequestDecoder {
      */
     @Deprecated
     public HttpPostRequestDecoder(HttpDataFactory factory, HttpRequest request, Charset charset) {
-        this(builder().dataFactory(factory).charset(charset), request);
+        this(builder().enableAllQuirks().dataFactory(factory).charset(charset), request);
     }
 
     /**
@@ -139,7 +140,7 @@ public class HttpPostRequestDecoder implements InterfaceHttpPostRequestDecoder {
     @Deprecated
     public HttpPostRequestDecoder(HttpDataFactory factory, HttpRequest request, Charset charset,
                                   int maxFields, int maxBufferedBytes) {
-        this(builder().dataFactory(factory).charset(charset).maxFields(maxFields).undecodedLimit(maxBufferedBytes), request);
+        this(builder().enableAllQuirks().dataFactory(factory).charset(charset).maxFields(maxFields).undecodedLimit(maxBufferedBytes), request);
     }
 
     private HttpPostRequestDecoder(Builder builder, HttpRequest request) {
@@ -468,6 +469,39 @@ public class HttpPostRequestDecoder implements InterfaceHttpPostRequestDecoder {
          */
         public Builder undecodedLimit(int undecodedLimit) {
             decoderBuilder.undecodedLimit(undecodedLimit);
+            return this;
+        }
+
+        /**
+         * Enable all multipart quirks so that behavior matches the legacy HttpPostRequestDecoder exactly.
+         * By default, no quirks are enabled.
+         *
+         * @return This builder
+         */
+        public Builder enableAllQuirks() {
+            decoderBuilder.enableAllQuirks();
+            return this;
+        }
+
+        /**
+         * Enable specific multipart quirks.
+         *
+         * @param quirks Quirks to enable
+         * @return This builder
+         */
+        public Builder enableQuirks(DecoderQuirk... quirks) {
+            decoderBuilder.enableQuirks(quirks);
+            return this;
+        }
+
+        /**
+         * Disable specific multipart quirks.
+         *
+         * @param quirks Quirks to disable
+         * @return This builder
+         */
+        public Builder disableQuirks(DecoderQuirk... quirks) {
+            decoderBuilder.disableQuirks(quirks);
             return this;
         }
 

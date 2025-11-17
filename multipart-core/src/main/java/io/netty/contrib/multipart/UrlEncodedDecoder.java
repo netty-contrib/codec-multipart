@@ -310,11 +310,6 @@ final class UrlEncodedDecoder extends AbstractDecoder implements VintageAccess.U
     }
 
     @Override
-    public boolean isQuirkMode() {
-        return quirkMode;
-    }
-
-    @Override
     public void setQuirkMode(boolean quirkMode) {
         this.quirkMode = quirkMode;
     }

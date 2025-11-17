@@ -47,7 +47,9 @@ public class MultipartComparisonTest extends AbstractComparisonTest {
 
     @Override
     protected InterfaceHttpPostRequestDecoder createNormal() {
-        return HttpPostRequestDecoder.builder().dataFactory(FACTORY).maxFields(-1).undecodedLimit(-1).buildMultipart(REQUEST);
+        return HttpPostRequestDecoder.builder()
+                .enableAllQuirks()
+                .dataFactory(FACTORY).maxFields(-1).undecodedLimit(-1).buildMultipart(REQUEST);
     }
 
     @Override

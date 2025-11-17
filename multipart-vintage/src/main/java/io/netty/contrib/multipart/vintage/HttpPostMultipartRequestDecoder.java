@@ -15,6 +15,8 @@
  */
 package io.netty.contrib.multipart.vintage;
 
+import io.netty.contrib.multipart.ContentDisposition;
+import io.netty.contrib.multipart.DecoderQuirk;
 import io.netty.contrib.multipart.PostBodyDecoder;
 import io.netty.contrib.multipart.VintageAccess;
 import io.netty.contrib.multipart.vintage.HttpPostBodyUtil.TransferEncodingMechanism;
@@ -54,6 +56,7 @@ import static io.netty5.util.internal.ObjectUtil.checkPositiveOrZero;
  *
  */
 public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequestDecoder {
+    private static final String[] USE_NEW_DISPOSITION_PARSER = new String[] {"youshouldneverseethis"};
 
     /**
      * Factory used to create InterfaceHttpData
@@ -216,7 +219,6 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
             multipartDataBoundary = null;
         }
         decoder = VintageAccess.forBoundaryWithPrefix(builder, multipartDataBoundary);
-        decoder.setQuirkMode(true);
 
         try {
             if (request instanceof HttpContent) {
@@ -432,9 +434,14 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
                         currentFieldAttributes = new TreeMap<CharSequence, Attribute>(CaseIgnoringComparator.INSTANCE);
                     }
                     break;
-                case HEADER:
-                    handleHeader(decoder.getQuirkHeader());
+                case HEADER: {
+                    String[] hdr = decoder.getQuirkHeader();
+                    if (hdr == null) {
+                        hdr = buildHeaderFromDecoder();
+                    }
+                    handleHeader(hdr);
                     break;
+                }
                 case BEGIN_MIXED:
                     mixed = true;
                     break;
@@ -458,11 +465,20 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
                         Attribute attribute = getAttribute();
                         c = attribute.getCharset();
                     }
+                    // Ensure per-part Content-Length is honored in core when quirks are not enabled.
+                    Attribute lenAttr = currentFieldAttributes.get(HttpHeaderNames.CONTENT_LENGTH);
+                    if (lenAttr != null) {
+                        try {
+                            decoder.setQuirkDefinedLength(Long.parseLong(lenAttr.getValue()));
+                        } catch (IOException | NumberFormatException e) {
+                            decoder.setQuirkDefinedLength(0);
+                        }
+                    }
                     decoder.setQuirkPartCharset(c);
                     break;
                 case CONTENT:
                     try {
-                        ((HttpData) currentPartialHttpData()).addContent(decoder.sendUndecodedPartContent().receive(), false);
+                        ((HttpData) currentPartialHttpData()).addContent(decoder.decodedContent().receive(), false);
                     } catch (IOException e) {
                         throw new ErrorDataDecoderException(e);
                     }
@@ -551,7 +567,15 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
     }
 
     private boolean handleHeader(String[] contents) {
-        if (HttpHeaderNames.CONTENT_DISPOSITION.contentEqualsIgnoreCase(contents[0])) {
+        if (contents == USE_NEW_DISPOSITION_PARSER) {
+            ContentDisposition cd = (ContentDisposition) decoder.parsedHeaderValue();
+            if (cd.name() != null) {
+                putCurrentFieldAttribute(HttpHeaderValues.NAME, factory.createAttribute(request, HttpHeaderValues.NAME.toString(), cd.name()));
+            }
+            if (cd.fileName() != null) {
+                putCurrentFieldAttribute(HttpHeaderValues.FILENAME, factory.createAttribute(request, HttpHeaderValues.FILENAME.toString(), cd.fileName()));
+            }
+        } else if (HttpHeaderNames.CONTENT_DISPOSITION.contentEqualsIgnoreCase(contents[0])) {
             boolean checkSecondArg;
             if (!decoder.isMixed()) {
                 checkSecondArg = HttpHeaderValues.FORM_DATA.contentEqualsIgnoreCase(contents[1]);
@@ -600,7 +624,7 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
             putCurrentFieldAttribute(HttpHeaderNames.CONTENT_LENGTH, attribute);
         } else if (HttpHeaderNames.CONTENT_TYPE.contentEqualsIgnoreCase(contents[0])) {
             // Take care of possible "multipart/mixed"
-            if (HttpHeaderValues.MULTIPART_MIXED.contentEqualsIgnoreCase(contents[1])) {
+            if (contents.length > 1 && HttpHeaderValues.MULTIPART_MIXED.contentEqualsIgnoreCase(contents[1])) {
                 if (decoder.isMixed()) {
                     String values = StringUtil.substringAfter(contents[2], '=');
                     currentStatus = MultiPartStatus.MIXEDDELIMITER;
@@ -660,7 +684,11 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
                 decoder.setQuirkDefinedLength(0);
             }
         }
-        currentFieldAttributes.put(decoder.isQuirkMode() ? name.toString() : attribute.getName(), attribute);
+        currentFieldAttributes.put(
+                decoder.hasQuirk(DecoderQuirk.LEGACY_HEADER_SPLITTING)
+                        ? name.toString()
+                        : attribute.getName(),
+                attribute);
     }
 
     private static final String FILENAME_ENCODED = HttpHeaderValues.FILENAME.toString() + '*';
@@ -715,12 +743,12 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
             } catch (IOException e) {
                 throw new ErrorDataDecoderException(e);
             }
-            if (code.equals(HttpPostBodyUtil.TransferEncodingMechanism.BIT7.value())) {
+            if (code.equals(TransferEncodingMechanism.BIT7.value())) {
                 localCharset = StandardCharsets.US_ASCII;
-            } else if (code.equals(HttpPostBodyUtil.TransferEncodingMechanism.BIT8.value())) {
+            } else if (code.equals(TransferEncodingMechanism.BIT8.value())) {
                 localCharset = StandardCharsets.ISO_8859_1;
                 mechanism = TransferEncodingMechanism.BIT8;
-            } else if (code.equals(HttpPostBodyUtil.TransferEncodingMechanism.BINARY.value())) {
+            } else if (code.equals(TransferEncodingMechanism.BINARY.value())) {
                 // no real charset, so let the default
                 mechanism = TransferEncodingMechanism.BINARY;
             } else {
@@ -842,6 +870,44 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
                  Attribute fname = currentFieldAttributes.remove(HttpHeaderValues.FILENAME)) {
             }
         }
+    }
+
+    /**
+     * Build a legacy-compatible header array when LEGACY_HEADER_SPLITTING is disabled.
+     * Returns an array where index 0 is the header name, index 1 is the primary value,
+     * followed by optional parameter tokens ("name=value").
+     */
+    private String[] buildHeaderFromDecoder() {
+        if (decoder.parsedHeaderValue() instanceof ContentDisposition) {
+            return USE_NEW_DISPOSITION_PARSER;
+        }
+
+        CharSequence nameCs = decoder.headerName();
+        String name = nameCs != null ? nameCs.toString() : "";
+        String value = decoder.hasUnparsedHeaderValue() ? decoder.headerValue() : "";
+
+        List<String> out = new ArrayList<>(4);
+        out.add(name);
+
+        if (HttpHeaderNames.CONTENT_LENGTH.contentEqualsIgnoreCase(name)
+                || HttpHeaderNames.CONTENT_TRANSFER_ENCODING.contentEqualsIgnoreCase(name)) {
+            // name + single value
+            out.add(value);
+        } else if (HttpHeaderNames.CONTENT_TYPE.contentEqualsIgnoreCase(name)) {
+            // name + base + parameters
+            String[] parts = value.split(";");
+            for (String part : parts) {
+                String p = part.trim();
+                if (!p.isEmpty()) {
+                    out.add(p);
+                }
+            }
+        } else {
+            // generic fallback: name + value
+            out.add(value);
+        }
+
+        return out.toArray(new String[0]);
     }
 
     /**
