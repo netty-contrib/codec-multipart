@@ -26,28 +26,31 @@
 
     <dependency>
       <groupId>org.junit.jupiter</groupId>
-      <artifactId>junit-jupiter</artifactId>
+      <artifactId>junit-jupiter-api</artifactId>
       <scope>test</scope>
     </dependency>
-
     <dependency>
-      <groupId>io.netty</groupId>
-      <artifactId>netty5-testsuite</artifactId>
-      <version>${netty.version}</version>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-params</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>com.code-intelligence</groupId>
       <artifactId>jazzer-junit</artifactId>
-      <version>${jazzer.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>io.micronaut.fuzzing</groupId>
       <artifactId>micronaut-fuzzing-api</artifactId>
-      <version>${micronaut-fuzzing.version}</version>
       <scope>test</scope>
     </dependency>
+    <dependency>
+      <groupId>org.assertj</groupId>
+      <artifactId>assertj-core</artifactId>
+      <version>3.27.3</version>
+      <scope>test</scope>
+    </dependency>
+
   </dependencies>
 
   <profiles>
