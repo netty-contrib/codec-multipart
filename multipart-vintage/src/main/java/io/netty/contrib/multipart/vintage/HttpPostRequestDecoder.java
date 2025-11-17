@@ -15,7 +15,9 @@
  */
 package io.netty.contrib.multipart.vintage;
 
+import io.netty.contrib.multipart.DecoderQuirk;
 import io.netty.contrib.multipart.FormDecoderException;
+import io.netty.contrib.multipart.PostBodyDecoder;
 import io.netty.handler.codec.DecoderException;
 import io.netty.handler.codec.http.HttpConstants;
 import io.netty.handler.codec.http.HttpContent;
@@ -57,9 +59,11 @@ public class HttpPostRequestDecoder implements InterfaceHttpPostRequestDecoder {
      * @throws ErrorDataDecoderException
      *             if the default charset was wrong when decoding or other
      *             errors
+     * @deprecated Use {@link #builder()}
      */
+    @Deprecated
     public HttpPostRequestDecoder(HttpRequest request) {
-        this(new DefaultHttpDataFactory(DefaultHttpDataFactory.MINSIZE), request, HttpConstants.DEFAULT_CHARSET);
+        this(builder().enableAllQuirks(), request);
     }
 
     /**
@@ -75,10 +79,11 @@ public class HttpPostRequestDecoder implements InterfaceHttpPostRequestDecoder {
      * @throws ErrorDataDecoderException
      *             if the default charset was wrong when decoding or other
      *             errors
+     * @deprecated Use {@link #builder()}
      */
+    @Deprecated
     public HttpPostRequestDecoder(HttpRequest request, int maxFields, int maxBufferedBytes) {
-        this(new DefaultHttpDataFactory(DefaultHttpDataFactory.MINSIZE), request, HttpConstants.DEFAULT_CHARSET,
-                maxFields, maxBufferedBytes);
+        this(builder().enableAllQuirks().maxFields(maxFields).undecodedLimit(maxBufferedBytes), request);
     }
 
     /**
@@ -92,9 +97,11 @@ public class HttpPostRequestDecoder implements InterfaceHttpPostRequestDecoder {
      * @throws ErrorDataDecoderException
      *             if the default charset was wrong when decoding or other
      *             errors
+     * @deprecated Use {@link #builder()}
      */
+    @Deprecated
     public HttpPostRequestDecoder(HttpDataFactory factory, HttpRequest request) {
-        this(factory, request, HttpConstants.DEFAULT_CHARSET);
+        this(builder().enableAllQuirks().dataFactory(factory), request);
     }
 
     /**
@@ -110,18 +117,11 @@ public class HttpPostRequestDecoder implements InterfaceHttpPostRequestDecoder {
      * @throws ErrorDataDecoderException
      *             if the default charset was wrong when decoding or other
      *             errors
+     * @deprecated Use {@link #builder()}
      */
+    @Deprecated
     public HttpPostRequestDecoder(HttpDataFactory factory, HttpRequest request, Charset charset) {
-        ObjectUtil.checkNotNull(factory, "factory");
-        ObjectUtil.checkNotNull(request, "request");
-        ObjectUtil.checkNotNull(charset, "charset");
-
-        // Fill default values
-        if (isMultipart(request)) {
-            decoder = new HttpPostMultipartRequestDecoder(factory, request, charset);
-        } else {
-            decoder = new HttpPostStandardRequestDecoder(factory, request, charset);
-        }
+        this(builder().enableAllQuirks().dataFactory(factory).charset(charset), request);
     }
 
     /**
@@ -141,19 +141,24 @@ public class HttpPostRequestDecoder implements InterfaceHttpPostRequestDecoder {
      * @throws ErrorDataDecoderException
      *             if the default charset was wrong when decoding or other
      *             errors
+     * @deprecated Use {@link #builder()}
      */
+    @Deprecated
     public HttpPostRequestDecoder(HttpDataFactory factory, HttpRequest request, Charset charset,
                                   int maxFields, int maxBufferedBytes) {
-        ObjectUtil.checkNotNull(factory, "factory");
-        ObjectUtil.checkNotNull(request, "request");
-        ObjectUtil.checkNotNull(charset, "charset");
+        this(builder().enableAllQuirks().dataFactory(factory).charset(charset).maxFields(maxFields).undecodedLimit(maxBufferedBytes), request);
+    }
 
-        // Fill default values
+    private HttpPostRequestDecoder(Builder builder, HttpRequest request) {
         if (isMultipart(request)) {
-            decoder = new HttpPostMultipartRequestDecoder(factory, request, charset, maxFields, maxBufferedBytes);
+            decoder = builder.buildMultipart(request);
         } else {
-            decoder = new HttpPostStandardRequestDecoder(factory, request, charset, maxFields, maxBufferedBytes);
+            decoder = builder.buildStandard(request);
         }
+    }
+
+    public static Builder builder() {
+        return new Builder();
     }
 
     /**
@@ -408,4 +413,138 @@ public class HttpPostRequestDecoder implements InterfaceHttpPostRequestDecoder {
         }
     }
 
+    public static final class Builder {
+        private final PostBodyDecoder.Builder decoderBuilder = PostBodyDecoder.builder();
+        private HttpDataFactory dataFactory;
+
+        Builder() {
+        }
+
+        /**
+         * Set the factory to use for creating form field data structures.
+         *
+         * @param dataFactory The factory
+         * @return This builder
+         */
+        public Builder dataFactory(HttpDataFactory dataFactory) {
+            this.dataFactory = dataFactory;
+            return this;
+        }
+
+        /**
+         * Corresponds to {@code maxFields} in old constructors. For details see {@link PostBodyDecoder.Builder}.
+         *
+         * @see PostBodyDecoder.Builder#maxFields(int)
+         * @return This builder
+         */
+        public Builder maxFields(int maxFields) {
+            decoderBuilder.maxFields(maxFields);
+            return this;
+        }
+
+        /**
+         * Corresponds to {@code charset} in old constructors. For details see {@link PostBodyDecoder.Builder}.
+         *
+         * @see PostBodyDecoder.Builder#charset(Charset)
+         * @return This builder
+         */
+        public Builder charset(Charset charset) {
+            decoderBuilder.charset(charset);
+            return this;
+        }
+
+        /**
+         * For details see {@link PostBodyDecoder.Builder}.
+         *
+         * @see PostBodyDecoder.Builder#compactionThreshold(int)
+         * @return This builder
+         */
+        public Builder compactionThreshold(int compactionThreshold) {
+            decoderBuilder.compactionThreshold(compactionThreshold);
+            return this;
+        }
+
+        /**
+         * Corresponds to {@code maxBufferedBytes} in old constructors. For details see {@link PostBodyDecoder.Builder}.
+         *
+         * @see PostBodyDecoder.Builder#undecodedLimit(int)
+         * @return This builder
+         */
+        public Builder undecodedLimit(int undecodedLimit) {
+            decoderBuilder.undecodedLimit(undecodedLimit);
+            return this;
+        }
+
+        /**
+         * Enable all multipart quirks so that behavior matches the legacy HttpPostRequestDecoder exactly.
+         * By default, no quirks are enabled.
+         *
+         * @return This builder
+         */
+        public Builder enableAllQuirks() {
+            decoderBuilder.enableAllQuirks();
+            return this;
+        }
+
+        /**
+         * Enable specific multipart quirks.
+         *
+         * @param quirks Quirks to enable
+         * @return This builder
+         */
+        public Builder enableQuirks(DecoderQuirk... quirks) {
+            decoderBuilder.enableQuirks(quirks);
+            return this;
+        }
+
+        /**
+         * Disable specific multipart quirks.
+         *
+         * @param quirks Quirks to disable
+         * @return This builder
+         */
+        public Builder disableQuirks(DecoderQuirk... quirks) {
+            decoderBuilder.disableQuirks(quirks);
+            return this;
+        }
+
+        /**
+         * Create a new {@link HttpPostRequestDecoder} with the given request. Multipart vs standard form encoding is
+         * detected automatically.
+         *
+         * @param request The request
+         * @return The decoder
+         */
+        public HttpPostRequestDecoder build(HttpRequest request) {
+            return new HttpPostRequestDecoder(this, request);
+        }
+
+        private HttpDataFactory getOrCreateDataFactory() {
+            if (dataFactory == null) {
+                return new DefaultHttpDataFactory(DefaultHttpDataFactory.MINSIZE);
+            } else {
+                return dataFactory;
+            }
+        }
+
+        /**
+         * Create a new {@link HttpPostMultipartRequestDecoder} with the given request.
+         *
+         * @param request The request
+         * @return The decoder
+         */
+        public HttpPostMultipartRequestDecoder buildMultipart(HttpRequest request) {
+            return new HttpPostMultipartRequestDecoder(getOrCreateDataFactory(), request, decoderBuilder);
+        }
+
+        /**
+         * Create a new {@link HttpPostStandardRequestDecoder} with the given request.
+         *
+         * @param request The request
+         * @return The decoder
+         */
+        public HttpPostStandardRequestDecoder buildStandard(HttpRequest request) {
+            return new HttpPostStandardRequestDecoder(getOrCreateDataFactory(), request, decoderBuilder);
+        }
+    }
 }

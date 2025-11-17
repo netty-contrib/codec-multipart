@@ -42,7 +42,7 @@ class HttpPostStandardRequestDecoderTest {
 
         HttpRequest request = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/upload");
 
-        HttpPostStandardRequestDecoder decoder = new HttpPostStandardRequestDecoder(httpDiskDataFactory(), request);
+        HttpPostStandardRequestDecoder decoder = HttpPostRequestDecoder.builder().dataFactory(httpDiskDataFactory()).buildStandard(request);
         ByteBuf buf = Unpooled.wrappedBuffer(requestBody.getBytes(CharsetUtil.UTF_8));
         DefaultHttpContent httpContent = new DefaultLastHttpContent(buf);
         decoder.offer(httpContent);
@@ -77,7 +77,7 @@ class HttpPostStandardRequestDecoderTest {
         HttpRequest request = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/upload",
                 headersFactory().newHeaders().add("Content-Type", "application/x-www-form-urlencoded"));
 
-        HttpPostStandardRequestDecoder decoder = new HttpPostStandardRequestDecoder(httpDiskDataFactory(), request);
+        HttpPostStandardRequestDecoder decoder = HttpPostRequestDecoder.builder().dataFactory(httpDiskDataFactory()).buildStandard(request);
         ByteBuf buf = Unpooled.wrappedBuffer(requestBody.getBytes(CharsetUtil.UTF_8));
         DefaultHttpContent httpContent = new DefaultHttpContent(buf);
         decoder.offer(httpContent);
@@ -131,7 +131,7 @@ class HttpPostStandardRequestDecoderTest {
 
         HttpRequest request = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/upload");
 
-        HttpPostStandardRequestDecoder decoder = new HttpPostStandardRequestDecoder(httpDiskDataFactory(), request);
+        HttpPostStandardRequestDecoder decoder = HttpPostRequestDecoder.builder().dataFactory(httpDiskDataFactory()).buildStandard(request);
         ByteBuf buf = Unpooled.wrappedBuffer(requestBody.getBytes(CharsetUtil.UTF_8));
         DefaultHttpContent httpContent = new DefaultLastHttpContent(buf);
         decoder.offer(httpContent);
@@ -200,7 +200,7 @@ class HttpPostStandardRequestDecoderTest {
 
         HttpRequest request = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/upload");
 
-        HttpPostStandardRequestDecoder decoder = new HttpPostStandardRequestDecoder(httpDiskDataFactory(), request);
+        HttpPostStandardRequestDecoder decoder = HttpPostRequestDecoder.builder().dataFactory(httpDiskDataFactory()).buildStandard(request);
         ByteBuf buf = Unpooled.wrappedBuffer(requestBody.getBytes(CharsetUtil.UTF_8));
         DefaultHttpContent httpContent = new DefaultLastHttpContent(buf);
         decoder.offer(httpContent);

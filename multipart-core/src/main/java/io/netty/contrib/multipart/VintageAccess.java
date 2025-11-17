@@ -24,15 +24,9 @@ public class VintageAccess {
     public interface MultipartDecoder extends PostBodyDecoder {
         String[] getQuirkHeader();
 
-        ByteBuf sendUndecodedPartContent();
-
         boolean isMixed();
 
         int getCurrentAllocatedCapacity();
-
-        boolean isQuirkMode();
-
-        void setQuirkMode(boolean quirkMode);
 
         int getCompactionThreshold();
 
@@ -43,14 +37,17 @@ public class VintageAccess {
         void setQuirkDefinedLength(long quirkDefinedLength);
 
         Charset getCharset();
+
+        /**
+         * Whether a specific quirk is enabled.
+         */
+        boolean hasQuirk(DecoderQuirk quirk);
     }
 
     public interface UrlEncodedDecoder extends PostBodyDecoder {
         ByteBuf undecodedContent();
 
         void decodeComponent(ByteBuf buffer, boolean key);
-
-        boolean isQuirkMode();
 
         void setQuirkMode(boolean quirkMode);
 

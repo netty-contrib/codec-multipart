@@ -46,6 +46,15 @@ class ParmParserTest {
         Assertions.assertEquals(Map.of("att1", "ö", "att2", "ä"), tester.attributes);
     }
 
+    @Test
+    public void encodedQuoted() {
+        // quoting an ext-value is not permitted by RFC 5987
+        Tester tester = new Tester();
+        tester.run("foo;att1*=UTF-8''%C3%B6;att2*=\"UTF-16LE''%E4%00\"");
+        Assertions.assertEquals("foo", tester.type);
+        Assertions.assertEquals(Map.of("att1", "ö"), tester.attributes);
+    }
+
     private static class Tester extends ParmParser {
         final Map<String, String> attributes = new HashMap<>();
         String type;

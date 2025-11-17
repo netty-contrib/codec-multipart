@@ -43,6 +43,8 @@ import io.netty.handler.codec.http.multipart.MemoryFileUpload;
 import io.netty.util.CharsetUtil;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
+import org.junit.jupiter.params.ParameterizedClass;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
@@ -61,7 +63,22 @@ import static org.junit.jupiter.api.Assertions.fail;
 /**
  * {@link HttpPostRequestDecoder} test case.
  */
+@ParameterizedClass
+@ValueSource(booleans = {false, true})
 public class HttpPostRequestDecoderTest {
+    private final boolean quirk;
+
+    public HttpPostRequestDecoderTest(boolean quirk) {
+        this.quirk = quirk;
+    }
+
+    private HttpPostRequestDecoder.Builder builder() {
+        HttpPostRequestDecoder.Builder builder = HttpPostRequestDecoder.builder();
+        if (quirk) {
+            builder.enableAllQuirks();
+        }
+        return builder;
+    }
 
     @Test
     public void testBinaryStreamUploadWithSpace() throws Exception {
@@ -74,7 +91,7 @@ public class HttpPostRequestDecoderTest {
         testBinaryStreamUpload(false);
     }
 
-    private static void testBinaryStreamUpload(boolean withSpace) throws Exception {
+    private void testBinaryStreamUpload(boolean withSpace) throws Exception {
         final String boundary = "dLV9Wyq26L_-JQxk6ferf-RT153LhOO";
         final String contentTypeValue;
         if (withSpace) {
@@ -102,7 +119,7 @@ public class HttpPostRequestDecoderTest {
                             "--" + boundary + "--\r\n";
 
             // Create decoder instance to test.
-            final HttpPostRequestDecoder decoder = new HttpPostRequestDecoder(inMemoryFactory, req);
+            final HttpPostRequestDecoder decoder = this.builder().dataFactory(inMemoryFactory).build(req);
 
             ByteBuf buf = Unpooled.copiedBuffer(body, CharsetUtil.UTF_8);
             decoder.offer(new DefaultHttpContent(buf));
@@ -150,7 +167,7 @@ public class HttpPostRequestDecoderTest {
             req.content().writeBytes(body.getBytes(CharsetUtil.UTF_8));
         }
         // Create decoder instance to test.
-        final HttpPostRequestDecoder decoder = new HttpPostRequestDecoder(inMemoryFactory, req);
+        final HttpPostRequestDecoder decoder = this.builder().dataFactory(inMemoryFactory).build(req);
         assertFalse(decoder.getBodyHttpDatas().isEmpty());
         decoder.destroy();
         assertTrue(req.release());
@@ -189,7 +206,7 @@ public class HttpPostRequestDecoderTest {
 
             req.content().writeBytes(body.getBytes(CharsetUtil.UTF_8));
             // Create decoder instance to test.
-            final HttpPostRequestDecoder decoder = new HttpPostRequestDecoder(inMemoryFactory, req);
+            final HttpPostRequestDecoder decoder = this.builder().dataFactory(inMemoryFactory).build(req);
             assertFalse(decoder.getBodyHttpDatas().isEmpty());
             // Check correctness: data size
             InterfaceHttpData httpdata = decoder.getBodyHttpData("file" + i);
@@ -231,7 +248,7 @@ public class HttpPostRequestDecoderTest {
             req.content().writeBytes(body.getBytes(CharsetUtil.UTF_8));
         }
         // Create decoder instance to test.
-        final HttpPostRequestDecoder decoder = new HttpPostRequestDecoder(inMemoryFactory, req);
+        final HttpPostRequestDecoder decoder = this.builder().dataFactory(inMemoryFactory).build(req);
         assertFalse(decoder.getBodyHttpDatas().isEmpty());
         decoder.destroy();
         assertTrue(req.release());
@@ -252,7 +269,7 @@ public class HttpPostRequestDecoderTest {
         aRequest.headers().set(HttpHeaderNames.TRANSFER_ENCODING,
                 HttpHeaderValues.CHUNKED);
 
-        HttpPostRequestDecoder aDecoder = new HttpPostRequestDecoder(aMemFactory, aRequest);
+        HttpPostRequestDecoder aDecoder = this.builder().dataFactory(aMemFactory).build(aRequest);
 
         final String aData = "some data would be here. the data should be long enough that it " +
                 "will be longer than the original buffer length of 256 bytes in " +
@@ -332,8 +349,8 @@ public class HttpPostRequestDecoderTest {
         DefaultHttpRequest defaultHttpRequest =
                 new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/");
 
-        HttpPostRequestDecoder decoder = new HttpPostRequestDecoder(defaultHttpRequest,
-                140, 4096);
+        HttpPostRequestDecoder decoder = this.builder()
+                .maxFields(140).undecodedLimit(4096).build(defaultHttpRequest);
 
         int firstChunk = 10;
         int middleChunk = 1024;
@@ -392,7 +409,7 @@ public class HttpPostRequestDecoderTest {
 
         req.content().writeBytes(body.getBytes(CharsetUtil.UTF_8.name()));
         // Create decoder instance to test.
-        final HttpPostRequestDecoder decoder = new HttpPostRequestDecoder(inMemoryFactory, req);
+        final HttpPostRequestDecoder decoder = this.builder().dataFactory(inMemoryFactory).build(req);
         assertFalse(decoder.getBodyHttpDatas().isEmpty());
         decoder.destroy();
         assertTrue(req.release());
@@ -418,7 +435,7 @@ public class HttpPostRequestDecoderTest {
 
         req.content().writeBytes(body.getBytes(CharsetUtil.UTF_8.name()));
         // Create decoder instance to test.
-        final HttpPostRequestDecoder decoder = new HttpPostRequestDecoder(inMemoryFactory, req);
+        final HttpPostRequestDecoder decoder = this.builder().dataFactory(inMemoryFactory).build(req);
         assertFalse(decoder.getBodyHttpDatas().isEmpty());
         InterfaceHttpData part1 = decoder.getBodyHttpDatas().get(0);
         assertTrue(part1 instanceof FileUpload);
@@ -453,7 +470,7 @@ public class HttpPostRequestDecoderTest {
             req.content().writeBytes(body.getBytes(CharsetUtil.UTF_8));
         }
         // Create decoder instance to test without any exception.
-        final HttpPostRequestDecoder decoder = new HttpPostRequestDecoder(inMemoryFactory, req);
+        final HttpPostRequestDecoder decoder = this.builder().dataFactory(inMemoryFactory).build(req);
         assertFalse(decoder.getBodyHttpDatas().isEmpty());
         decoder.destroy();
         assertTrue(req.release());
@@ -481,7 +498,7 @@ public class HttpPostRequestDecoderTest {
         req.headers().add(HttpHeaderNames.CONTENT_TYPE, "multipart/form-data; boundary=" + boundary);
         req.headers().add(HttpHeaderNames.TRANSFER_ENCODING, HttpHeaderValues.CHUNKED);
         final DefaultHttpDataFactory inMemoryFactory = new DefaultHttpDataFactory(false);
-        final HttpPostRequestDecoder decoder = new HttpPostRequestDecoder(inMemoryFactory, req);
+        final HttpPostRequestDecoder decoder = this.builder().dataFactory(inMemoryFactory).build(req);
         assertFalse(decoder.getBodyHttpDatas().isEmpty());
         InterfaceHttpData part1 = decoder.getBodyHttpDatas().get(0);
         assertTrue(part1 instanceof FileUpload, "the item should be a FileUpload");
@@ -513,7 +530,7 @@ public class HttpPostRequestDecoderTest {
         req.content().writeBytes(body.getBytes(CharsetUtil.UTF_8));
         // Create decoder instance to test.
         try {
-            new HttpPostRequestDecoder(inMemoryFactory, req);
+            this.builder().dataFactory(inMemoryFactory).build(req);
             fail("Was expecting an ErrorDataDecoderException");
         } catch (HttpPostRequestDecoder.ErrorDataDecoderException e) {
             assertTrue(e.getCause() instanceof UnsupportedCharsetException);
@@ -546,7 +563,7 @@ public class HttpPostRequestDecoderTest {
         req.content().writeBytes(body.getBytes(CharsetUtil.UTF_8));
         // Create decoder instance to test.
         try {
-            new HttpPostRequestDecoder(inMemoryFactory, req);
+            this.builder().dataFactory(inMemoryFactory).build(req);
             fail("Was expecting an ErrorDataDecoderException");
         } catch (HttpPostRequestDecoder.ErrorDataDecoderException e) {
             assertTrue(e.getCause() instanceof UnsupportedCharsetException);
@@ -560,7 +577,7 @@ public class HttpPostRequestDecoderTest {
         LastHttpContent content = new DefaultLastHttpContent(
                 Unpooled.copiedBuffer("project=netty&=netty&project=netty", CharsetUtil.US_ASCII));
         DefaultHttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/");
-        HttpPostRequestDecoder decoder = new HttpPostRequestDecoder(req);
+        HttpPostRequestDecoder decoder = this.builder().build(req);
         try {
             decoder.offer(content);
             fail();
@@ -596,7 +613,7 @@ public class HttpPostRequestDecoderTest {
 
         req.headers().add(HttpHeaderNames.CONTENT_TYPE, "multipart/form-data; boundary=" + boundary);
         final DefaultHttpDataFactory inMemoryFactory = new DefaultHttpDataFactory(false);
-        final HttpPostRequestDecoder decoder = new HttpPostRequestDecoder(inMemoryFactory, req);
+        final HttpPostRequestDecoder decoder = this.builder().dataFactory(inMemoryFactory).build(req);
         assertFalse(decoder.getBodyHttpDatas().isEmpty());
         InterfaceHttpData part1 = decoder.getBodyHttpDatas().get(0);
         assertTrue(part1 instanceof FileUpload, "the item should be a FileUpload");
@@ -632,7 +649,7 @@ public class HttpPostRequestDecoderTest {
 
         req.headers().add(HttpHeaderNames.CONTENT_TYPE, "multipart/form-data; boundary=" + boundary);
         final DefaultHttpDataFactory inMemoryFactory = new DefaultHttpDataFactory(false);
-        final HttpPostRequestDecoder decoder = new HttpPostRequestDecoder(inMemoryFactory, req);
+        final HttpPostRequestDecoder decoder = this.builder().dataFactory(inMemoryFactory).build(req);
         assertFalse(decoder.getBodyHttpDatas().isEmpty());
         InterfaceHttpData part1 = decoder.getBodyHttpDatas().get(0);
         assertTrue(part1 instanceof FileUpload, "the item should be a FileUpload");
@@ -665,12 +682,19 @@ public class HttpPostRequestDecoderTest {
         final DefaultHttpDataFactory inMemoryFactory = new DefaultHttpDataFactory(false);
 
         try {
-            new HttpPostRequestDecoder(inMemoryFactory, req);
-            fail("Was expecting an ErrorDataDecoderException");
+            this.builder().dataFactory(inMemoryFactory).build(req);
+            if (quirk) {
+                fail("Was expecting an ErrorDataDecoderException");
+            }
         } catch (HttpPostRequestDecoder.ErrorDataDecoderException e) {
+            if (!quirk) {
+                throw e;
+            }
             assertTrue(e.getCause() instanceof ArrayIndexOutOfBoundsException);
         } finally {
-            assertTrue(req.release());
+            if (quirk) {
+                assertTrue(req.release());
+            }
         }
     }
 
@@ -697,12 +721,19 @@ public class HttpPostRequestDecoderTest {
         final DefaultHttpDataFactory inMemoryFactory = new DefaultHttpDataFactory(false);
 
         try {
-            new HttpPostRequestDecoder(inMemoryFactory, req);
-            fail("Was expecting an ErrorDataDecoderException");
+            this.builder().dataFactory(inMemoryFactory).build(req);
+            if (quirk) {
+                fail("Was expecting an ErrorDataDecoderException");
+            }
         } catch (HttpPostRequestDecoder.ErrorDataDecoderException e) {
+            if (!quirk) {
+                throw e;
+            }
             assertTrue(e.getCause() instanceof UnsupportedCharsetException);
         } finally {
-            assertTrue(req.release());
+            if (quirk) {
+                assertTrue(req.release());
+            }
         }
     }
 
@@ -727,7 +758,7 @@ public class HttpPostRequestDecoderTest {
 
         req.content().writeBytes(body.getBytes(CharsetUtil.UTF_8.name()));
         // Create decoder instance to test.
-        final HttpPostRequestDecoder decoder = new HttpPostRequestDecoder(inMemoryFactory, req);
+        final HttpPostRequestDecoder decoder = this.builder().dataFactory(inMemoryFactory).build(req);
         assertFalse(decoder.getBodyHttpDatas().isEmpty());
         InterfaceHttpData part1 = decoder.getBodyHttpDatas().get(0);
         assertTrue(part1 instanceof FileUpload);
@@ -757,10 +788,7 @@ public class HttpPostRequestDecoderTest {
         FullHttpRequest req = new DefaultFullHttpRequest(HttpVersion.HTTP_1_0, HttpMethod.POST, "/up", byteBuf);
         req.headers().add(HttpHeaderNames.CONTENT_TYPE, "multipart/form-data; boundary=" + BOUNDARY);
 
-        HttpPostRequestDecoder decoder =
-                new HttpPostRequestDecoder(new DefaultHttpDataFactory(DefaultHttpDataFactory.MINSIZE),
-                        req,
-                        CharsetUtil.UTF_8);
+        HttpPostRequestDecoder decoder = this.builder().build(req);
 
         assertTrue(decoder.isMultipart());
         assertFalse(decoder.getBodyHttpDatas().isEmpty());
@@ -783,7 +811,7 @@ public class HttpPostRequestDecoderTest {
             assertThrows(HttpPostRequestDecoder.ErrorDataDecoderException.class, new Executable() {
                 @Override
                 public void execute() {
-                    new HttpPostStandardRequestDecoder(request).destroy();
+                    builder().buildStandard(request).destroy();
                 }
             });
         } finally {
@@ -811,11 +839,11 @@ public class HttpPostRequestDecoderTest {
         });
     }
 
-    private static void testNotLeakWhenWrapIllegalArgumentException(ByteBuf buf) {
+    private void testNotLeakWhenWrapIllegalArgumentException(ByteBuf buf) {
         buf.writeCharSequence("a=b&foo=%22bar%22&==", CharsetUtil.US_ASCII);
         FullHttpRequest request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/", buf);
         try {
-            new HttpPostStandardRequestDecoder(request).destroy();
+            this.builder().buildStandard(request).destroy();
         } finally {
             assertTrue(request.release());
         }
@@ -845,8 +873,8 @@ public class HttpPostRequestDecoderTest {
         String filenameEncoded = URLEncoder.encode(filename, encoding);
 
         final String body = "--" + boundary + "\r\n" +
-                "Content-Disposition: form-data; name=\"file\"; filename*=\"" +
-                encoding + "''" + filenameEncoded + "\"\r\n" +
+                "Content-Disposition: form-data; name=\"file\"; filename*=" +
+                encoding + "''" + filenameEncoded + "\r\n" +
                 "\r\n" +
                 "foo\r\n" +
                 "\r\n" +
@@ -859,7 +887,7 @@ public class HttpPostRequestDecoderTest {
 
         req.headers().add(HttpHeaderNames.CONTENT_TYPE, "multipart/form-data; boundary=" + boundary);
         final DefaultHttpDataFactory inMemoryFactory = new DefaultHttpDataFactory(false);
-        final HttpPostRequestDecoder decoder = new HttpPostRequestDecoder(inMemoryFactory, req);
+        final HttpPostRequestDecoder decoder = this.builder().dataFactory(inMemoryFactory).build(req);
         assertFalse(decoder.getBodyHttpDatas().isEmpty());
         InterfaceHttpData part1 = decoder.getBodyHttpDatas().get(0);
         assertTrue(part1 instanceof FileUpload, "the item should be a FileUpload");
@@ -877,7 +905,7 @@ public class HttpPostRequestDecoderTest {
         content.writeBytes(bodyBytes);
 
         FullHttpRequest req = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/", content);
-        HttpPostRequestDecoder decoder = new HttpPostRequestDecoder(req);
+        HttpPostRequestDecoder decoder = this.builder().build(req);
         assertFalse(decoder.getBodyHttpDatas().isEmpty());
 
         assertFalse(decoder.getBodyHttpDatas().isEmpty());
@@ -910,7 +938,7 @@ public class HttpPostRequestDecoderTest {
 
         FullHttpRequest req = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/", content);
         try {
-            new HttpPostRequestDecoder(req);
+            this.builder().build(req);
             fail("Was expecting an ErrorDataDecoderException");
         } catch (FormDecoderException e) {
             assertEquals("Invalid hex byte", e.getMessage());
@@ -927,7 +955,7 @@ public class HttpPostRequestDecoderTest {
 
         FullHttpRequest req = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/", content);
         try {
-            new HttpPostRequestDecoder(req);
+            this.builder().build(req);
             fail("Was expecting an ErrorDataDecoderException");
         } catch (FormDecoderException e) {
             assertEquals("Invalid hex byte", e.getMessage());
@@ -944,7 +972,7 @@ public class HttpPostRequestDecoderTest {
 
         FullHttpRequest req = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/", content);
         try {
-            new HttpPostRequestDecoder(req);
+            this.builder().build(req);
             fail("Was expecting an ErrorDataDecoderException");
         } catch (FormDecoderException e) {
             assertEquals("Invalid hex byte", e.getMessage());
@@ -961,7 +989,7 @@ public class HttpPostRequestDecoderTest {
 
         FullHttpRequest req = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/", content);
         try {
-            new HttpPostRequestDecoder(req);
+            this.builder().build(req);
             fail("Was expecting an ErrorDataDecoderException");
         } catch (FormDecoderException e) {
             assertEquals("Invalid hex byte", e.getMessage());
@@ -991,7 +1019,7 @@ public class HttpPostRequestDecoderTest {
         req.headers().add("Content-Type", "multipart/form-data;boundary=be38b42a9ad2713f");
 
         try {
-            HttpPostRequestDecoder decoder = new HttpPostRequestDecoder(new DefaultHttpDataFactory(false), req);
+            HttpPostRequestDecoder decoder = this.builder().dataFactory(new DefaultHttpDataFactory(false)).build(req);
             assertEquals(2, decoder.getBodyHttpDatas().size());
             InterfaceHttpData data = decoder.getBodyHttpData("title");
             assertTrue(data instanceof MemoryAttribute);
@@ -1014,7 +1042,6 @@ public class HttpPostRequestDecoderTest {
      */
     @Test
     void testHttpPostStandardRequestDecoderToDiskNameContainingUnauthorizedChar() throws UnsupportedEncodingException {
-        StringBuffer sb = new StringBuffer();
         byte[] bodyBytes = ("aaaa/bbbb=aaaaaaaaaa" +
                 "aaaaaaaaaaaaaaaaaaaaaaaaaa" +
                 "aaaaaaaaaaaaaaaaaaaaaaaaaa" +
@@ -1029,11 +1056,10 @@ public class HttpPostRequestDecoderTest {
                 "/",
                 content);
         HttpPostStandardRequestDecoder decoder = null;
+        DefaultHttpDataFactory factory = new DefaultHttpDataFactory(false);
         try {
-            decoder = new HttpPostStandardRequestDecoder(
-                    new DefaultHttpDataFactory(true),
-                    req
-            );
+            decoder = this.builder().dataFactory(factory).buildStandard(req);
+            factory.cleanAllHttpData();
             decoder.destroy();
         } catch (HttpPostRequestDecoder.ErrorDataDecoderException e) {
             if (null != decoder) {
@@ -1049,7 +1075,8 @@ public class HttpPostRequestDecoderTest {
     public void testTooManyFormFieldsPostStandardDecoder() {
         HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/");
 
-        HttpPostRequestDecoder decoder = new HttpPostRequestDecoder(req, 1024, -1);
+        HttpPostRequestDecoder decoder = this.builder()
+                .maxFields(1024).undecodedLimit(-1).build(req);
 
         int num = 0;
         while (true) {
@@ -1070,7 +1097,8 @@ public class HttpPostRequestDecoderTest {
         HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/");
         req.headers().add("Content-Type", "multipart/form-data;boundary=be38b42a9ad2713f");
 
-        HttpPostRequestDecoder decoder = new HttpPostRequestDecoder(req, 1024, -1);
+        HttpPostRequestDecoder decoder = this.builder()
+                .maxFields(1024).undecodedLimit(-1).build(req);
         decoder.offer(new DefaultHttpContent(Unpooled.wrappedBuffer("--be38b42a9ad2713f\n".getBytes())));
 
         int num = 0;
@@ -1098,7 +1126,8 @@ public class HttpPostRequestDecoderTest {
     public void testTooLongFormFieldStandardDecoder() {
         HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/");
 
-        HttpPostRequestDecoder decoder = new HttpPostRequestDecoder(req, -1, 16 * 1024);
+        HttpPostRequestDecoder decoder = this.builder()
+                .maxFields(-1).undecodedLimit(16 * 1024).build(req);
 
         try {
             decoder.offer(new DefaultHttpContent(Unpooled.wrappedBuffer(new byte[16 * 1024 + 1])));
@@ -1114,7 +1143,8 @@ public class HttpPostRequestDecoderTest {
     public void testFieldGreaterThanMaxBufferedBytesStandardDecoder() {
         HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/");
 
-        HttpPostRequestDecoder decoder = new HttpPostRequestDecoder(req, -1, 6);
+        HttpPostRequestDecoder decoder = this.builder()
+                .maxFields(-1).undecodedLimit(6).build(req);
 
         decoder.offer(new DefaultHttpContent(Unpooled.wrappedBuffer("foo=bar".getBytes())));
         decoder.destroy();
@@ -1125,7 +1155,8 @@ public class HttpPostRequestDecoderTest {
         HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/");
         req.headers().add("Content-Type", "multipart/form-data;boundary=be38b42a9ad2713f");
 
-        HttpPostRequestDecoder decoder = new HttpPostRequestDecoder(req, -1, 16 * 1024);
+        HttpPostRequestDecoder decoder = this.builder()
+                .maxFields(-1).undecodedLimit(16 * 1024).build(req);
 
         try {
             decoder.offer(new DefaultHttpContent(Unpooled.wrappedBuffer(new byte[16 * 1024 + 1])));
@@ -1147,12 +1178,10 @@ public class HttpPostRequestDecoderTest {
                 "content-type: text/plain; charset=UTF-8\n" +
                 "\n" +
                 "bar-stream\n" +
-                "--be38b42a9ad2713f\n").getBytes();
-
-        HttpPostRequestDecoder decoder = new HttpPostRequestDecoder(req, -1, bodyBytes.length - 1);
-
+                "--be38b42a9ad2713f\n").getBytes(StandardCharsets.UTF_8);
+        HttpPostRequestDecoder decoder = this.builder()
+                .maxFields(-1).undecodedLimit(bodyBytes.length - 1).build(req);
         decoder.offer(new DefaultHttpContent(Unpooled.wrappedBuffer(bodyBytes)));
-        decoder.destroy();
     }
 
     @Test
@@ -1180,7 +1209,7 @@ public class HttpPostRequestDecoderTest {
                 "--b--\r\n" +
                 "--a--\r\n").getBytes(StandardCharsets.UTF_8);
 
-        HttpPostMultipartRequestDecoder decoder = new HttpPostMultipartRequestDecoder(new DefaultHttpDataFactory(), req, StandardCharsets.UTF_8);
+        HttpPostMultipartRequestDecoder decoder = this.builder().buildMultipart(req);
         decoder.offer(new DefaultLastHttpContent(Unpooled.wrappedBuffer(bodyBytes)));
 
         List<InterfaceHttpData> datas = decoder.getBodyHttpDatas();

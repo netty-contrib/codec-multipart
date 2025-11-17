@@ -27,6 +27,7 @@ import java.nio.charset.IllegalCharsetNameException;
 import java.nio.charset.StandardCharsets;
 import java.nio.charset.UnsupportedCharsetException;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
 
 final class MultipartDecoder extends AbstractDecoder implements VintageAccess.MultipartDecoder {
@@ -34,12 +35,6 @@ final class MultipartDecoder extends AbstractDecoder implements VintageAccess.Mu
         char c = (char) (value & 0xff);
         return Character.isISOControl(c) || Character.isWhitespace(c);
     };
-
-    /**
-     * When enabled, try to reproduce exactly the weird behavior of the old {@code HttpPostMultipartRequestDecoder}
-     * implementation.
-     */
-    boolean quirkMode = false;
 
     private final String multipartDataBoundary;
 
@@ -63,9 +58,12 @@ final class MultipartDecoder extends AbstractDecoder implements VintageAccess.Mu
     long quirkDefinedLength;
     Charset quirkPartCharset;
 
+    final EnumSet<DecoderQuirk> quirks;
+
     MultipartDecoder(Builder builder, String multipartDataBoundary) {
         super(builder);
         this.multipartDataBoundary = multipartDataBoundary;
+        this.quirks = EnumSet.copyOf(builder.multipartQuirks);
 
         clearPartData();
     }
@@ -73,7 +71,7 @@ final class MultipartDecoder extends AbstractDecoder implements VintageAccess.Mu
     @Override
     public void add(ByteBuf buffer) {
         super.add(buffer);
-        if (quirkMode) {
+        if (hasQuirk(DecoderQuirk.RESCAN_HEADERS_ON_CHUNK_BOUNDARY)) {
             quirkHeaderStart = -1;
             quirkMixed = false;
         }
@@ -86,7 +84,7 @@ final class MultipartDecoder extends AbstractDecoder implements VintageAccess.Mu
         }
         partCharset = null;
         receivedLength = 0;
-        if (quirkMode) {
+        if (!quirks.isEmpty()) {
             quirkDefinedLength = 0;
             quirkPartCharset = null;
         }
@@ -112,7 +110,7 @@ final class MultipartDecoder extends AbstractDecoder implements VintageAccess.Mu
                             state = State.PREEPILOGUE;
                         } else {
                             mixedBoundary = null;
-                            if (quirkMode) {
+                            if (!quirks.isEmpty()) {
                                 quirkDefinedLength = 0;
                                 quirkPartCharset = null;
                             }
@@ -126,15 +124,15 @@ final class MultipartDecoder extends AbstractDecoder implements VintageAccess.Mu
                     }
                     if (!skipOneLine(buffer)) {
                         int readerIndex = buffer.readerIndex();
-                        if (quirkMode && quirkHeaderStart == -1) {
+                        if (hasQuirk(DecoderQuirk.RESCAN_HEADERS_ON_CHUNK_BOUNDARY) && quirkHeaderStart == -1) {
                             quirkHeaderStart = readerIndex;
                         }
                         String newline;
                         try {
-                            skipControlCharacters(buffer, quirkMode);
+                            skipControlCharacters(buffer, hasQuirk(DecoderQuirk.CONSERVATIVE_WHITESPACE_SKIP));
                             newline = readLineOptimized(buffer, charset);
                         } catch (NotEnoughDataDecoderException ignored) {
-                            if (quirkMode) {
+                            if (hasQuirk(DecoderQuirk.RESCAN_HEADERS_ON_CHUNK_BOUNDARY)) {
                                 buffer.readerIndex(quirkHeaderStart);
                                 if (mixedHeader) {
                                     mixedBoundary = null;
@@ -145,22 +143,22 @@ final class MultipartDecoder extends AbstractDecoder implements VintageAccess.Mu
                             }
                             return null;
                         }
-                        if (quirkMode) {
+                        if (hasQuirk(DecoderQuirk.LEGACY_HEADER_SPLITTING)) {
                             parseHeaderQuirk(newline);
-                            if (mixedHeader) {
-                                // quirk mode does not parse more headers after the multipart/mixed header
-                                quirkHeaderStart = -1;
-                                mixedHeader = false;
-                                state = State.HEADERDELIMITER;
-                                return Event.BEGIN_MIXED;
-                            }
                         } else {
                             parseHeader(newline);
+                        }
+                        if (mixedHeader && hasQuirk(DecoderQuirk.STOP_AFTER_MULTIPART_MIXED_HEADER)) {
+                            // quirk mode does not parse more headers after the multipart/mixed header
+                            quirkHeaderStart = -1;
+                            mixedHeader = false;
+                            state = State.HEADERDELIMITER;
+                            return Event.BEGIN_MIXED;
                         }
                         return Event.HEADER;
                     } else {
                         // no more headers
-                        if (quirkMode) {
+                        if (hasQuirk(DecoderQuirk.RESCAN_HEADERS_ON_CHUNK_BOUNDARY)) {
                             quirkHeaderStart = -1;
                         }
                         if (mixedHeader) {
@@ -180,13 +178,18 @@ final class MultipartDecoder extends AbstractDecoder implements VintageAccess.Mu
                     if (buffer == null) {
                         return null;
                     }
-                    Charset c = quirkMode && quirkPartCharset != null ? quirkPartCharset : partCharset != null ? partCharset : charset;
+                    Charset c;
+                    if (hasQuirk(DecoderQuirk.USE_FIELD_CHARSET_FOR_DELIMITER_SEARCH) && quirkPartCharset != null) {
+                        c = quirkPartCharset;
+                    } else {
+                        c = charset;
+                    }
                     int normal = findDelimiter(buffer, multipartDataBoundary.getBytes(c));
                     boolean earlyMixedEnd = false;
                     if (mixedBoundary != null) {
                         int fullEnd = normal;
                         normal = findDelimiter(buffer, mixedBoundary.getBytes(c));
-                        if (!quirkMode && fullEnd < normal) {
+                        if (!hasQuirk(DecoderQuirk.DISABLE_EARLY_MIXED_END) && fullEnd < normal) {
                             // we found the multipart delimiter before the mixed delimiter
                             earlyMixedEnd = true;
                             normal = fullEnd;
@@ -211,6 +214,7 @@ final class MultipartDecoder extends AbstractDecoder implements VintageAccess.Mu
                     if (buffer == null) {
                         return null;
                     }
+                    mixedBoundary = null;
                     state = State.HEADERDELIMITER;
                     return Event.FIELD_COMPLETE;
                 default:
@@ -265,11 +269,12 @@ final class MultipartDecoder extends AbstractDecoder implements VintageAccess.Mu
         }
         int valueStart = HttpPostBodyUtil.findNonWhitespace(headerLine, colonEnd);
         int valueEnd = HttpPostBodyUtil.findEndOfString(headerLine);
-        if (valueEnd < valueStart) {
-            throw new FormDecoderException("Invalid header");
-        }
         headerKey = headerLine.substring(nameStart, nameEnd);
-        headerValue = headerLine.substring(valueStart, valueEnd);
+        if (valueEnd < valueStart) {
+            headerValue = "";
+        } else {
+            headerValue = headerLine.substring(valueStart, valueEnd);
+        }
 
         if (HttpHeaderNames.CONTENT_TRANSFER_ENCODING.contentEqualsIgnoreCase(headerKey)) {
             if (HttpPostBodyUtil.TransferEncodingMechanism.BIT7.value().equals(headerValue)) {
@@ -315,7 +320,7 @@ final class MultipartDecoder extends AbstractDecoder implements VintageAccess.Mu
                         try {
                             partCharset = Charset.forName(value);
                         } catch (UnsupportedCharsetException | IllegalCharsetNameException e) {
-                            throw new FormDecoderException(e);
+                            partCharset = null;
                         }
                     }
                 }
@@ -344,7 +349,7 @@ final class MultipartDecoder extends AbstractDecoder implements VintageAccess.Mu
                 }
             }
         } else if (HttpHeaderNames.CONTENT_TYPE.contentEqualsIgnoreCase(quirkHeader[0])) {
-            if (quirkHeader.length == 1 && !quirkMode) {
+            if (quirkHeader.length == 1 && !hasQuirk(DecoderQuirk.LEGACY_HEADER_SPLITTING)) {
                 throw new FormDecoderException("Invalid Content-Type header");
             }
             if (HttpHeaderValues.MULTIPART_MIXED.contentEqualsIgnoreCase(quirkHeader[1])) {
@@ -364,19 +369,14 @@ final class MultipartDecoder extends AbstractDecoder implements VintageAccess.Mu
     }
 
     @Override
-    public ByteBuf sendUndecodedPartContent() {
-        ByteBuf d = undecodedPartData;
-        this.undecodedPartData = null;
-        return d;
-    }
-
-    @Override
     public ByteBuf decodedContent() {
         if (undecodedPartData == null) {
             throw new IllegalStateException("Not a CONTENT event");
         }
         // we don't support content-transfer-encodings that need actual decoding
-        return sendUndecodedPartContent();
+        ByteBuf d = undecodedPartData;
+        this.undecodedPartData = null;
+        return d;
     }
 
     @Override
@@ -400,7 +400,7 @@ final class MultipartDecoder extends AbstractDecoder implements VintageAccess.Mu
         // --AaB03x or --AaB03x--
         int readerIndex = buffer.readerIndex();
         try {
-            skipControlCharacters(buffer, quirkMode);
+            skipControlCharacters(buffer, hasQuirk(DecoderQuirk.CONSERVATIVE_WHITESPACE_SKIP));
         } catch (NotEnoughDataDecoderException ignored) {
             // todo: do we need to reset here?
             buffer.readerIndex(readerIndex);
@@ -440,7 +440,7 @@ final class MultipartDecoder extends AbstractDecoder implements VintageAccess.Mu
      * be safely read from the buffer before reaching the delimiter.
      */
     int findDelimiter(ByteBuf buffer, byte[] delimiter) {
-        if ((receivedLength == 0 || quirkMode) &&
+        if ((receivedLength == 0 || hasQuirk(DecoderQuirk.INVERSE_DELIMITER_AT_BUFFER_START)) &&
                 buffer.readableBytes() >= delimiter.length &&
                 hasCommonPrefix(buffer, buffer.readerIndex(), delimiter)) {
             // special case at start of buffer
@@ -452,7 +452,7 @@ final class MultipartDecoder extends AbstractDecoder implements VintageAccess.Mu
         while (true) {
             int lf = buffer.forEachByte(i, buffer.writerIndex() - i, ByteProcessor.FIND_LF);
             if (lf == -1) {
-                if (quirkMode) {
+                if (hasQuirk(DecoderQuirk.CONSERVATIVE_LF_BACKTRACK)) {
                     int lastLf = quirkLfMatch(buffer, delimiter.length);
                     if (lastLf != -1) {
                         return lastLf;
@@ -465,14 +465,13 @@ final class MultipartDecoder extends AbstractDecoder implements VintageAccess.Mu
                 if (buffer.writerIndex() - lfOffset > delimiter.length) {
                     int n = buffer.readableBytes();
                     if (n > 0 &&
-                            buffer.getByte(buffer.writerIndex() - 1) == '\r' &&
-                            (!quirkMode || quirkDefinedLength == receivedLength + n - 1)) {
+                            buffer.getByte(buffer.writerIndex() - 1) == '\r' && (!hasQuirk(DecoderQuirk.FORWARD_CHUNK_CR) || quirkDefinedLength == receivedLength + n - 1)) {
                         n--;
                     }
                     return n;
                 }
                 if (buffer.readerIndex() < lfOffset && buffer.getByte(lfOffset - 1) == '\r') {
-                    if (!quirkMode || quirkDefinedLength == receivedLength + buffer.readableBytes() - 1) {
+                    if (!hasQuirk(DecoderQuirk.FORWARD_CHUNK_CR) || quirkDefinedLength == receivedLength + buffer.readableBytes() - 1) {
                         lfOffset--;
                     }
                 }
@@ -506,7 +505,7 @@ final class MultipartDecoder extends AbstractDecoder implements VintageAccess.Mu
     }
 
     private int quirkLfMatch(ByteBuf buffer, int delimiterLength) {
-        assert quirkMode;
+        assert hasQuirk(DecoderQuirk.CONSERVATIVE_LF_BACKTRACK);
         if (buffer.readableBytes() > 0) {
             int len = Math.min(buffer.readableBytes(), delimiterLength + 1);
             int lastLf = buffer.forEachByteDesc(buffer.writerIndex() - len, len, ByteProcessor.FIND_LF);
@@ -524,11 +523,9 @@ final class MultipartDecoder extends AbstractDecoder implements VintageAccess.Mu
 
     private void addReceivedLength(int extra) {
         receivedLength += extra;
-        if (quirkMode) {
-            if (quirkDefinedLength > 0 && quirkDefinedLength < receivedLength) {
-                // old implementation extends the defined length to match the received length, if necessary
-                quirkDefinedLength = receivedLength;
-            }
+        if (quirkDefinedLength > 0 && quirkDefinedLength < receivedLength) {
+            // old implementation extends the defined length to match the received length, if necessary
+            quirkDefinedLength = receivedLength;
         }
     }
 
@@ -825,15 +822,7 @@ final class MultipartDecoder extends AbstractDecoder implements VintageAccess.Mu
         return values.toArray(new String[0]);
     }
 
-    @Override
-    public boolean isQuirkMode() {
-        return quirkMode;
-    }
 
-    @Override
-    public void setQuirkMode(boolean quirkMode) {
-        this.quirkMode = quirkMode;
-    }
 
     @Override
     public int getCompactionThreshold() {
@@ -858,6 +847,11 @@ final class MultipartDecoder extends AbstractDecoder implements VintageAccess.Mu
     @Override
     public Charset getCharset() {
         return charset;
+    }
+
+    @Override
+    public boolean hasQuirk(DecoderQuirk quirk) {
+        return quirks.contains(quirk);
     }
 
     private enum State {

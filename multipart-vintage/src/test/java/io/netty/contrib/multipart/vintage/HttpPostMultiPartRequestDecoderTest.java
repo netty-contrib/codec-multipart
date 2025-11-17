@@ -34,9 +34,10 @@ import io.netty.handler.codec.http.multipart.HttpDataFactory;
 import io.netty.handler.codec.http.multipart.InterfaceHttpData;
 import io.netty.util.CharsetUtil;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedClass;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -46,13 +47,28 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
+@ParameterizedClass
+@ValueSource(booleans = {false, true})
 public class HttpPostMultiPartRequestDecoderTest {
+    private final boolean quirk;
+
+    public HttpPostMultiPartRequestDecoderTest(boolean quirk) {
+        this.quirk = quirk;
+    }
+
+    private HttpPostRequestDecoder.Builder builder() {
+        HttpPostRequestDecoder.Builder b = HttpPostRequestDecoder.builder();
+        if (quirk) {
+            b.enableAllQuirks();
+        }
+        return b;
+    }
 
     @Test
     public void testDecodeFullHttpRequestWithNoContentTypeHeader() {
         FullHttpRequest req = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/");
         try {
-            new HttpPostMultipartRequestDecoder(req);
+            this.builder().buildMultipart(req);
             fail("Was expecting an ErrorDataDecoderException");
         } catch (HttpPostRequestDecoder.ErrorDataDecoderException expected) {
             // expected
@@ -68,7 +84,7 @@ public class HttpPostMultiPartRequestDecoderTest {
                 "multipart/form-data; boundary=--89421926422648 [; charset=UTF-8]");
 
         try {
-            new HttpPostMultipartRequestDecoder(req);
+            this.builder().buildMultipart(req);
             fail("Was expecting an ErrorDataDecoderException");
         } catch (HttpPostRequestDecoder.ErrorDataDecoderException expected) {
             // expected
@@ -92,12 +108,19 @@ public class HttpPostMultiPartRequestDecoderTest {
         req.headers().set("content-length", content.length());
 
         try {
-            new HttpPostMultipartRequestDecoder(req);
-            fail("Was expecting an ErrorDataDecoderException");
+            this.builder().buildMultipart(req);
+            if (quirk) {
+                fail("Was expecting an ErrorDataDecoderException");
+            }
         } catch (HttpPostRequestDecoder.ErrorDataDecoderException expected) {
+            if (!quirk) {
+                throw expected;
+            }
             // expected
         } finally {
-            assertTrue(req.release());
+            if (quirk) {
+                assertTrue(req.release());
+            }
         }
     }
 
@@ -120,7 +143,7 @@ public class HttpPostMultiPartRequestDecoderTest {
 
         // Factory using Memory mode
         HttpDataFactory factory = new DefaultHttpDataFactory(false);
-        HttpPostMultipartRequestDecoder decoder = new HttpPostMultipartRequestDecoder(factory, request);
+        HttpPostMultipartRequestDecoder decoder = this.builder().dataFactory(factory).buildMultipart(request);
         ByteBuf buf = Unpooled.wrappedBuffer(prefix.getBytes(CharsetUtil.UTF_8));
         DefaultHttpContent httpContent = new DefaultHttpContent(buf);
         decoder.offer(httpContent);
@@ -135,7 +158,11 @@ public class HttpPostMultiPartRequestDecoderTest {
         ByteBuf content = Unpooled.wrappedBuffer(body);
         httpContent = new DefaultHttpContent(content);
         decoder.offer(httpContent); // Ouf of range before here
-        assertNotNull(((HttpData) decoder.currentPartialHttpData()).content());
+        if (decoder.currentPartialHttpData() != null) {
+            assertNotNull(((HttpData) decoder.currentPartialHttpData()).content());
+        } else {
+            assertFalse(quirk);
+        }
         httpContent.release();
         content = Unpooled.wrappedBuffer(bsuffix2);
         httpContent = new DefaultHttpContent(content);
@@ -184,11 +211,15 @@ public class HttpPostMultiPartRequestDecoderTest {
         request.headers().set("content-type", "multipart/form-data; boundary=861fbeab-cd20-470c-9609-d40a0f704466");
         request.headers().set("content-length", prefix.length() + fileSize + suffix.length());
 
-        HttpPostMultipartRequestDecoder decoder = new HttpPostMultipartRequestDecoder(factory, request, StandardCharsets.UTF_8, -1, -1);
+        HttpPostMultipartRequestDecoder decoder = this.builder().dataFactory(factory).maxFields(-1).undecodedLimit(-1).buildMultipart(request);
         ByteBuf buf = Unpooled.wrappedBuffer(prefix.getBytes(CharsetUtil.UTF_8));
         DefaultHttpContent httpContent = new DefaultHttpContent(buf);
         decoder.offer(httpContent);
-        assertNotNull(((HttpData) decoder.currentPartialHttpData()).content());
+        if (decoder.currentPartialHttpData() != null) {
+            assertNotNull(((HttpData) decoder.currentPartialHttpData()).content());
+        } else {
+            assertFalse(quirk);
+        }
         httpContent.release();
 
         byte[] body = new byte[bytesPerChunk];
@@ -200,7 +231,11 @@ public class HttpPostMultiPartRequestDecoderTest {
             ByteBuf content = Unpooled.wrappedBuffer(body, 0, bytesPerChunk);
             httpContent = new DefaultHttpContent(content);
             decoder.offer(httpContent); // **OutOfMemory previously here**
-            assertNotNull(((HttpData) decoder.currentPartialHttpData()).content());
+            if (decoder.currentPartialHttpData() != null) {
+                assertNotNull(((HttpData) decoder.currentPartialHttpData()).content());
+            } else {
+                assertFalse(quirk);
+            }
             httpContent.release();
         }
 
@@ -225,12 +260,20 @@ public class HttpPostMultiPartRequestDecoderTest {
         ByteBuf content2 = Unpooled.wrappedBuffer(previousLastbody, 0, previousLastbody.length);
         httpContent = new DefaultHttpContent(content2);
         decoder.offer(httpContent);
-        assertNotNull(((HttpData) decoder.currentPartialHttpData()).content());
+        if (decoder.currentPartialHttpData() != null) {
+            assertNotNull(((HttpData) decoder.currentPartialHttpData()).content());
+        } else {
+            assertFalse(quirk);
+        }
         httpContent.release();
         content2 = Unpooled.wrappedBuffer(lastbody, 0, lastbody.length);
         httpContent = new DefaultHttpContent(content2);
         decoder.offer(httpContent);
-        assertNotNull(((HttpData) decoder.currentPartialHttpData()).content());
+        if (decoder.currentPartialHttpData() != null) {
+            assertNotNull(((HttpData) decoder.currentPartialHttpData()).content());
+        } else {
+            assertFalse(quirk);
+        }
         httpContent.release();
         content2 = Unpooled.wrappedBuffer(suffix2.getBytes(CharsetUtil.UTF_8));
         httpContent = new DefaultHttpContent(content2);
@@ -319,32 +362,32 @@ public class HttpPostMultiPartRequestDecoderTest {
         req.headers().set("content-type", "multipart/form-data; boundary=861fbeab-cd20-470c-9609-d40a0f704466");
         req.headers().set("content-length", content.length());
 
-        HttpPostMultipartRequestDecoder test = new HttpPostMultipartRequestDecoder(req);
+        HttpPostMultipartRequestDecoder test = this.builder().buildMultipart(req);
         FileUpload httpData = (FileUpload) test.getBodyHttpDatas("file").get(0);
         assertEquals("audio/ogg", httpData.getContentType());
         test.destroy();
     }
 
-    private static void commonNotBadReleaseBuffersDuringDecoding(HttpDataFactory factory, boolean inMemory)
+    private void commonNotBadReleaseBuffersDuringDecoding(HttpDataFactory factory, boolean inMemory)
             throws IOException {
         int nbItems = 20;
         int bytesPerItem = 1000;
         int maxMemory = 500;
 
-        String prefix1 = "\n--861fbeab-cd20-470c-9609-d40a0f704466\n" +
+        String prefix1 = "\r\n--861fbeab-cd20-470c-9609-d40a0f704466\n" +
                 "Content-Disposition: form-data; name=\"image";
         String prefix2 =
                 "\"; filename=\"guangzhou.jpeg\"\n" +
                         "Content-Type: image/jpeg\n" +
                         "Content-Length: " + bytesPerItem + "\n" + "\n";
 
-        String suffix = "\n--861fbeab-cd20-470c-9609-d40a0f704466--\n";
+        String suffix = "\r\n--861fbeab-cd20-470c-9609-d40a0f704466--\n";
 
         HttpRequest request = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/upload");
         request.headers().set("content-type", "multipart/form-data; boundary=861fbeab-cd20-470c-9609-d40a0f704466");
         request.headers().set("content-length", nbItems * (prefix1.length() + prefix2.length() + 2 + bytesPerItem)
                 + suffix.length());
-        HttpPostMultipartRequestDecoder decoder = new HttpPostMultipartRequestDecoder(factory, request);
+        HttpPostMultipartRequestDecoder decoder = this.builder().dataFactory(factory).buildMultipart(request);
         decoder.setDiscardThreshold(maxMemory);
         for (int rank = 0; rank < nbItems; rank++) {
             byte[] bp1 = prefix1.getBytes(CharsetUtil.UTF_8);
@@ -396,7 +439,7 @@ public class HttpPostMultiPartRequestDecoderTest {
     }
 
     // Issue #11668
-    private static void commonTestFileDelimiterLFLastChunk(HttpDataFactory factory, boolean inMemory)
+    private void commonTestFileDelimiterLFLastChunk(HttpDataFactory factory, boolean inMemory)
             throws IOException {
         int nbChunks = 2;
         int bytesPerChunk = 100000;
@@ -425,10 +468,15 @@ public class HttpPostMultiPartRequestDecoderTest {
         // +4 => 2xCRLF (beginning, end)
         request.headers().set("content-length", prefix.length() + fileSize + suffix.length() + 4);
 
-        HttpPostMultipartRequestDecoder decoder = new HttpPostMultipartRequestDecoder(factory, request);
+        HttpPostMultipartRequestDecoder decoder = this.builder().dataFactory(factory).buildMultipart(request);
         ByteBuf buf = Unpooled.wrappedBuffer(prefix.getBytes(CharsetUtil.UTF_8));
         DefaultHttpContent httpContent = new DefaultHttpContent(buf);
         decoder.offer(httpContent);
+        if (decoder.currentPartialHttpData() != null) {
+            assertNotNull(((HttpData) decoder.currentPartialHttpData()).content());
+        } else {
+            assertFalse(quirk);
+        }
         assertNotNull(((HttpData) decoder.currentPartialHttpData()).content());
         httpContent.release();
 
