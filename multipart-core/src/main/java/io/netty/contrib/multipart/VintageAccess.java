@@ -49,8 +49,6 @@ public class VintageAccess {
 
         void decodeComponent(ByteBuf buffer, boolean key);
 
-        void setQuirkMode(boolean quirkMode);
-
         int getCompactionThreshold();
 
         void setCompactionThreshold(int compactionThreshold);
