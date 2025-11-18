@@ -1,36 +1,41 @@
-= Netty 5.x Codec Http Multipart Repository for Netty Contrib
+= Netty-Contrib Multipart
 
 * Netty core repository: https://github.com/netty/netty
 * License: Apache-2.0 License
 * Required Java version: Java 11
-* Maven coordinates:
-** `io.netty.contrib:netty-codec-multipart:5.0.0.Alpha1-SNAPSHOT`
 
-## Project description
+== Project description
 
-This project is a porting of the Netty 4.x Multipart codec to the new Netty 5.0.0 Buffer API.
+The Netty 4 Multipart API is complicated, opinionated, and most importantly buggy. It is planned for removal from the
+core Netty project in Netty 5. This community project contains a new low-level API, and a compatible implementation of
+the old API.
 
-## Running the benchmarks
+The Netty 4 version of this repository contains the new API and compatible replacements for the
+``HttpPostRequestDecoder`` classes that still use the data structures from the main Netty repository. On the Netty 5
+branch, with the legacy data structures gone from the main Netty project, there are also copies of those legacy data
+structures for Netty 5.
 
-```
-mvn clean install;
-cd benchmark;
-mvn clean package -P benchmark-jar
-java -jar target/microbenchmarks.jar
-```
+== multipart-core
 
-## Running the server example
+`io.netty.contrib:netty-codec-multipart-core`
 
-you can run the following http server example showing how to use the HTTP multipart package for file uploads and decoding post data:
+This module contains a low-level form data _decoding_ API. Both URL encoded and multipart form data are supported.
+An encoding API is planned but not implemented yet.
 
-```
-cd examples;
-mvn compile exec:java -Dexec.mainClass="io.netty.contrib.handler.codec.example.http.multipart.HttpUploadServer"
-```
+Extensive testing has shown various behavioral differences between the new and old implementations, many of them bugs.
+Those behavioral differences can be restored by enabling ``DecoderQuirk``s for compatibility. Each quirk has a
+description of what behavior it restores.
 
-And then run the http client example from another console:
+== multipart-vintage
 
-```
-cd examples
-mvn compile exec:java -Dexec.mainClass="io.netty.contrib.handler.codec.example.http.multipart.HttpUploadClient"
-```
+`io.netty.contrib:netty-codec-multipart-vintage`
+
+This module contains drop-in replacements of ``HttpPostRequestDecoder`` and related classes based on the core module.
+With all quirks turned on, these replacements are 100% compatible with the old implementation. The constructors enable
+all quirks by default, while the new ``Builder`` disables them by default allows quirk customization.
+
+It is recommended to use the builder and enable no quirks at first, enabling them only if issues arise. If you have
+legitimate inputs that require quirks to function with the new implementation, please report them.
+
+For Netty 5, this module also contains all the necessary data structures (``Attribute``, ``FileUpload``, etc.). For
+Netty 4, this module uses the existing data structures from the main Netty project.
