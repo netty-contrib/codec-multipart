@@ -129,7 +129,7 @@ final class MultipartDecoder extends AbstractDecoder implements VintageAccess.Mu
                         }
                         String newline;
                         try {
-                            skipControlCharacters(buffer, hasQuirk(DecoderQuirk.CONSERVATIVE_WHITESPACE_SKIP));
+                            skipControlCharacters(buffer);
                             newline = readLineOptimized(buffer, charset);
                         } catch (NotEnoughDataDecoderException ignored) {
                             if (hasQuirk(DecoderQuirk.RESCAN_HEADERS_ON_CHUNK_BOUNDARY)) {
@@ -400,7 +400,7 @@ final class MultipartDecoder extends AbstractDecoder implements VintageAccess.Mu
         // --AaB03x or --AaB03x--
         int readerIndex = buffer.readerIndex();
         try {
-            skipControlCharacters(buffer, hasQuirk(DecoderQuirk.CONSERVATIVE_WHITESPACE_SKIP));
+            skipControlCharacters(buffer);
         } catch (NotEnoughDataDecoderException ignored) {
             // todo: do we need to reset here?
             buffer.readerIndex(readerIndex);
@@ -543,15 +543,15 @@ final class MultipartDecoder extends AbstractDecoder implements VintageAccess.Mu
      *
      * @throws NotEnoughDataDecoderException
      */
-    static void skipControlCharacters(ByteBuf undecodedChunk, boolean quirk) throws NotEnoughDataDecoderException {
+    static void skipControlCharacters(ByteBuf undecodedChunk) throws NotEnoughDataDecoderException {
         try {
-            skipControlCharactersStandard(undecodedChunk, quirk);
+            skipControlCharactersStandard(undecodedChunk);
         } catch (IndexOutOfBoundsException e1) {
             throw new NotEnoughDataDecoderException(e1);
         }
     }
 
-    private static void skipControlCharactersStandard(ByteBuf undecodedChunk, boolean quirk) {
+    private static void skipControlCharactersStandard(ByteBuf undecodedChunk) {
         int processed = undecodedChunk.forEachByte(CTRLSPACE_PROCESSOR);
         if (processed > undecodedChunk.readerIndex()) {
             undecodedChunk.readerIndex(processed);

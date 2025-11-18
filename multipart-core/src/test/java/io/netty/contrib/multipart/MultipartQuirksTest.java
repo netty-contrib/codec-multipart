@@ -149,22 +149,4 @@ class MultipartQuirksTest {
             assertNull(decoder.next());
         }
     }
-
-    @Test
-    void conservativeWhitespaceSkip() {
-        PostBodyDecoder.Builder builder = PostBodyDecoder.builder();
-        if (quirk) {
-            builder.enableQuirks(DecoderQuirk.CONSERVATIVE_WHITESPACE_SKIP);
-        }
-        try (PostBodyDecoder decoder = builder.forMultipartBoundary("a")) {
-            add(decoder, "--a\n\r\r\n\n");
-
-            assertEquals(PostBodyDecoder.Event.BEGIN_FIELD, decoder.next());
-            if (quirk) {
-                assertEquals(PostBodyDecoder.Event.HEADER, decoder.next());
-                assertEquals(PostBodyDecoder.Event.HEADERS_COMPLETE, decoder.next());
-            }
-            assertNull(decoder.next());
-        }
-    }
 }

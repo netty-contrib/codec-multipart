@@ -91,12 +91,6 @@ public enum DecoderQuirk {
      */
     DISABLE_EARLY_MIXED_END,
 
-    /**
-     * The old decoder would not skip whitespace and control characters if the entire input buffer was filled with
-     * them. This can lead to slight parsing differences. Real-world impact is probably minimal.
-     */
-    CONSERVATIVE_WHITESPACE_SKIP,
-
     // URL ENCODED
 
     /**
