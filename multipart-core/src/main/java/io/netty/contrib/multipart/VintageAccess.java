@@ -38,8 +38,6 @@ public class VintageAccess {
     }
 
     public interface UrlEncodedDecoder extends PostBodyDecoder {
-        void setQuirkMode(boolean quirkMode);
-
         int getCompactionThreshold();
 
         void setCompactionThreshold(int compactionThreshold);

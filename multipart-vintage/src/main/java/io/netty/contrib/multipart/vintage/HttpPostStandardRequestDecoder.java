@@ -166,7 +166,6 @@ public class HttpPostStandardRequestDecoder implements InterfaceHttpPostRequestD
         this.factory = checkNotNullWithIAE(factory, "factory");
 
         this.decoder = (VintageAccess.UrlEncodedDecoder) builder.forUrlEncodedData();
-        decoder.setQuirkMode(true);
         try {
             if (request instanceof HttpContent) {
                 // Offer automatically if the given request is as type of HttpContent

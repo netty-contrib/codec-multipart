@@ -8,6 +8,8 @@ import io.netty5.util.Send;
 import io.netty5.util.internal.StringUtil;
 
 import java.nio.charset.Charset;
+import java.util.EnumSet;
+import java.util.Set;
 
 final class UrlEncodedDecoder extends AbstractDecoder implements VintageAccess.UrlEncodedDecoder {
     private static final ByteProcessor FIND_KEY_END = value -> value != '=' && value != '&';
@@ -18,10 +20,11 @@ final class UrlEncodedDecoder extends AbstractDecoder implements VintageAccess.U
     private String key;
     private Buffer undecodedContent;
 
-    boolean quirkMode = false;
+    private final Set<DecoderQuirk> quirks;
 
     UrlEncodedDecoder(Builder builder) {
         super(builder);
+        this.quirks = EnumSet.copyOf(builder.multipartQuirks);
     }
 
     @Override
@@ -46,7 +49,7 @@ final class UrlEncodedDecoder extends AbstractDecoder implements VintageAccess.U
                                 // Just ignore.
                                 break;
                             }
-                            if (quirkMode) {
+                            if (quirks.contains(DecoderQuirk.EARLY_DECODE)) {
                                 // old impl does charset decoding first. this is subtly different wrt invalid sequences
                                 key = decodeAttribute(keyBuffer.toString(charset), charset);
                             } else {
@@ -87,9 +90,6 @@ final class UrlEncodedDecoder extends AbstractDecoder implements VintageAccess.U
                     }
                     int valueEnd = buffer == null ? 0 : buffer.openCursor().process(FIND_VALUE_END);
                     boolean endAttribute = valueEnd == 0;
-                    if (endAttribute && quirkMode && buffer != null && buffer.readableBytes() == 1 && buffer.getByte(buffer.readerOffset()) == '\r' && !eof) {
-                        endAttribute = false;
-                    }
                     if (endAttribute) {
                         if (buffer == null) {
                             state = State.DISCARD_REMAINING;
@@ -97,20 +97,21 @@ final class UrlEncodedDecoder extends AbstractDecoder implements VintageAccess.U
                             byte b = buffer.readByte();
                             if (b == '&') {
                                 state = State.KEY;
-                            } else if (quirkMode && b == '\r' && buffer.readableBytes() == 0 && !eof) {
+                            } else if (quirks.contains(DecoderQuirk.WAIT_ON_CR) && b == '\r' && buffer.readableBytes() == 0 && !eof) {
                                 buffer.readerOffset(buffer.readerOffset() - 1);
                                 return null;
                             } else {
+                                // \r or \n
                                 buffer.readerOffset(buffer.readerOffset() - 1);
                                 state = State.EOL;
-                                if (quirkMode) {
+                                if (quirks.contains(DecoderQuirk.EARLY_CRLF_CHECK)) {
                                     earlyEolCheck(buffer.readerOffset());
                                 }
                             }
                         }
                         return Event.FIELD_COMPLETE;
                     } else {
-                        if (quirkMode && !eof && valueEnd >= 0 && buffer.getByte(buffer.readerOffset() + valueEnd) == '\r') {
+                        if (quirks.contains(DecoderQuirk.EARLY_CRLF_CHECK) && !eof && valueEnd >= 0 && buffer.getByte(buffer.readerOffset() + valueEnd) == '\r') {
                             // in quirk mode, delay processing (potentially invalid) trailing escape until we can check
                             // for sure whether a terminating CRLF is valid.
                             int trailing = findTrailingEscape(buffer, buffer.readerOffset() + valueEnd);
@@ -141,7 +142,7 @@ final class UrlEncodedDecoder extends AbstractDecoder implements VintageAccess.U
                         } else {
                             undecodedContent = buffer.readSplit(valueEnd);
                         }
-                        if (quirkMode && buffer != null) {
+                        if (quirks.contains(DecoderQuirk.EARLY_CRLF_CHECK) && buffer != null) {
                             earlyEolCheck(buffer.readerOffset());
                         }
                         return Event.CONTENT;
@@ -195,7 +196,7 @@ final class UrlEncodedDecoder extends AbstractDecoder implements VintageAccess.U
      * @throws FormDecoderException on invalid CRLF
      */
     private boolean earlyEolCheck(int start) {
-        assert quirkMode;
+        assert quirks.contains(DecoderQuirk.EARLY_CRLF_CHECK);
 
         if (buffer.writerOffset() > start + 1 &&
                 buffer.getByte(start) == '\r') {
@@ -258,11 +259,11 @@ final class UrlEncodedDecoder extends AbstractDecoder implements VintageAccess.U
                         buffer.setByte(wi, (byte) ((hi << 4) + lo));
                         ri += 2;
                         continue;
-                    } else if (quirkMode) {
+                    } else if (quirks.contains(DecoderQuirk.REFUSE_NON_HEX_PERCENT_DECODE)) {
                         // whatwg URL spec allows this
                         failPercentDecode();
                     }
-                } else if (quirkMode) {
+                } else if (quirks.contains(DecoderQuirk.REFUSE_SHORT_PERCENT_DECODE)) {
                     // whatwg URL spec allows this
                     failPercentDecode();
                 }
@@ -279,7 +280,6 @@ final class UrlEncodedDecoder extends AbstractDecoder implements VintageAccess.U
     }
 
     private void failPercentDecode() {
-        assert quirkMode;
         if (state == State.KEY) {
             throw new FormDecoderException("Bad string");
         } else {
@@ -307,11 +307,6 @@ final class UrlEncodedDecoder extends AbstractDecoder implements VintageAccess.U
         } catch (IllegalArgumentException e) {
             throw new FormDecoderException("Bad string: '" + s + '\'', e);
         }
-    }
-
-    @Override
-    public void setQuirkMode(boolean quirkMode) {
-        this.quirkMode = quirkMode;
     }
 
     @Override

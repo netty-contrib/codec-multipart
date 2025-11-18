@@ -957,8 +957,13 @@ public class HttpPostRequestDecoderTest {
         FullHttpRequest req = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/", content);
         try {
             this.builder().build(req);
-            fail("Was expecting an ErrorDataDecoderException");
+            if (quirk) {
+                fail("Was expecting an ErrorDataDecoderException");
+            }
         } catch (FormDecoderException e) {
+            if (!quirk) {
+                throw e;
+            }
             assertEquals("Invalid hex byte", e.getMessage());
         } finally {
             req.close();
@@ -974,8 +979,13 @@ public class HttpPostRequestDecoderTest {
         FullHttpRequest req = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/", content);
         try {
             this.builder().build(req);
-            fail("Was expecting an ErrorDataDecoderException");
+            if (quirk) {
+                fail("Was expecting an ErrorDataDecoderException");
+            }
         } catch (FormDecoderException e) {
+            if (!quirk) {
+                throw e;
+            }
             assertEquals("Invalid hex byte", e.getMessage());
         } finally {
             req.close();
@@ -990,8 +1000,13 @@ public class HttpPostRequestDecoderTest {
 
         try (FullHttpRequest req = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/", content)) {
             this.builder().build(req);
-            fail("Was expecting an ErrorDataDecoderException");
+            if (quirk) {
+                fail("Was expecting an ErrorDataDecoderException");
+            }
         } catch (FormDecoderException e) {
+            if (!quirk) {
+                throw e;
+            }
             assertEquals("Invalid hex byte", e.getMessage());
         }
     }
@@ -1004,8 +1019,13 @@ public class HttpPostRequestDecoderTest {
 
         try (FullHttpRequest req = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/", content)) {
             this.builder().build(req);
-            fail("Was expecting an ErrorDataDecoderException");
+            if (quirk) {
+                fail("Was expecting an ErrorDataDecoderException");
+            }
         } catch (FormDecoderException e) {
+            if (!quirk) {
+                throw e;
+            }
             assertEquals("Invalid hex byte", e.getMessage());
         }
     }

@@ -128,7 +128,7 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
      */
     @Deprecated
     public HttpPostMultipartRequestDecoder(HttpRequest request) {
-        this(new DefaultHttpDataFactory(DefaultHttpDataFactory.MINSIZE), request, PostBodyDecoder.builder());
+        this(new DefaultHttpDataFactory(DefaultHttpDataFactory.MINSIZE), request, PostBodyDecoder.builder().enableAllQuirks());
     }
 
     /**
@@ -146,7 +146,7 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
      */
     @Deprecated
     public HttpPostMultipartRequestDecoder(HttpDataFactory factory, HttpRequest request) {
-        this(factory, request, PostBodyDecoder.builder());
+        this(factory, request, PostBodyDecoder.builder().enableAllQuirks());
     }
 
     /**
@@ -166,7 +166,7 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
      */
     @Deprecated
     public HttpPostMultipartRequestDecoder(HttpDataFactory factory, HttpRequest request, Charset charset) {
-        this(factory, request, PostBodyDecoder.builder().charset(charset));
+        this(factory, request, PostBodyDecoder.builder().enableAllQuirks().charset(charset));
     }
 
     /**
@@ -191,7 +191,7 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
     @Deprecated
     public HttpPostMultipartRequestDecoder(HttpDataFactory factory, HttpRequest request, Charset charset,
                                            int maxFields, int maxBufferedBytes) {
-        this(factory, request, PostBodyDecoder.builder().charset(charset).maxFields(maxFields).undecodedLimit(maxBufferedBytes));
+        this(factory, request, PostBodyDecoder.builder().enableAllQuirks().charset(charset).maxFields(maxFields).undecodedLimit(maxBufferedBytes));
     }
 
     HttpPostMultipartRequestDecoder(HttpDataFactory factory, HttpRequest request, PostBodyDecoder.Builder builder) {

@@ -25,6 +25,8 @@ package io.netty.contrib.multipart;
  * code, prefer enabling none and only turning on the specific quirks required by your clients.
  */
 public enum DecoderQuirk {
+    // MULTIPART
+
     /**
      * When a chunk ends during header parsing, revisit the entire header block on the next iteration.
      * <p>
@@ -93,5 +95,38 @@ public enum DecoderQuirk {
      * The old decoder would not skip whitespace and control characters if the entire input buffer was filled with
      * them. This can lead to slight parsing differences. Real-world impact is probably minimal.
      */
-    CONSERVATIVE_WHITESPACE_SKIP
+    CONSERVATIVE_WHITESPACE_SKIP,
+
+    // URL ENCODED
+
+    /**
+     * The old URL parser would UTF-8 decode the input before percent-decoding, but the whatwg spec recommends percent
+     * decoding before UTF-8 decoding. This can lead to subtle differences when a code point is encoded as multiple
+     * UTF-8 code units, but only some of those code units are percent-encoded for some reason. Likely irrelevant in
+     * practice.
+     */
+    EARLY_DECODE,
+
+    /**
+     * When the input ends with CR, the old parser would not commit to ending the current form encoded value until an
+     * associated LF was seen.
+     */
+    WAIT_ON_CR,
+
+    /**
+     * The old decoder would check validity of CRLF earlier than necessary.
+     */
+    EARLY_CRLF_CHECK,
+
+    /**
+     * According to the whatwg spec, percent encoded sequences with non-hex values should be left as-is. This quirk
+     * throws an exception instead, to imitate old parser behavior.
+     */
+    REFUSE_NON_HEX_PERCENT_DECODE,
+
+    /**
+     * According to the whatwg spec, percent encoded sequences that end early ({@code %a}) should be left as-is. This
+     * quirk throws an exception instead, to imitate old parser behavior.
+     */
+    REFUSE_SHORT_PERCENT_DECODE,
 }
