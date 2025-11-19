@@ -230,15 +230,13 @@
         </configuration>
       </plugin>
       <plugin>
-        <groupId>org.sonatype.plugins</groupId>
-        <artifactId>nexus-staging-maven-plugin</artifactId>
-        <version>1.6.8</version>
-        <extensions>true</extensions>
+        <groupId>org.sonatype.central</groupId>
+        <artifactId>central-publishing-maven-plugin</artifactId>
+        <version>0.7.0</version>
         <configuration>
-          <serverId>sonatype-nexus</serverId>
-          <nexusUrl>https://oss.sonatype.org/</nexusUrl>
-          <!-- Automatically release the artifacts after the verification was complete -->
-          <autoReleaseAfterClose>true</autoReleaseAfterClose>
+          <publishingServerId>central</publishingServerId>
+          <skipPublishing>true</skipPublishing>
+          <autoPublish>false</autoPublish>
         </configuration>
       </plugin>
       <plugin>
