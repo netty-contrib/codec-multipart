@@ -50,7 +50,7 @@
   <scm>
     <url>https://github.com/netty-contrib/codec-multipart</url>
     <connection>scm:git:git://github.com/netty-contrib/codec-multipart.git</connection>
-    <developerConnection>scm:git:git://github.com/netty-contrib/codec-multipart.git</developerConnection>
+    <developerConnection>scm:git:ssh://git@github.com/netty-contrib/codec-multipart.git</developerConnection>
     <tag>HEAD</tag>
   </scm>
 
