@@ -45,7 +45,7 @@ abstract class AbstractDecoder implements PostBodyDecoder {
             }
             if (this.buffer.readableBytes() > undecodedLimit) {
                 buffer.close();
-                throw new FormDecoderException("Undecoded data limit exceeded");
+                throw new UndecodedDataLimitExceededException();
             }
 
             if (this.buffer instanceof CompositeBuffer) {
