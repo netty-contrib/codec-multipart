@@ -32,6 +32,10 @@ abstract class AbstractDecoder implements PostBodyDecoder {
         if (eof) {
             throw new IllegalStateException("endInput() already called");
         }
+        if (!buffer.isReadable()) {
+            buffer.release();
+            return;
+        }
         if (this.buffer != null && this.buffer.readableBytes() <= 0) {
             this.buffer.release();
             this.buffer = null;
