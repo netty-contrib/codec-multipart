@@ -53,7 +53,6 @@ final class MultipartDecoder extends AbstractDecoder implements VintageAccess.Mu
      * parsing.
      */
     private int quirkHeaderStart = -1;
-    private boolean quirkMixed = false;
     private String[] quirkHeader;
     long quirkDefinedLength;
     Charset quirkPartCharset;
@@ -73,7 +72,6 @@ final class MultipartDecoder extends AbstractDecoder implements VintageAccess.Mu
         super.add(buffer);
         if (hasQuirk(DecoderQuirk.RESCAN_HEADERS_ON_CHUNK_BOUNDARY)) {
             quirkHeaderStart = -1;
-            quirkMixed = false;
         }
     }
 
