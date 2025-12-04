@@ -1,8 +1,6 @@
-package io.netty.contrib.multipart.vintage;
+package io.netty.contrib.multipart;
 
 import io.netty.buffer.Unpooled;
-import io.netty.contrib.multipart.ContentDisposition;
-import io.netty.contrib.multipart.PostBodyDecoder;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -76,6 +74,30 @@ class UrlEncodedDecoderTest {
             decoder.endInput();
 
             expectField(decoder, "foo", "");
+            Assertions.assertNull(decoder.next());
+        }
+    }
+
+    @Test
+    public void spacesNoValue() {
+        // the url spec does not require stripping spaces: https://url.spec.whatwg.org/#urlencoded-parsing
+        try (PostBodyDecoder decoder = PostBodyDecoder.builder().forUrlEncodedData()) {
+            decoder.add(Unpooled.copiedBuffer("    ", StandardCharsets.UTF_8));
+            decoder.endInput();
+
+            expectField(decoder, "    ", "");
+            Assertions.assertNull(decoder.next());
+        }
+    }
+
+    @Test
+    public void spacesValue() {
+        // the url spec does not require stripping spaces: https://url.spec.whatwg.org/#urlencoded-parsing
+        try (PostBodyDecoder decoder = PostBodyDecoder.builder().forUrlEncodedData()) {
+            decoder.add(Unpooled.copiedBuffer("    =   ", StandardCharsets.UTF_8));
+            decoder.endInput();
+
+            expectField(decoder, "    ", "   ");
             Assertions.assertNull(decoder.next());
         }
     }
