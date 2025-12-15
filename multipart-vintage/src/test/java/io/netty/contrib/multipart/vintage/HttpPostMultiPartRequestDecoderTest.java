@@ -23,10 +23,12 @@ import io.netty.handler.codec.http.DefaultHttpRequest;
 import io.netty.handler.codec.http.DefaultLastHttpContent;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpConstants;
+import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpVersion;
+import io.netty.handler.codec.http.multipart.Attribute;
 import io.netty.handler.codec.http.multipart.DefaultHttpDataFactory;
 import io.netty.handler.codec.http.multipart.FileUpload;
 import io.netty.handler.codec.http.multipart.HttpData;
@@ -122,6 +124,33 @@ public class HttpPostMultiPartRequestDecoderTest {
                 assertTrue(req.release());
             }
         }
+    }
+
+    // Issue #12729
+    @Test
+    public void testDecodeFullHttpRequestWithSeparatorSplit() throws IOException {
+        String prefix = "\r\n--861fbeab-cd20-470c-9609-d40a0f704466\r\n" +
+            "Content-Disposition: form-data; name=\"attributeName\"\r\n" +
+            "\r\n" +
+            "attributeValue\r"; // here goes CR not followed by LF
+        String suffix = "\n--861fbeab-cd20-470c-9609-d40a0f704466--\r\n";
+
+        FullHttpRequest req = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/upload",
+            Unpooled.copiedBuffer(prefix, CharsetUtil.US_ASCII));
+        req.headers().set("content-type", "multipart/form-data; boundary=861fbeab-cd20-470c-9609-d40a0f704466");
+        req.headers().set("content-length", prefix.length() + suffix.length());
+        HttpContent content = new DefaultHttpContent(Unpooled.copiedBuffer(suffix, CharsetUtil.US_ASCII));
+
+        HttpPostMultipartRequestDecoder decoder = this.builder().buildMultipart(req);
+        decoder.offer(content);
+        Attribute attribute = (Attribute) decoder.getBodyHttpDatas().get(0);
+
+        if (quirk) {
+            assertEquals("attributeValue\r", attribute.getValue(), "Attribute value is expected to contain a trailing CR");
+        } else {
+            assertEquals("attributeValue", attribute.getValue(), "Attribute value is expected to match the form value exactly");
+        }
+        decoder.destroy();
     }
 
     @Test
@@ -563,5 +592,4 @@ public class HttpPostMultiPartRequestDecoderTest {
 
         commonTestFileDelimiterLFLastChunk(factory, false);
     }
-
 }
