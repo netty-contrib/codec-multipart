@@ -5,7 +5,9 @@ import io.netty.handler.codec.http.HttpHeaderNames;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.ThreadLocalRandom;
 
 class UrlEncodedDecoderTest {
     private void expectField(PostBodyDecoder decoder, String name, String value) {
@@ -100,5 +102,20 @@ class UrlEncodedDecoderTest {
             expectField(decoder, "    ", "   ");
             Assertions.assertNull(decoder.next());
         }
+    }
+
+    @Test
+    public void bufferCompaction() throws IOException {
+        byte[] fullData = new byte[10 * 1024 * 1024];
+        for (int i = 0; i < fullData.length; i++) {
+            // avoid *valid* escape sequences, but we still need some invalid ones to trigger buffering behavior
+            int c = ThreadLocalRandom.current().nextInt('f', 'z' + 1);
+            if (c == 'f') {
+                c = '%';
+            }
+            fullData[i] = (byte) c;
+        }
+
+        MultipartDecoderTest.bufferCompaction(PostBodyDecoder.builder().forUrlEncodedData(), "xyz=", fullData, "");
     }
 }

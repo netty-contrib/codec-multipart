@@ -21,7 +21,14 @@ import io.netty.buffer.Unpooled;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
+
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 
 class MultipartDecoderTest {
 
@@ -192,5 +199,57 @@ class MultipartDecoderTest {
         } finally {
             b.release();
         }
+    }
+
+    @Test
+    public void bufferCompaction() throws IOException {
+        byte[] fullData = new byte[10 * 1024 * 1024];
+        ThreadLocalRandom.current().nextBytes(fullData);
+
+        bufferCompaction(PostBodyDecoder.builder().forMultipartBoundary("a"), "--a\r\n\r\n", fullData, "\r\n--a--");
+    }
+
+    static void bufferCompaction(PostBodyDecoder decoder, String before, byte[] fullData, String after) throws IOException {
+        // this test verifies that buffers returned by decodedContent remain unchanged over time. This tests for a bug
+        // caused by incorrect discardSomeReadBytes calls
+
+        List<ByteBuf> readData = new ArrayList<>();
+
+        try (decoder) {
+            decoder.add(Unpooled.copiedBuffer(before, StandardCharsets.UTF_8));
+
+            for (int i = 0; i < fullData.length / 1024; i++) {
+                decoder.add(Unpooled.copiedBuffer(fullData, i * 1024, 1024));
+
+                while (true) {
+                    PostBodyDecoder.Event event = decoder.next();
+                    if (event == null) {
+                        break;
+                    } else if (event == PostBodyDecoder.Event.CONTENT) {
+                        readData.add(decoder.decodedContent());
+                    }
+                }
+            }
+
+            decoder.add(Unpooled.copiedBuffer(after, StandardCharsets.UTF_8));
+            decoder.endInput();
+
+            while (true) {
+                PostBodyDecoder.Event event = decoder.next();
+                if (event == null) {
+                    break;
+                } else if (event == PostBodyDecoder.Event.CONTENT) {
+                    readData.add(decoder.decodedContent());
+                }
+            }
+        }
+
+        ByteArrayOutputStream combined = new ByteArrayOutputStream(fullData.length);
+        for (ByteBuf buf : readData) {
+            buf.readBytes(combined, buf.readableBytes());
+            buf.release();
+        }
+
+        assertArrayEquals(fullData, combined.toByteArray());
     }
 }

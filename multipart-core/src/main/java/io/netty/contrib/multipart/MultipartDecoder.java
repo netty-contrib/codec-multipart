@@ -204,7 +204,7 @@ final class MultipartDecoder extends AbstractDecoder implements VintageAccess.Mu
                         if (normal == 0) {
                             return null;
                         }
-                        undecodedPartData = buffer.readRetainedSlice(normal);
+                        undecodedPartData = buffer.readBytes(normal);
                         addReceivedLength(normal);
                         return Event.CONTENT;
                     }

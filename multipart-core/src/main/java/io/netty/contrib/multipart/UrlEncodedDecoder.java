@@ -130,7 +130,7 @@ final class UrlEncodedDecoder extends AbstractDecoder implements VintageAccess.U
                         } else if (valueEnd == buffer.readerIndex()) {
                             return null;
                         } else {
-                            undecodedContent = buffer.readRetainedSlice(valueEnd - buffer.readerIndex());
+                            undecodedContent = buffer.readBytes(valueEnd - buffer.readerIndex());
                         }
                         if (quirks.contains(DecoderQuirk.EARLY_CRLF_CHECK) && buffer != null) {
                             earlyEolCheck(buffer.readerIndex());
