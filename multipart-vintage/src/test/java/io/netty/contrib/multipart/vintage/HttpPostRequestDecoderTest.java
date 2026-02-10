@@ -21,6 +21,7 @@ import io.netty.buffer.Unpooled;
 import io.netty.buffer.UnpooledByteBufAllocator;
 import io.netty.contrib.multipart.FormDecoderException;
 import io.netty.contrib.multipart.TooManyFormFieldsException;
+import io.netty.contrib.multipart.UndecodedDataLimitExceededException;
 import io.netty.handler.codec.DecoderException;
 import io.netty.handler.codec.DecoderResult;
 import io.netty.handler.codec.http.DefaultFullHttpRequest;
@@ -1162,7 +1163,7 @@ public class HttpPostRequestDecoderTest {
             decoder.offer(new DefaultHttpContent(Unpooled.wrappedBuffer(new byte[1])));
             fail();
         } catch (DecoderException e) {
-            assertEquals(FormDecoderException.class, e.getClass());
+            assertEquals(UndecodedDataLimitExceededException.class, e.getClass());
         }
         decoder.destroy();
     }
@@ -1191,7 +1192,7 @@ public class HttpPostRequestDecoderTest {
             decoder.offer(new DefaultHttpContent(Unpooled.wrappedBuffer(new byte[1])));
             fail();
         } catch (DecoderException e) {
-            assertEquals(FormDecoderException.class, e.getClass());
+            assertEquals(UndecodedDataLimitExceededException.class, e.getClass());
         }
         decoder.destroy();
     }
