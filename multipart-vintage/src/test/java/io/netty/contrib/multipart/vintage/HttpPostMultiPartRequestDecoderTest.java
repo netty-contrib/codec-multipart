@@ -592,4 +592,59 @@ public class HttpPostMultiPartRequestDecoderTest {
 
         commonTestFileDelimiterLFLastChunk(factory, false);
     }
+
+    @Test
+    public void testFieldWithoutNameAttributeThrowsErrorDataDecoderException() {
+        String boundary = "861fbeab-cd20-470c-9609-d40a0f704466";
+        String content = "--" + boundary + "\r\n" +
+                "Content-Disposition: form-data\r\n" +
+                "\r\n" +
+                "fieldValue\r\n" +
+                "--" + boundary + "--\r\n";
+
+        FullHttpRequest req = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/upload",
+                Unpooled.copiedBuffer(content, CharsetUtil.US_ASCII));
+        req.headers().set(HttpHeaderNames.CONTENT_TYPE, "multipart/form-data; boundary=" + boundary);
+        req.headers().set(HttpHeaderNames.CONTENT_LENGTH, content.length());
+
+        try {
+            HttpPostMultipartRequestDecoder decoder = this.builder().buildMultipart(req);
+            decoder.getBodyHttpDatas();
+            fail("Was expecting an ErrorDataDecoderException");
+        } catch (HttpPostRequestDecoder.ErrorDataDecoderException expected) {
+            assertNotNull(expected.getMessage());
+            assertTrue(expected.getMessage().contains("name"),
+                    "Message should mention the missing 'name' parameter, was: " + expected.getMessage());
+        } finally {
+            assertTrue(req.release());
+        }
+    }
+
+    @Test
+    public void testFileUploadWithoutNameAttributeThrowsErrorDataDecoderException() {
+        String boundary = "861fbeab-cd20-470c-9609-d40a0f704466";
+        String content = "--" + boundary + "\r\n" +
+                "Content-Disposition: form-data; filename=\"upload.txt\"\r\n" +
+                "Content-Type: text/plain\r\n" +
+                "\r\n" +
+                "file-content\r\n" +
+                "--" + boundary + "--\r\n";
+
+        FullHttpRequest req = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/upload",
+                Unpooled.copiedBuffer(content, CharsetUtil.US_ASCII));
+        req.headers().set(HttpHeaderNames.CONTENT_TYPE, "multipart/form-data; boundary=" + boundary);
+        req.headers().set(HttpHeaderNames.CONTENT_LENGTH, content.length());
+
+        try {
+            HttpPostMultipartRequestDecoder decoder = this.builder().buildMultipart(req);
+            decoder.getBodyHttpDatas();
+            fail("Was expecting an ErrorDataDecoderException");
+        } catch (HttpPostRequestDecoder.ErrorDataDecoderException expected) {
+            assertNotNull(expected.getMessage());
+            assertTrue(expected.getMessage().contains("name"),
+                    "Message should mention the missing 'name' parameter, was: " + expected.getMessage());
+        } finally {
+            assertTrue(req.release());
+        }
+    }
 }
