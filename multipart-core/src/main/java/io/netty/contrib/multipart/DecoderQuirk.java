@@ -91,6 +91,16 @@ public enum DecoderQuirk {
      */
     DISABLE_EARLY_MIXED_END,
 
+    /**
+     * Surface a {@link NullPointerException} (wrapped in an {@code ErrorDataDecoderException}) when a multipart part's
+     * {@code Content-Disposition} header is missing the required {@code name} parameter, instead of throwing a
+     * descriptive {@code ErrorDataDecoderException} that names the missing parameter.
+     * <p>
+     * This quirk replicates a bug where the legacy decoder dereferenced the {@code name} attribute without validating
+     * its presence, so callers observed an opaque NPE message instead of a clear validation error.
+     */
+    NPE_ON_MISSING_CONTENT_DISPOSITION_NAME,
+
     // URL ENCODED
 
     /**
