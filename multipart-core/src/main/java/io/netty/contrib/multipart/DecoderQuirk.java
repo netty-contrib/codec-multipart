@@ -96,8 +96,8 @@ public enum DecoderQuirk {
      * {@code Content-Disposition} header is missing the required {@code name} parameter, instead of throwing a
      * descriptive {@code ErrorDataDecoderException} that names the missing parameter.
      * <p>
-     * The legacy decoder dereferenced the {@code name} attribute without validating its presence, so callers observed
-     * the opaque NPE message. This quirk preserves that behavior for applications that depend on it.
+     * This quirk replicates a bug where the legacy decoder dereferenced the {@code name} attribute without validating
+     * its presence, so callers observed an opaque NPE message instead of a clear validation error.
      */
     NPE_ON_MISSING_CONTENT_DISPOSITION_NAME,
 

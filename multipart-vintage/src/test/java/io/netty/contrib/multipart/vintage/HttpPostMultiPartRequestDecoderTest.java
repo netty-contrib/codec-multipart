@@ -612,9 +612,7 @@ public class HttpPostMultiPartRequestDecoderTest {
             decoder.getBodyHttpDatas();
             fail("Was expecting an ErrorDataDecoderException");
         } catch (HttpPostRequestDecoder.ErrorDataDecoderException expected) {
-            assertNotNull(expected.getMessage());
-            assertTrue(expected.getMessage().contains("name"),
-                    "Message should mention the missing 'name' parameter, was: " + expected.getMessage());
+            assertMissingNameExceptionMatchesQuirk(expected);
         } finally {
             assertTrue(req.release());
         }
@@ -640,11 +638,21 @@ public class HttpPostMultiPartRequestDecoderTest {
             decoder.getBodyHttpDatas();
             fail("Was expecting an ErrorDataDecoderException");
         } catch (HttpPostRequestDecoder.ErrorDataDecoderException expected) {
-            assertNotNull(expected.getMessage());
-            assertTrue(expected.getMessage().contains("name"),
-                    "Message should mention the missing 'name' parameter, was: " + expected.getMessage());
+            assertMissingNameExceptionMatchesQuirk(expected);
         } finally {
             assertTrue(req.release());
+        }
+    }
+
+    private void assertMissingNameExceptionMatchesQuirk(HttpPostRequestDecoder.ErrorDataDecoderException thrown) {
+        if (quirk) {
+            // Legacy behavior: NPE from dereferencing the missing name attribute is wrapped.
+            assertTrue(thrown.getCause() instanceof NullPointerException,
+                    "Expected legacy NPE cause when quirks are enabled, was: " + thrown.getCause());
+        } else {
+            // New behavior: descriptive message identifies the missing parameter, no wrapped cause.
+            assertEquals("Content-Disposition is missing required 'name' parameter", thrown.getMessage());
+            assertNull(thrown.getCause());
         }
     }
 }
