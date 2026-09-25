@@ -436,6 +436,12 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
      *             errors
      */
     private void parseBody() {
+        HttpData current = (HttpData) currentPartialHttpData();
+        if (current != null) {
+            // The legacy decoder takes the delimiter charset from the partial data once per offer. That charset can
+            // change while data is added: a MixedAttribute that moves to disk loses its charset.
+            decoder.setQuirkPartCharset(current.getCharset());
+        }
         while (true) {
             PostBodyDecoder.Event event = decoder.next();
             if (event == null) {

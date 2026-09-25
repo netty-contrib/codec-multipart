@@ -22,8 +22,10 @@ import io.netty.contrib.multipart.FormDecoderException;
 import io.netty.handler.codec.http.DefaultHttpContent;
 import io.netty.handler.codec.http.DefaultLastHttpContent;
 import io.netty.handler.codec.http.HttpContent;
+import io.netty.handler.codec.http.multipart.DefaultHttpDataFactory;
 import io.netty.handler.codec.http.multipart.FileUpload;
 import io.netty.handler.codec.http.multipart.HttpData;
+import io.netty.handler.codec.http.multipart.HttpDataFactory;
 import io.netty.handler.codec.http.multipart.InterfaceHttpPostRequestDecoder;
 import org.junit.jupiter.api.Assertions;
 
@@ -36,7 +38,14 @@ abstract class AbstractComparisonTest extends AbstractFuzzTest {
     @MultipartFuzzTest
     @FuzzTest(maxDuration = "2h")
     public void compare(byte[] bytes) {
-        try (Runner runner = new Runner()) {
+        for (FactoryType factoryType : FactoryType.values()) {
+            compare(bytes, factoryType);
+        }
+        logStackTraces = false;
+    }
+
+    private void compare(byte[] bytes, FactoryType factoryType) {
+        try (Runner runner = new Runner(factoryType)) {
             ByteSplitter.ChunkIterator itr = FUZZ_SPLITTER.splitIterator(bytes);
             while (itr.hasNext() && !runner.failed) {
                 ByteBuf piece = next(bytes, itr);
@@ -49,12 +58,31 @@ abstract class AbstractComparisonTest extends AbstractFuzzTest {
                 }
             }
         }
-        logStackTraces = false;
     }
 
-    protected abstract InterfaceHttpPostRequestDecoder createNormal();
+    protected abstract InterfaceHttpPostRequestDecoder createNormal(HttpDataFactory factory);
 
-    protected abstract InterfaceHttpPostRequestDecoder createLegacy();
+    protected abstract InterfaceHttpPostRequestDecoder createLegacy(HttpDataFactory factory);
+
+    enum FactoryType {
+        MEMORY,
+        DISK,
+        MIXED;
+
+        HttpDataFactory create() {
+            switch (this) {
+                case MEMORY:
+                    return new DefaultHttpDataFactory(false);
+                case DISK:
+                    return new DefaultHttpDataFactory(true);
+                case MIXED:
+                    // small limit so that the corpus exercises both memory and disk storage
+                    return new DefaultHttpDataFactory(4);
+                default:
+                    throw new AssertionError(this);
+            }
+        }
+    }
 
     private final class Runner implements Closeable {
 
@@ -62,9 +90,10 @@ abstract class AbstractComparisonTest extends AbstractFuzzTest {
         final InterfaceHttpPostRequestDecoder b;
         boolean failed;
 
-        private Runner() {
-            a = createLegacy();
-            b = createNormal();
+        private Runner(FactoryType factoryType) {
+            // separate factories, so that destroying one decoder does not clean up the data of the other
+            a = createLegacy(factoryType.create());
+            b = createNormal(factoryType.create());
         }
 
         void offer(HttpContent content) {

@@ -38,6 +38,7 @@ final class UrlEncodedDecoder extends AbstractDecoder implements VintageAccess.U
     private int keyScanOffset;
 
     private String key;
+    private boolean keyWithoutValue;
     private ByteBuf undecodedContent;
 
     private final Set<DecoderQuirk> quirks;
@@ -85,6 +86,7 @@ final class UrlEncodedDecoder extends AbstractDecoder implements VintageAccess.U
                         } finally {
                             keyByteBuf.release();
                         }
+                        keyWithoutValue = !hasValue;
                         if (!hasValue && !noValueAtEof) {
                             // go to just before the '&', it will read as an empty value
                             buffer.readerIndex(buffer.readerIndex() - 1);
@@ -350,6 +352,11 @@ final class UrlEncodedDecoder extends AbstractDecoder implements VintageAccess.U
     @Override
     public boolean isEof() {
         return eof;
+    }
+
+    @Override
+    public boolean isKeyWithoutValue() {
+        return keyWithoutValue;
     }
 
     private enum State {
