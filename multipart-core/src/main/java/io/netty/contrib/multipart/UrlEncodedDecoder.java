@@ -31,6 +31,11 @@ final class UrlEncodedDecoder extends AbstractDecoder implements VintageAccess.U
     private static final ByteProcessor FIND_VALUE_END = value -> value != '&' && value != '\r' && value != '\n';
 
     private State state = State.KEY;
+    /**
+     * Number of bytes after the reader index that have already been scanned for the end of the current key without
+     * finding it. This is relative to the reader index so that it stays valid when the buffer is compacted.
+     */
+    private int keyScanOffset;
 
     private String key;
     private ByteBuf undecodedContent;
@@ -50,12 +55,16 @@ final class UrlEncodedDecoder extends AbstractDecoder implements VintageAccess.U
                     if (buffer == null) {
                         return null;
                     }
-                    int keyEnd = buffer.forEachByte(FIND_KEY_END);
+                    // resume the delimiter search where the previous call left off. Key bytes are only decoded
+                    // once the key is complete, so no bytes need to be rescanned for percent escapes.
+                    int keyEnd = buffer.forEachByte(buffer.readerIndex() + keyScanOffset,
+                            buffer.readableBytes() - keyScanOffset, FIND_KEY_END);
                     boolean noValueAtEof = keyEnd == -1 && eof && buffer.readableBytes() > 0;
                     if (noValueAtEof) {
                         keyEnd = buffer.writerIndex();
                     }
                     if (keyEnd >= 0) {
+                        keyScanOffset = 0;
                         boolean hasValue;
                         ByteBuf keyByteBuf = buffer.readRetainedSlice(keyEnd - buffer.readerIndex());
                         try {
@@ -84,6 +93,7 @@ final class UrlEncodedDecoder extends AbstractDecoder implements VintageAccess.U
                         checkNewField();
                         return Event.BEGIN_FIELD;
                     } else {
+                        keyScanOffset = buffer.readableBytes();
                         return null;
                     }
 
