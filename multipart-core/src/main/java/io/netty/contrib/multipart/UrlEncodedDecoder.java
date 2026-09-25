@@ -34,6 +34,15 @@ final class UrlEncodedDecoder extends AbstractDecoder implements VintageAccess.U
 
     private String key;
     private ByteBuf undecodedContent;
+    /**
+     * {@code true} if {@link #undecodedContent} does not end at the end of the value.
+     */
+    private boolean undecodedContentContinues;
+    /**
+     * For {@link #decodedContent()}: Trailing bytes of the previous content chunk that may be part of an escape
+     * sequence that continues in the next chunk. These are prepended to the next chunk before decoding.
+     */
+    private ByteBuf pendingEscape;
 
     private final Set<DecoderQuirk> quirks;
 
@@ -108,6 +117,13 @@ final class UrlEncodedDecoder extends AbstractDecoder implements VintageAccess.U
                     }
                     int valueEnd = buffer == null ? 0 : buffer.forEachByte(FIND_VALUE_END);
                     boolean endAttribute = buffer == null || valueEnd == buffer.readerIndex();
+                    if (endAttribute && pendingEscape != null) {
+                        // flush the held back escape before completing the field
+                        undecodedContent = pendingEscape;
+                        undecodedContentContinues = false;
+                        pendingEscape = null;
+                        return Event.CONTENT;
+                    }
                     if (endAttribute) {
                         if (buffer == null) {
                             state = State.DISCARD_REMAINING;
@@ -130,16 +146,6 @@ final class UrlEncodedDecoder extends AbstractDecoder implements VintageAccess.U
                         }
                         return Event.FIELD_COMPLETE;
                     } else {
-                        if (!quirks.contains(DecoderQuirk.EARLY_CRLF_CHECK) && !eof && valueEnd < 0) {
-                            int trailing = findTrailingEscape(buffer, buffer.writerIndex());
-                            if (trailing != -1) {
-                                valueEnd = trailing;
-                                if (valueEnd == buffer.readerIndex()) {
-                                    return null;
-                                }
-                            }
-                        }
-
                         if (valueEnd < 0) {
                             undecodedContent = buffer;
                             buffer = null;
@@ -148,6 +154,7 @@ final class UrlEncodedDecoder extends AbstractDecoder implements VintageAccess.U
                         } else {
                             undecodedContent = buffer.readBytes(valueEnd - buffer.readerIndex());
                         }
+                        undecodedContentContinues = !eof && valueEnd < 0;
                         if (quirks.contains(DecoderQuirk.EARLY_CRLF_CHECK) && buffer != null) {
                             earlyEolCheck(buffer.readerIndex());
                         }
@@ -178,18 +185,19 @@ final class UrlEncodedDecoder extends AbstractDecoder implements VintageAccess.U
     }
 
     /**
-     * Find a trailing unfinished escape sequence in the given buffer, e.g. {@code %0}.
+     * Find a trailing unfinished escape sequence in the given buffer, e.g. {@code %0}. If there are multiple (e.g.
+     * {@code %%}), the first one is returned.
      *
      * @param buffer The buffer
      * @param end The end index in the buffer to start scanning at (exclusive)
      * @return The index of the unfinished escape, or {@code -1} if there is no unfinished escape
      */
     private static int findTrailingEscape(ByteBuf buffer, int end) {
-        if (buffer.readerIndex() <= end - 1 && buffer.getByte(end - 1) == '%') {
-            return end - 1;
-        }
         if (buffer.readerIndex() <= end - 2 && buffer.getByte(end - 2) == '%') {
             return end - 2;
+        }
+        if (buffer.readerIndex() <= end - 1 && buffer.getByte(end - 1) == '%') {
+            return end - 1;
         }
         return -1;
     }
@@ -247,9 +255,30 @@ final class UrlEncodedDecoder extends AbstractDecoder implements VintageAccess.U
             throw new IllegalStateException("Not in CONTENT event");
         }
         ByteBuf b = undecodedContent;
+        undecodedContent = null;
         try {
-            undecodedContent = null;
-            decodeComponent(b, false);
+            if (pendingEscape != null) {
+                ByteBuf pending = pendingEscape;
+                pendingEscape = null;
+                try {
+                    ByteBuf joined = b.alloc().buffer(pending.readableBytes() + b.readableBytes());
+                    joined.writeBytes(pending).writeBytes(b);
+                    b.release();
+                    b = joined;
+                } finally {
+                    pending.release();
+                }
+            }
+            if (undecodedContentContinues) {
+                // hold back an escape that may be completed by the next chunk, so that it is classified the same
+                // way regardless of chunking
+                int trailing = findTrailingEscape(b, b.writerIndex());
+                if (trailing != -1) {
+                    pendingEscape = b.copy(trailing, b.writerIndex() - trailing);
+                    b.writerIndex(trailing);
+                }
+            }
+            decodeComponent(b, false, undecodedContentContinues);
             return b;
         } catch (Exception e) {
             b.release();
@@ -266,6 +295,18 @@ final class UrlEncodedDecoder extends AbstractDecoder implements VintageAccess.U
 
     @Override
     public void decodeComponent(ByteBuf buffer, boolean key) {
+        decodeComponent(buffer, key, false);
+    }
+
+    /**
+     * Percent-decode the given buffer in place.
+     *
+     * @param buffer The buffer to decode
+     * @param key {@code true} if this is a key, for the error message
+     * @param continues {@code true} if the component continues after the end of this buffer with bytes that do not
+     *                  complete an escape sequence. A trailing {@code %} is then a non-hex escape, not a short one
+     */
+    private void decodeComponent(ByteBuf buffer, boolean key, boolean continues) {
         int wi = buffer.readerIndex();
         for (int ri = wi; ri < buffer.writerIndex(); wi++, ri++) {
             byte b = buffer.getByte(ri);
@@ -279,6 +320,12 @@ final class UrlEncodedDecoder extends AbstractDecoder implements VintageAccess.U
                         continue;
                     } else if (quirks.contains(DecoderQuirk.REFUSE_NON_HEX_PERCENT_DECODE)) {
                         // whatwg URL spec allows this
+                        failPercentDecode(key);
+                    }
+                } else if (continues) {
+                    // the bytes following this escape are in the next chunk, and they are not hex (otherwise
+                    // decodedContent would have held back the escape)
+                    if (quirks.contains(DecoderQuirk.REFUSE_NON_HEX_PERCENT_DECODE)) {
                         failPercentDecode(key);
                     }
                 } else if (quirks.contains(DecoderQuirk.REFUSE_SHORT_PERCENT_DECODE)) {
@@ -311,6 +358,10 @@ final class UrlEncodedDecoder extends AbstractDecoder implements VintageAccess.U
         if (undecodedContent != null) {
             undecodedContent.release();
             undecodedContent = null;
+        }
+        if (pendingEscape != null) {
+            pendingEscape.release();
+            pendingEscape = null;
         }
     }
 
