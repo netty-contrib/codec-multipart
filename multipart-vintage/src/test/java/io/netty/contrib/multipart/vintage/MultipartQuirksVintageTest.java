@@ -68,6 +68,10 @@ class MultipartQuirksVintageTest {
             builder.enableQuirks(DecoderQuirk.USE_FIELD_CHARSET_FOR_DELIMITER_SEARCH);
         }
         HttpPostRequestDecoder decoder = builder.build(fullRequest("ö", "--ö\ncontent-disposition: form-data; name=\"xyz\"\ncontent-type: text/plain; charset=iso-8859-1\n\nfoo\n--ö--\n"));
-        assertEquals(quirk ? 0 : 1, decoder.getBodyHttpDatas().size());
+        try {
+            assertEquals(quirk ? 0 : 1, decoder.getBodyHttpDatas().size());
+        } finally {
+            decoder.destroy();
+        }
     }
 }

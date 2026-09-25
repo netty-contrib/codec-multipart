@@ -462,6 +462,14 @@ public class HttpPostStandardRequestDecoder implements InterfaceHttpPostRequestD
      */
     @Override
     public void destroy() {
+        // The partially decoded item is owned by this decoder and never handed out. It is not in
+        // bodyListHttpData, and a memory-only factory does not track it, so release it here. Remove it
+        // from the factory first so that cleanFiles() does not release it a second time.
+        if (currentAttribute != null) {
+            factory.removeHttpDataFromClean(request, currentAttribute);
+            currentAttribute.release();
+            currentAttribute = null;
+        }
         // Release all data items, including those not yet pulled, only file based items
         cleanFiles();
         // Clean Memory based data

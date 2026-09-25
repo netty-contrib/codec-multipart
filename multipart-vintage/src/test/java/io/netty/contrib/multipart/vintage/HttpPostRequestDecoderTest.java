@@ -683,7 +683,7 @@ public class HttpPostRequestDecoderTest {
         final DefaultHttpDataFactory inMemoryFactory = new DefaultHttpDataFactory(false);
 
         try {
-            this.builder().dataFactory(inMemoryFactory).build(req);
+            this.builder().dataFactory(inMemoryFactory).build(req).destroy();
             if (quirk) {
                 fail("Was expecting an ErrorDataDecoderException");
             }
@@ -693,9 +693,7 @@ public class HttpPostRequestDecoderTest {
             }
             assertTrue(e.getCause() instanceof ArrayIndexOutOfBoundsException);
         } finally {
-            if (quirk) {
-                assertTrue(req.release());
-            }
+            assertTrue(req.release());
         }
     }
 
@@ -722,7 +720,7 @@ public class HttpPostRequestDecoderTest {
         final DefaultHttpDataFactory inMemoryFactory = new DefaultHttpDataFactory(false);
 
         try {
-            this.builder().dataFactory(inMemoryFactory).build(req);
+            this.builder().dataFactory(inMemoryFactory).build(req).destroy();
             if (quirk) {
                 fail("Was expecting an ErrorDataDecoderException");
             }
@@ -732,9 +730,7 @@ public class HttpPostRequestDecoderTest {
             }
             assertTrue(e.getCause() instanceof UnsupportedCharsetException);
         } finally {
-            if (quirk) {
-                assertTrue(req.release());
-            }
+            assertTrue(req.release());
         }
     }
 
@@ -939,7 +935,7 @@ public class HttpPostRequestDecoderTest {
 
         FullHttpRequest req = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/", content);
         try {
-            this.builder().build(req);
+            this.builder().build(req).destroy();
             if (quirk) {
                 fail("Was expecting an ErrorDataDecoderException");
             }
@@ -949,9 +945,7 @@ public class HttpPostRequestDecoderTest {
             }
             assertEquals("Invalid hex byte", e.getMessage());
         } finally {
-            if (quirk) {
-                assertTrue(req.release());
-            }
+            assertTrue(req.release());
         }
     }
 
@@ -963,7 +957,7 @@ public class HttpPostRequestDecoderTest {
 
         FullHttpRequest req = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/", content);
         try {
-            this.builder().build(req);
+            this.builder().build(req).destroy();
             if (quirk) {
                 fail("Was expecting an ErrorDataDecoderException");
             }
@@ -973,9 +967,7 @@ public class HttpPostRequestDecoderTest {
             }
             assertEquals("Invalid hex byte", e.getMessage());
         } finally {
-            if (quirk) {
-                assertTrue(req.release());
-            }
+            assertTrue(req.release());
         }
     }
 
@@ -987,7 +979,7 @@ public class HttpPostRequestDecoderTest {
 
         FullHttpRequest req = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/", content);
         try {
-            this.builder().build(req);
+            this.builder().build(req).destroy();
             if (quirk) {
                 fail("Was expecting an ErrorDataDecoderException");
             }
@@ -997,9 +989,7 @@ public class HttpPostRequestDecoderTest {
             }
             assertEquals("Invalid hex byte", e.getMessage());
         } finally {
-            if (quirk) {
-                assertTrue(req.release());
-            }
+            assertTrue(req.release());
         }
     }
 
@@ -1011,7 +1001,7 @@ public class HttpPostRequestDecoderTest {
 
         FullHttpRequest req = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/", content);
         try {
-            this.builder().build(req);
+            this.builder().build(req).destroy();
             if (quirk) {
                 fail("Was expecting an ErrorDataDecoderException");
             }
@@ -1021,9 +1011,7 @@ public class HttpPostRequestDecoderTest {
             }
             assertEquals("Invalid hex byte", e.getMessage());
         } finally {
-            if (quirk) {
-                assertTrue(req.release());
-            }
+            assertTrue(req.release());
         }
     }
 

@@ -25,7 +25,12 @@ abstract class AbstractComparisonTest extends AbstractFuzzTest {
             ByteSplitter.ChunkIterator itr = FUZZ_SPLITTER.splitIterator(bytes);
             while (itr.hasNext() && !runner.failed) {
                 ByteBuf piece = next(bytes, itr);
-                runner.offer(!itr.hasNext() ? new DefaultLastHttpContent(piece) : new DefaultHttpContent(piece));
+                HttpContent content = !itr.hasNext() ? new DefaultLastHttpContent(piece) : new DefaultHttpContent(piece);
+                try {
+                    runner.offer(content);
+                } finally {
+                    content.release();
+                }
             }
         }
         logStackTraces = false;
@@ -48,14 +53,17 @@ abstract class AbstractComparisonTest extends AbstractFuzzTest {
 
         void offer(HttpContent content) {
             Exception exc1 = null;
+            HttpContent copy = content.copy();
             try {
-                a.offer(content.copy());
+                a.offer(copy);
             } catch (Exception e) {
                 if (logStackTraces) {
                     e.printStackTrace();
                 }
                 exc1 = e;
                 failed = true;
+            } finally {
+                copy.release();
             }
             Exception exc2 = null;
             try {

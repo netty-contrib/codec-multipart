@@ -990,6 +990,17 @@ public class HttpPostMultipartRequestDecoderLegacy implements InterfaceHttpPostR
      */
     @Override
     public void destroy() {
+        // Not part of upstream netty, see HttpPost*RequestDecoder.destroy()
+        if (currentFileUpload != null) {
+            factory.removeHttpDataFromClean(request, currentFileUpload);
+            currentFileUpload.release();
+            currentFileUpload = null;
+        }
+        if (currentAttribute != null) {
+            factory.removeHttpDataFromClean(request, currentAttribute);
+            currentAttribute.release();
+            currentAttribute = null;
+        }
         // Release all data items, including those not yet pulled, only file based items
         cleanFiles();
         // Clean Memory based data
