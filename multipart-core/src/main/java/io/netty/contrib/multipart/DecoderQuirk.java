@@ -162,4 +162,16 @@ public enum DecoderQuirk {
      * quirk throws an exception instead, to imitate old parser behavior.
      */
     REFUSE_SHORT_PERCENT_DECODE,
+
+    /**
+     * Without this quirk, a line ending ({@code \r\n} or a bare {@code \n}) after a field terminates the form, and
+     * must be followed by the end of input. Any data after the line ending is rejected with a
+     * {@link FormDecoderException}, as is a lone {@code \r} at the end of input. Line endings also terminate a field
+     * that has no value, e.g. {@code a\r\n} is decoded as a field {@code a} with an empty value.
+     * <p>
+     * The old decoder was more lenient: it silently discarded any data after the line ending, accepted a lone
+     * {@code \r} at the end of input as a line ending, and treated line endings in a field name as part of that
+     * name. This quirk replicates that behavior.
+     */
+    LENIENT_END_OF_LINE,
 }

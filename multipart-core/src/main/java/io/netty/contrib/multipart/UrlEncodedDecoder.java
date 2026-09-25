@@ -28,6 +28,8 @@ import java.util.Set;
 
 final class UrlEncodedDecoder extends AbstractDecoder implements VintageAccess.UrlEncodedDecoder {
     private static final ByteProcessor FIND_KEY_END = value -> value != '=' && value != '&';
+    private static final ByteProcessor FIND_KEY_END_OR_EOL =
+            value -> value != '=' && value != '&' && value != '\r' && value != '\n';
     private static final ByteProcessor FIND_VALUE_END = value -> value != '&' && value != '\r' && value != '\n';
 
     private State state = State.KEY;
@@ -42,10 +44,12 @@ final class UrlEncodedDecoder extends AbstractDecoder implements VintageAccess.U
     private ByteBuf undecodedContent;
 
     private final Set<DecoderQuirk> quirks;
+    private final ByteProcessor findKeyEnd;
 
     UrlEncodedDecoder(Builder builder) {
         super(builder);
         this.quirks = EnumSet.copyOf(builder.multipartQuirks);
+        this.findKeyEnd = quirks.contains(DecoderQuirk.LENIENT_END_OF_LINE) ? FIND_KEY_END : FIND_KEY_END_OR_EOL;
     }
 
     @Override
@@ -57,9 +61,10 @@ final class UrlEncodedDecoder extends AbstractDecoder implements VintageAccess.U
                         return null;
                     }
                     // resume the delimiter search where the previous call left off. Key bytes are only decoded
-                    // once the key is complete, so no bytes need to be rescanned for percent escapes.
+                    // once the key is complete, so no bytes need to be rescanned for percent escapes. Without
+                    // LENIENT_END_OF_LINE, the search also stops at a line ending.
                     int keyEnd = buffer.forEachByte(buffer.readerIndex() + keyScanOffset,
-                            buffer.readableBytes() - keyScanOffset, FIND_KEY_END);
+                            buffer.readableBytes() - keyScanOffset, findKeyEnd);
                     boolean noValueAtEof = keyEnd == -1 && eof && buffer.readableBytes() > 0;
                     if (noValueAtEof) {
                         keyEnd = buffer.writerIndex();
@@ -69,8 +74,16 @@ final class UrlEncodedDecoder extends AbstractDecoder implements VintageAccess.U
                         boolean hasValue;
                         ByteBuf keyByteBuf = buffer.readRetainedSlice(keyEnd - buffer.readerIndex());
                         try {
-                            hasValue = !noValueAtEof && buffer.readByte() == '=';
+                            byte terminator = noValueAtEof ? 0 : buffer.readByte();
+                            hasValue = terminator == '=';
                             if (!hasValue && keyByteBuf.readableBytes() == 0) {
+                                if (terminator == '\r' || terminator == '\n') {
+                                    // line ending without a preceding field (e.g. "a=b&\r\n"). Only possible
+                                    // without LENIENT_END_OF_LINE.
+                                    buffer.readerIndex(buffer.readerIndex() - 1);
+                                    state = State.EOL;
+                                    break;
+                                }
                                 // Some weird request bodies start with an '&' character, eg: &name=J&age=17.
                                 // Just ignore.
                                 break;
@@ -88,7 +101,7 @@ final class UrlEncodedDecoder extends AbstractDecoder implements VintageAccess.U
                         }
                         keyWithoutValue = !hasValue;
                         if (!hasValue && !noValueAtEof) {
-                            // go to just before the '&', it will read as an empty value
+                            // go to just before the '&' (or line ending), it will read as an empty value
                             buffer.readerIndex(buffer.readerIndex() - 1);
                         }
                         state = State.EMIT_HEADER_1;
@@ -166,21 +179,45 @@ final class UrlEncodedDecoder extends AbstractDecoder implements VintageAccess.U
                         return Event.CONTENT;
                     }
                 case EOL:
+                    // A line ending (CRLF or bare LF) terminates the form. Without LENIENT_END_OF_LINE, it must
+                    // be followed by the end of input, and a lone CR at the end of input is rejected.
+                    boolean lenientEol = quirks.contains(DecoderQuirk.LENIENT_END_OF_LINE);
                     byte first = buffer.getByte(buffer.readerIndex());
                     assert first == '\r' || first == '\n';
                     if (first == '\r') {
                         if (buffer.readableBytes() == 1) {
-                            // need to wait for \n to verify line ending
-                            return null;
-                        }
-                        if (buffer.getByte(buffer.readerIndex() + 1) != '\n') {
+                            if (!eof) {
+                                // need to wait for \n to verify line ending
+                                return null;
+                            }
+                            if (!lenientEol) {
+                                throw new FormDecoderException("Bad end of line");
+                            }
+                        } else if (buffer.getByte(buffer.readerIndex() + 1) != '\n') {
                             throw new FormDecoderException("Bad end of line");
+                        } else {
+                            buffer.skipBytes(2);
                         }
+                    } else {
+                        buffer.skipBytes(1);
+                    }
+                    if (!lenientEol) {
+                        state = State.AFTER_EOL;
+                        break;
                     }
                     state = State.DISCARD_REMAINING;
                     // fall-through
                 case DISCARD_REMAINING:
                     if (buffer != null) {
+                        buffer.release();
+                        buffer = null;
+                    }
+                    return null;
+                case AFTER_EOL:
+                    if (buffer != null) {
+                        if (buffer.isReadable()) {
+                            throw new FormDecoderException("Unexpected data after end of line");
+                        }
                         buffer.release();
                         buffer = null;
                     }
@@ -368,7 +405,14 @@ final class UrlEncodedDecoder extends AbstractDecoder implements VintageAccess.U
         VALUE,
 
         EOL,
+        /**
+         * Legacy ({@link DecoderQuirk#LENIENT_END_OF_LINE}): silently discard anything after the line ending.
+         */
         DISCARD_REMAINING,
+        /**
+         * After the line ending, only the end of input is permitted.
+         */
+        AFTER_EOL,
     }
 
     private static final class MockContentDisposition implements ContentDisposition {
