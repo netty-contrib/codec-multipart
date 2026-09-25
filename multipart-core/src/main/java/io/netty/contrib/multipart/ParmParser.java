@@ -63,7 +63,7 @@ abstract class ParmParser {
             type = headerValue.substring(0, typeEnd);
         }
         visitType(type);
-        for (int parameterStart = typeEnd + 1; parameterStart < headerValue.length(); ) {
+        for (int parameterStart = typeEnd + 1; parameterStart < headerValue.length();) {
             int attributeEnd = headerValue.indexOf('=', parameterStart);
             if (attributeEnd == -1) {
                 break;
@@ -104,7 +104,8 @@ abstract class ParmParser {
                         }
                     }
                     if (charset != null) {
-                        parameterValue = QueryStringDecoder.decodeComponent(headerValue.substring(secondQuote + 1, parameterValueEnd), charset);
+                        parameterValue = QueryStringDecoder.decodeComponent(
+                                headerValue.substring(secondQuote + 1, parameterValueEnd), charset);
                     }
                 }
             } else if (parameterValueEnd < headerValue.length() && headerValue.charAt(parameterValueEnd) == '"') {

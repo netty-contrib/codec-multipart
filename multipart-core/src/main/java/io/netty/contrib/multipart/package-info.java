@@ -13,23 +13,10 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-package io.netty.contrib.multipart;
 
 /**
- * Parsed representation of the {@code Content-Disposition} header, giving access to the field and file name.
+ * Streaming decoders for {@code multipart/form-data} and {@code application/x-www-form-urlencoded} request bodies.
+ *
+ * @see io.netty.contrib.multipart.PostBodyDecoder
  */
-public interface ContentDisposition extends ParsedHeaderValue {
-    /**
-     * The field name specified in this header.
-     *
-     * @return The name, or {@code null} if not given
-     */
-    String name();
-
-    /**
-     * The file name specified in this header.
-     *
-     * @return The file name, or {@code null} if not given
-     */
-    String fileName();
-}
+package io.netty.contrib.multipart;

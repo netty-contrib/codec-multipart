@@ -52,7 +52,8 @@ class MultipartDecoderTest {
                 "<!DOCTYPE html><title>Content of a.html.</title>\n" +
                 "\r\n" +
                 "-----------------------------9051914041544843365972754266--";
-        try (PostBodyDecoder decoder = PostBodyDecoder.builder().forMultipartBoundary("---------------------------9051914041544843365972754266")) {
+        try (PostBodyDecoder decoder = PostBodyDecoder.builder()
+                .forMultipartBoundary("---------------------------9051914041544843365972754266")) {
             decoder.add(Unpooled.copiedBuffer(input, StandardCharsets.UTF_8));
 
             Assertions.assertEquals(PostBodyDecoder.Event.BEGIN_FIELD, decoder.next());
@@ -91,7 +92,8 @@ class MultipartDecoderTest {
             Assertions.assertEquals("text/html", decoder.headerValue());
             Assertions.assertEquals(PostBodyDecoder.Event.HEADERS_COMPLETE, decoder.next());
             Assertions.assertEquals(PostBodyDecoder.Event.CONTENT, decoder.next());
-            Assertions.assertEquals("<!DOCTYPE html><title>Content of a.html.</title>\n", decoder.decodedContentString());
+            Assertions.assertEquals("<!DOCTYPE html><title>Content of a.html.</title>\n",
+                    decoder.decodedContentString());
             Assertions.assertEquals(PostBodyDecoder.Event.FIELD_COMPLETE, decoder.next());
         }
     }
@@ -209,7 +211,8 @@ class MultipartDecoderTest {
         bufferCompaction(PostBodyDecoder.builder().forMultipartBoundary("a"), "--a\r\n\r\n", fullData, "\r\n--a--");
     }
 
-    static void bufferCompaction(PostBodyDecoder decoder, String before, byte[] fullData, String after) throws IOException {
+    static void bufferCompaction(PostBodyDecoder decoder, String before, byte[] fullData, String after)
+            throws IOException {
         // this test verifies that buffers returned by decodedContent remain unchanged over time. This tests for a bug
         // caused by incorrect discardSomeReadBytes calls
 

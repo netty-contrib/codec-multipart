@@ -32,9 +32,9 @@ import java.util.Objects;
  * to the more complicated multipart input.
  * <p>
  * To use this API, first create an instance using the {@link #builder() builder}. When new input comes in, add it
- * using {@link #add(ByteBuf)}. Then, repeatedly call {@link #next()} and handle the returned events. When {@link #next()}
- * returns {@code null}, wait for new input. At the end of the input, call {@link #endInput()} and repeatedly
- * {@link #next()} again.
+ * using {@link #add(ByteBuf)}. Then, repeatedly call {@link #next()} and handle the returned events. When
+ * {@link #next()} returns {@code null}, wait for new input. At the end of the input, call {@link #endInput()} and
+ * repeatedly call {@link #next()} again.
  * <p>
  * The events returned by {@link #next()} are in a fixed sequence:<br>
  * {@code (BEGIN_FIELD HEADER* HEADERS_COMPLETE CONTENT* FIELD_COMPLETE)*}<br>
@@ -43,8 +43,6 @@ import java.util.Objects;
  * <p>
  * Please note that the {@code application/x-www-form-urlencoded} decoder emits a single header event per field that
  * contains the field name. Please see the {@link Event#HEADER header event} javadoc.
- *
- * @author Jonas Konrad
  */
 public interface PostBodyDecoder extends Closeable {
     static Builder builder() {

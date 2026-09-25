@@ -41,7 +41,7 @@ class MultipartQuirksVintageTest {
     private final boolean quirk;
     private HttpDataFactory dataFactory;
 
-    public MultipartQuirksVintageTest(boolean quirk) {
+    MultipartQuirksVintageTest(boolean quirk) {
         this.quirk = quirk;
     }
 
@@ -56,8 +56,10 @@ class MultipartQuirksVintageTest {
     }
 
     private static FullHttpRequest fullRequest(String boundary, String body) {
-        DefaultFullHttpRequest request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/", Unpooled.copiedBuffer(body, StandardCharsets.UTF_8));
-        request.headers().add(HttpHeaderNames.CONTENT_TYPE, HttpHeaderValues.MULTIPART_FORM_DATA + "; boundary=" + boundary);
+        DefaultFullHttpRequest request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/",
+                Unpooled.copiedBuffer(body, StandardCharsets.UTF_8));
+        request.headers().add(HttpHeaderNames.CONTENT_TYPE,
+                HttpHeaderValues.MULTIPART_FORM_DATA + "; boundary=" + boundary);
         return request;
     }
 
@@ -67,7 +69,9 @@ class MultipartQuirksVintageTest {
         if (quirk) {
             builder.enableQuirks(DecoderQuirk.USE_FIELD_CHARSET_FOR_DELIMITER_SEARCH);
         }
-        HttpPostRequestDecoder decoder = builder.build(fullRequest("ö", "--ö\ncontent-disposition: form-data; name=\"xyz\"\ncontent-type: text/plain; charset=iso-8859-1\n\nfoo\n--ö--\n"));
+        HttpPostRequestDecoder decoder = builder.build(fullRequest("ö",
+                "--ö\ncontent-disposition: form-data; name=\"xyz\"\n" +
+                        "content-type: text/plain; charset=iso-8859-1\n\nfoo\n--ö--\n"));
         try {
             assertEquals(quirk ? 0 : 1, decoder.getBodyHttpDatas().size());
         } finally {

@@ -146,9 +146,11 @@ public class HttpPostMultiPartRequestDecoderTest {
         Attribute attribute = (Attribute) decoder.getBodyHttpDatas().get(0);
 
         if (quirk) {
-            assertEquals("attributeValue\r", attribute.getValue(), "Attribute value is expected to contain a trailing CR");
+            assertEquals("attributeValue\r", attribute.getValue(),
+                    "Attribute value is expected to contain a trailing CR");
         } else {
-            assertEquals("attributeValue", attribute.getValue(), "Attribute value is expected to match the form value exactly");
+            assertEquals("attributeValue", attribute.getValue(),
+                    "Attribute value is expected to match the form value exactly");
         }
         decoder.destroy();
     }
@@ -240,7 +242,11 @@ public class HttpPostMultiPartRequestDecoderTest {
         request.headers().set("content-type", "multipart/form-data; boundary=861fbeab-cd20-470c-9609-d40a0f704466");
         request.headers().set("content-length", prefix.length() + fileSize + suffix.length());
 
-        HttpPostMultipartRequestDecoder decoder = this.builder().dataFactory(factory).maxFields(-1).undecodedLimit(-1).buildMultipart(request);
+        HttpPostMultipartRequestDecoder decoder = this.builder()
+                .dataFactory(factory)
+                .maxFields(-1)
+                .undecodedLimit(-1)
+                .buildMultipart(request);
         ByteBuf buf = Unpooled.wrappedBuffer(prefix.getBytes(CharsetUtil.UTF_8));
         DefaultHttpContent httpContent = new DefaultHttpContent(buf);
         decoder.offer(httpContent);

@@ -112,7 +112,6 @@
                 <sourceDirectory>${project.build.testSourceDirectory}</sourceDirectory>
               </sourceDirectories>
             </configuration>
-            <inherited>false</inherited>
           </execution>
         </executions>
         <dependencies>

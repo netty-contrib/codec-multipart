@@ -32,7 +32,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 class UrlQuirksTest {
     private final boolean quirk;
 
-    public UrlQuirksTest(boolean quirk) {
+    UrlQuirksTest(boolean quirk) {
         this.quirk = quirk;
     }
 

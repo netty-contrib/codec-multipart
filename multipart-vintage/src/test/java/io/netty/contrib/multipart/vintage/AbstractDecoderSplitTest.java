@@ -38,7 +38,8 @@ abstract class AbstractDecoderSplitTest extends AbstractFuzzTest {
     public void compare(byte[] bytes) {
         try (DecoderWrapper splitDecoder = new DecoderWrapper(createDecoder());
              DecoderWrapper jointDecoder = new DecoderWrapper(createDecoder())) {
-            Assertions.assertEquals(jointDecoder.decoder.hasUnparsedHeaderValue(), splitDecoder.decoder.hasUnparsedHeaderValue());
+            Assertions.assertEquals(jointDecoder.decoder.hasUnparsedHeaderValue(),
+                    splitDecoder.decoder.hasUnparsedHeaderValue());
 
             ByteBuf jointBuffer = ByteBufAllocator.DEFAULT.buffer();
             ByteSplitter.ChunkIterator itr = FUZZ_SPLITTER.splitIterator(bytes);
@@ -72,9 +73,11 @@ abstract class AbstractDecoderSplitTest extends AbstractFuzzTest {
                     Assertions.assertEquals(jointEvent, splitEvent);
                     if (splitEvent == PostBodyDecoder.Event.HEADER) {
                         Assertions.assertEquals(jointDecoder.decoder.headerName(), splitDecoder.decoder.headerName());
-                        Assertions.assertEquals(jointDecoder.decoder.parsedHeaderValue(), splitDecoder.decoder.parsedHeaderValue());
+                        Assertions.assertEquals(jointDecoder.decoder.parsedHeaderValue(),
+                                splitDecoder.decoder.parsedHeaderValue());
                         if (jointDecoder.decoder.hasUnparsedHeaderValue()) {
-                            Assertions.assertEquals(jointDecoder.decoder.headerValue(), splitDecoder.decoder.headerValue());
+                            Assertions.assertEquals(jointDecoder.decoder.headerValue(),
+                                    splitDecoder.decoder.headerValue());
                         }
                     } else if (splitEvent == PostBodyDecoder.Event.FIELD_COMPLETE) {
                         Assertions.assertEquals(jointDecoder.composite, splitDecoder.composite);

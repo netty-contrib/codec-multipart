@@ -170,7 +170,10 @@ public class HttpPostStandardRequestDecoder implements InterfaceHttpPostRequestD
     @Deprecated
     public HttpPostStandardRequestDecoder(HttpDataFactory factory, HttpRequest request, Charset charset,
                                           int maxFields, int maxBufferedBytes) {
-        this(factory, request, PostBodyDecoder.builder().charset(charset).maxFields(maxFields).undecodedLimit(maxBufferedBytes == 0 ? Integer.MAX_VALUE : maxBufferedBytes));
+        this(factory, request, PostBodyDecoder.builder()
+                .charset(charset)
+                .maxFields(maxFields)
+                .undecodedLimit(maxBufferedBytes == 0 ? Integer.MAX_VALUE : maxBufferedBytes));
     }
 
     HttpPostStandardRequestDecoder(HttpDataFactory factory, HttpRequest request, PostBodyDecoder.Builder builder) {
@@ -418,7 +421,8 @@ public class HttpPostStandardRequestDecoder implements InterfaceHttpPostRequestD
                     break;
                 }
                 if (event == PostBodyDecoder.Event.HEADER) {
-                    currentAttribute = factory.createAttribute(request, ((ContentDisposition) decoder.parsedHeaderValue()).name());
+                    currentAttribute = factory.createAttribute(request,
+                            ((ContentDisposition) decoder.parsedHeaderValue()).name());
                 } else if (event == PostBodyDecoder.Event.CONTENT) {
                     currentAttribute.addContent(decoder.undecodedContent(), false);
                 } else if (event == PostBodyDecoder.Event.FIELD_COMPLETE) {

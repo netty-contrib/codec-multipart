@@ -39,14 +39,15 @@ public class MultipartComparisonTest extends AbstractComparisonTest {
     }
 
     public static void main(String[] args) throws Throwable {
-        minimize(MultipartComparisonTest.class, "src/test/resources/io/netty/contrib/handler/codec/http/multipart/MultiPartComparisonTestInputs/compare/crash-ad03f90654bb98077b5ca8093bfe6f7ba875341a");
+        minimize(MultipartComparisonTest.class,
+                "src/test/resources/io/netty/contrib/handler/codec/http/multipart/" +
+                        "MultiPartComparisonTestInputs/compare/crash-ad03f90654bb98077b5ca8093bfe6f7ba875341a");
     }
 
     @SuppressWarnings("unused")
     public static void fuzzerTestOneInput(byte[] bytes) {
         new MultipartComparisonTest().compare(bytes);
     }
-
 
     @Override
     protected InterfaceHttpPostRequestDecoder createNormal() {

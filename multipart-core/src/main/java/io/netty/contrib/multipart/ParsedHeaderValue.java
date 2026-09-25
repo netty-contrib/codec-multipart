@@ -19,7 +19,6 @@ package io.netty.contrib.multipart;
  * Marker interface for parsed structured header values. {@link PostBodyDecoder#parsedHeaderValue()} may return
  * instances of this interface if the implementation knows how to parse a particular header.
  *
- * @author Jonas Konrad
  * @see ContentDisposition
  */
 public interface ParsedHeaderValue {
