@@ -23,6 +23,7 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -179,6 +180,21 @@ class UrlEncodedDecoderTest {
         }
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {"foo=b%41r", "f%41o=bar", "f%41o=b%41r", "foo=b+r", "f+o=bar", "f%41o=b+r&x%41=y%41"})
+    public void percentDecodingDoesNotModifyCallerBuffer(String input) {
+        ByteBuf first = Unpooled.copiedBuffer(input, StandardCharsets.UTF_8);
+        try (PostBodyDecoder decoder = PostBodyDecoder.builder().forUrlEncodedData()) {
+            decoder.add(first.retain());
+            decoder.endInput();
+            drainAndDecode(decoder);
+            Assertions.assertEquals(input.length(), first.writerIndex());
+            Assertions.assertEquals(input, first.toString(0, input.length(), StandardCharsets.UTF_8));
+        } finally {
+            first.release();
+        }
+    }
+
     @Test
     public void callerCompositeBufferNotModified() {
         CompositeByteBuf first = Unpooled.compositeBuffer();
@@ -192,6 +208,54 @@ class UrlEncodedDecoderTest {
             Assertions.assertEquals("foo=b", first.toString(0, 5, StandardCharsets.UTF_8));
         } finally {
             first.release();
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"foo=b%41r", "f%41o=bar", "foo=b+r", "f+o=bar", "f%41o=b+r&x%41=y%41"})
+    public void percentDecodingDoesNotModifyCallerBufferWithoutEof(String input) {
+        // without endInput, an unterminated value is handed out as the whole remaining input buffer
+        ByteBuf first = Unpooled.copiedBuffer(input, StandardCharsets.UTF_8);
+        try (PostBodyDecoder decoder = PostBodyDecoder.builder().forUrlEncodedData()) {
+            decoder.add(first.retain());
+            drainAndDecode(decoder);
+            Assertions.assertEquals(input.length(), first.writerIndex());
+            Assertions.assertEquals(input, first.toString(0, input.length(), StandardCharsets.UTF_8));
+        } finally {
+            first.release();
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"foo=b%41r", "f%41o=bar", "foo=b+r", "f+o=bar", "f%41o=b+r&x%41=y%41"})
+    public void percentDecodingReadOnlyBuffer(String input) {
+        try (PostBodyDecoder decoder = PostBodyDecoder.builder().forUrlEncodedData()) {
+            decoder.add(Unpooled.copiedBuffer(input, StandardCharsets.UTF_8).asReadOnly());
+            decoder.endInput();
+            drainAndDecode(decoder);
+        }
+    }
+
+    @Test
+    public void percentDecodingReadOnlyBufferValues() {
+        try (PostBodyDecoder decoder = PostBodyDecoder.builder().forUrlEncodedData()) {
+            decoder.add(Unpooled.copiedBuffer("f%41o=b%41r&x+y=1+2", StandardCharsets.UTF_8).asReadOnly());
+            decoder.endInput();
+
+            expectField(decoder, "fAo", "bAr");
+            expectField(decoder, "x y", "1 2");
+            Assertions.assertNull(decoder.next());
+        }
+    }
+
+    private static void drainAndDecode(PostBodyDecoder decoder) {
+        PostBodyDecoder.Event event;
+        while ((event = decoder.next()) != null) {
+            if (event == PostBodyDecoder.Event.HEADER) {
+                Assertions.assertNotNull(decoder.parsedHeaderValue());
+            } else if (event == PostBodyDecoder.Event.CONTENT) {
+                decoder.decodedContent().release();
+            }
         }
     }
 

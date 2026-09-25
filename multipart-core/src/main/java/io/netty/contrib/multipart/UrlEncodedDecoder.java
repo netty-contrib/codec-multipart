@@ -31,6 +31,7 @@ final class UrlEncodedDecoder extends AbstractDecoder implements VintageAccess.U
     private static final ByteProcessor FIND_KEY_END_OR_EOL =
             value -> value != '=' && value != '&' && value != '\r' && value != '\n';
     private static final ByteProcessor FIND_VALUE_END = value -> value != '&' && value != '\r' && value != '\n';
+    private static final ByteProcessor FIND_ESCAPE = value -> value != '%' && value != '+';
 
     private State state = State.KEY;
     /**
@@ -93,11 +94,20 @@ final class UrlEncodedDecoder extends AbstractDecoder implements VintageAccess.U
                                 key = decodeAttribute(keyByteBuf.toString(charset), charset);
                             } else {
                                 // whatwg spec first does percent decoding, then utf-8 decoding
-                                decodeComponent(keyByteBuf, true);
-                                key = keyByteBuf.toString(charset);
+                                ByteBuf undecodedKey = keyByteBuf;
+                                // decodeComponent takes ownership
+                                keyByteBuf = null;
+                                ByteBuf decodedKey = decodeComponent(undecodedKey, true);
+                                try {
+                                    key = decodedKey.toString(charset);
+                                } finally {
+                                    decodedKey.release();
+                                }
                             }
                         } finally {
-                            keyByteBuf.release();
+                            if (keyByteBuf != null) {
+                                keyByteBuf.release();
+                            }
                         }
                         keyWithoutValue = !hasValue;
                         if (!hasValue && !noValueAtEof) {
@@ -296,14 +306,8 @@ final class UrlEncodedDecoder extends AbstractDecoder implements VintageAccess.U
             throw new IllegalStateException("Not in CONTENT event");
         }
         ByteBuf b = undecodedContent;
-        try {
-            undecodedContent = null;
-            decodeComponent(b, false);
-            return b;
-        } catch (Exception e) {
-            b.release();
-            throw e;
-        }
+        undecodedContent = null;
+        return decodeComponent(b, false);
     }
 
     @Override
@@ -313,37 +317,55 @@ final class UrlEncodedDecoder extends AbstractDecoder implements VintageAccess.U
         return b;
     }
 
+    /**
+     * Percent-decode the given buffer. The input buffer is never modified, because it may be shared with the caller
+     * (e.g. a slice of a buffer passed to {@link #add(ByteBuf)}) or be read-only. If the input contains no escape
+     * sequences, it is returned as-is. Otherwise, the decoded data is written to a newly allocated buffer.
+     *
+     * @param buffer The buffer to decode. Ownership is transferred to this method, also on failure
+     * @param key Whether this is a key, for the error message
+     * @return The decoded buffer, owned by the caller
+     */
     @Override
-    public void decodeComponent(ByteBuf buffer, boolean key) {
-        int wi = buffer.readerIndex();
-        for (int ri = wi; ri < buffer.writerIndex(); wi++, ri++) {
-            byte b = buffer.getByte(ri);
-            if (b == '%') {
-                if (ri < buffer.writerIndex() - 2) {
-                    int hi = StringUtil.decodeHexNibble((char) buffer.getByte(ri + 1));
-                    int lo = StringUtil.decodeHexNibble((char) buffer.getByte(ri + 2));
-                    if (hi != -1 && lo != -1) {
-                        buffer.setByte(wi, (byte) ((hi << 4) + lo));
-                        ri += 2;
-                        continue;
-                    } else if (quirks.contains(DecoderQuirk.REFUSE_NON_HEX_PERCENT_DECODE)) {
+    public ByteBuf decodeComponent(ByteBuf buffer, boolean key) {
+        int firstEscape = buffer.forEachByte(FIND_ESCAPE);
+        if (firstEscape == -1) {
+            return buffer;
+        }
+        ByteBuf decoded = null;
+        try {
+            decoded = buffer.alloc().buffer(buffer.readableBytes());
+            decoded.writeBytes(buffer, buffer.readerIndex(), firstEscape - buffer.readerIndex());
+            for (int ri = firstEscape; ri < buffer.writerIndex(); ri++) {
+                byte b = buffer.getByte(ri);
+                if (b == '%') {
+                    if (ri < buffer.writerIndex() - 2) {
+                        int hi = StringUtil.decodeHexNibble((char) buffer.getByte(ri + 1));
+                        int lo = StringUtil.decodeHexNibble((char) buffer.getByte(ri + 2));
+                        if (hi != -1 && lo != -1) {
+                            decoded.writeByte((hi << 4) + lo);
+                            ri += 2;
+                            continue;
+                        } else if (quirks.contains(DecoderQuirk.REFUSE_NON_HEX_PERCENT_DECODE)) {
+                            // whatwg URL spec allows this
+                            failPercentDecode(key);
+                        }
+                    } else if (quirks.contains(DecoderQuirk.REFUSE_SHORT_PERCENT_DECODE)) {
                         // whatwg URL spec allows this
                         failPercentDecode(key);
                     }
-                } else if (quirks.contains(DecoderQuirk.REFUSE_SHORT_PERCENT_DECODE)) {
-                    // whatwg URL spec allows this
-                    failPercentDecode(key);
                 }
+                decoded.writeByte(b == '+' ? ' ' : b);
             }
-            if (b == '+') {
-                buffer.setByte(wi, (byte) ' ');
-                continue;
-            }
-            if (ri != wi) {
-                buffer.setByte(wi, b);
+            ByteBuf result = decoded;
+            decoded = null;
+            return result;
+        } finally {
+            buffer.release();
+            if (decoded != null) {
+                decoded.release();
             }
         }
-        buffer.writerIndex(wi);
     }
 
     private void failPercentDecode(boolean key) {

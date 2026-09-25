@@ -345,6 +345,79 @@ class HttpPostStandardRequestDecoderTest {
         }
     }
 
+    @Test
+    void testPercentDecodingDoesNotModifyOfferedBuffers() {
+        String firstBody = "k%41=v%41&x";
+        String secondBody = "=y%42+z";
+        HttpRequest request = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/upload");
+        HttpPostStandardRequestDecoder decoder = HttpPostRequestDecoder.builder()
+                .dataFactory(httpDiskDataFactory())
+                .buildStandard(request);
+        ByteBuf first = Unpooled.copiedBuffer(firstBody, CharsetUtil.UTF_8);
+        ByteBuf second = Unpooled.copiedBuffer(secondBody, CharsetUtil.UTF_8);
+        try {
+            decoder.offer(new DefaultHttpContent(first));
+            decoder.offer(new DefaultLastHttpContent(second));
+
+            assertEquals(2, decoder.getBodyHttpDatas().size());
+            assertMemoryAttribute(decoder.getBodyHttpData("kA"), "vA");
+            assertMemoryAttribute(decoder.getBodyHttpData("x"), "yB z");
+
+            // neither the indices nor the content of the caller buffers may be changed by percent decoding
+            assertEquals(0, first.readerIndex());
+            assertEquals(firstBody.length(), first.writerIndex());
+            assertEquals(firstBody, first.toString(CharsetUtil.UTF_8));
+            assertEquals(0, second.readerIndex());
+            assertEquals(secondBody.length(), second.writerIndex());
+            assertEquals(secondBody, second.toString(CharsetUtil.UTF_8));
+        } finally {
+            decoder.destroy();
+            first.release();
+            second.release();
+        }
+    }
+
+    @Test
+    void testPercentDecodingSingleChunkDoesNotModifyOfferedBuffer() {
+        String body = "k%41+x=v%41+";
+        HttpRequest request = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/upload");
+        HttpPostStandardRequestDecoder decoder = HttpPostRequestDecoder.builder()
+                .dataFactory(httpDiskDataFactory())
+                .buildStandard(request);
+        ByteBuf buf = Unpooled.copiedBuffer(body, CharsetUtil.UTF_8);
+        try {
+            decoder.offer(new DefaultLastHttpContent(buf));
+
+            assertEquals(1, decoder.getBodyHttpDatas().size());
+            assertMemoryAttribute(decoder.getBodyHttpData("kA x"), "vA ");
+            assertEquals(0, buf.readerIndex());
+            assertEquals(body.length(), buf.writerIndex());
+            assertEquals(body, buf.toString(CharsetUtil.UTF_8));
+        } finally {
+            decoder.destroy();
+            buf.release();
+        }
+    }
+
+    @Test
+    void testPercentDecodingReadOnlyBuffer() {
+        HttpRequest request = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/upload");
+        HttpPostStandardRequestDecoder decoder = HttpPostRequestDecoder.builder()
+                .dataFactory(httpDiskDataFactory())
+                .buildStandard(request);
+        ByteBuf buf = Unpooled.copiedBuffer("k%41=v%41&a+b=c+d", CharsetUtil.UTF_8).asReadOnly();
+        try {
+            decoder.offer(new DefaultLastHttpContent(buf));
+
+            assertEquals(2, decoder.getBodyHttpDatas().size());
+            assertMemoryAttribute(decoder.getBodyHttpData("kA"), "vA");
+            assertMemoryAttribute(decoder.getBodyHttpData("a b"), "c d");
+        } finally {
+            decoder.destroy();
+            buf.release();
+        }
+    }
+
     private static DefaultHttpDataFactory httpDiskDataFactory() {
         return new DefaultHttpDataFactory(false);
     }
