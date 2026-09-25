@@ -36,6 +36,10 @@ final class MultipartDecoder extends AbstractDecoder implements VintageAccess.Mu
         return Character.isISOControl(c) || Character.isWhitespace(c);
     };
 
+    private static final int SUFFIX_VALID = 0;
+    private static final int SUFFIX_INVALID = 1;
+    private static final int SUFFIX_INCOMPLETE = 2;
+
     private final String multipartDataBoundary;
 
     private State state = State.HEADERDELIMITER;
@@ -437,7 +441,9 @@ final class MultipartDecoder extends AbstractDecoder implements VintageAccess.Mu
     }
 
     /**
-     * Find the given delimiter, preceded by a newline (CRLF or LF), in the given buffer.
+     * Find the given delimiter, preceded by a newline (CRLF or LF), in the given buffer. The delimiter must be followed
+     * by a newline or the close marker {@code --}, otherwise it is treated as content (unless
+     * {@link DecoderQuirk#IGNORE_DELIMITER_SUFFIX} is enabled).
      * <p>
      * If the delimiter is found at the start of the input (readerIndex), this method returns the <i>binary inverse</i>
      * length of the delimiter including the preceding newline. This is the only case where this method returns a
@@ -456,7 +462,13 @@ final class MultipartDecoder extends AbstractDecoder implements VintageAccess.Mu
                 buffer.readableBytes() >= delimiter.length &&
                 hasCommonPrefix(buffer, buffer.readerIndex(), delimiter)) {
             // special case at start of buffer
-            return ~delimiter.length;
+            int suffix = checkDelimiterSuffix(buffer, buffer.readerIndex() + delimiter.length);
+            if (suffix == SUFFIX_VALID) {
+                return ~delimiter.length;
+            } else if (suffix == SUFFIX_INCOMPLETE) {
+                return 0;
+            }
+            // not a delimiter, continue search
         }
 
         int i = buffer.readerIndex();
@@ -494,17 +506,55 @@ final class MultipartDecoder extends AbstractDecoder implements VintageAccess.Mu
             }
             lfOffset = lf;
             boolean crlf = lfOffset > buffer.readerIndex() && buffer.getByte(lfOffset - 1) == '\r';
-            if (hasCommonPrefix(buffer, lf + 1, delimiter)) {
+            int suffix = hasCommonPrefix(buffer, lf + 1, delimiter) ?
+                    checkDelimiterSuffix(buffer, lf + 1 + delimiter.length) : SUFFIX_INVALID;
+            if (suffix != SUFFIX_INVALID) {
                 int start = crlf ? lfOffset - 1 : lfOffset;
-                if (start == buffer.readerIndex()) {
+                if (start == buffer.readerIndex() && suffix == SUFFIX_VALID) {
                     // found at start of buffer.
                     return ~(delimiter.length + (crlf ? 2 : 1));
                 } else {
+                    // either a delimiter, or we can't tell yet because the suffix is incomplete. In both cases, the
+                    // content before the potential delimiter can be safely read
                     return start - buffer.readerIndex();
                 }
             }
             i = lf + 1;
         }
+    }
+
+    /**
+     * Check the bytes following a delimiter. A delimiter is only valid if it is followed by a line break (CRLF or LF),
+     * or by the close marker {@code --}. This matches what {@link #readDelimiterOptimized} accepts.
+     *
+     * @param buffer The buffer to check
+     * @param index The index just after the delimiter
+     * @return {@link #SUFFIX_VALID}, {@link #SUFFIX_INVALID}, or {@link #SUFFIX_INCOMPLETE} if more data is needed to
+     * decide
+     */
+    private int checkDelimiterSuffix(ByteBuf buffer, int index) {
+        if (hasQuirk(DecoderQuirk.IGNORE_DELIMITER_SUFFIX)) {
+            return SUFFIX_VALID;
+        }
+        if (index >= buffer.writerIndex()) {
+            return SUFFIX_INCOMPLETE;
+        }
+        byte first = buffer.getByte(index);
+        if (first == HttpConstants.LF) {
+            return SUFFIX_VALID;
+        }
+        byte expectedSecond;
+        if (first == HttpConstants.CR) {
+            expectedSecond = HttpConstants.LF;
+        } else if (first == '-') {
+            expectedSecond = '-';
+        } else {
+            return SUFFIX_INVALID;
+        }
+        if (index + 1 >= buffer.writerIndex()) {
+            return SUFFIX_INCOMPLETE;
+        }
+        return buffer.getByte(index + 1) == expectedSecond ? SUFFIX_VALID : SUFFIX_INVALID;
     }
 
     private static boolean hasCommonPrefix(ByteBuf haystack, int haystackIndex, byte[] needle) {
