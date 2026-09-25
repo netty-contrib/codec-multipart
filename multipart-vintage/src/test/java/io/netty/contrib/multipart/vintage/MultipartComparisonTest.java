@@ -20,7 +20,6 @@ import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpVersion;
-import io.netty.handler.codec.http.multipart.DefaultHttpDataFactory;
 import io.netty.handler.codec.http.multipart.HttpDataFactory;
 import io.netty.handler.codec.http.multipart.InterfaceHttpPostRequestDecoder;
 import org.junit.jupiter.api.Test;
@@ -33,7 +32,6 @@ import java.nio.charset.StandardCharsets;
  */
 public class MultipartComparisonTest extends AbstractComparisonTest {
     static final HttpRequest REQUEST = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "/");
-    static final HttpDataFactory FACTORY = new DefaultHttpDataFactory(false);
 
     static {
         REQUEST.headers().add(HttpHeaderNames.CONTENT_TYPE, "multipart/form-data; boundary=" + BOUNDARY);
@@ -51,15 +49,15 @@ public class MultipartComparisonTest extends AbstractComparisonTest {
     }
 
     @Override
-    protected InterfaceHttpPostRequestDecoder createNormal() {
+    protected InterfaceHttpPostRequestDecoder createNormal(HttpDataFactory factory) {
         return HttpPostRequestDecoder.builder()
                 .enableAllQuirks()
-                .dataFactory(FACTORY).maxFields(-1).undecodedLimit(-1).buildMultipart(REQUEST);
+                .dataFactory(factory).maxFields(-1).undecodedLimit(-1).buildMultipart(REQUEST);
     }
 
     @Override
-    protected InterfaceHttpPostRequestDecoder createLegacy() {
-        return new HttpPostMultipartRequestDecoderLegacy(FACTORY, REQUEST, StandardCharsets.UTF_8, -1, -1);
+    protected InterfaceHttpPostRequestDecoder createLegacy(HttpDataFactory factory) {
+        return new HttpPostMultipartRequestDecoderLegacy(factory, REQUEST, StandardCharsets.UTF_8, -1, -1);
     }
 
     @Test

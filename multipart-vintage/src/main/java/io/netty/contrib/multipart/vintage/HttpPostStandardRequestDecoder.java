@@ -428,6 +428,13 @@ public class HttpPostStandardRequestDecoder implements InterfaceHttpPostRequestD
                 } else if (event == PostBodyDecoder.Event.CONTENT) {
                     currentAttribute.addContent(decoder.undecodedContent(), false);
                 } else if (event == PostBodyDecoder.Event.FIELD_COMPLETE) {
+                    if (decoder.isKeyWithoutValue()) {
+                        // netty 4 uses setValue here, which does not mark disk attributes as completed
+                        currentAttribute.setValue("");
+                        addHttpData(currentAttribute);
+                        currentAttribute = null;
+                        continue;
+                    }
                     currentAttribute.addContent(Unpooled.EMPTY_BUFFER, true);
                     // in netty 4, decoding happens late
                     ByteBuf bb = currentAttribute.getByteBuf().retain();

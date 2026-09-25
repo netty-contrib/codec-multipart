@@ -19,7 +19,6 @@ import io.netty.handler.codec.http.DefaultHttpRequest;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpVersion;
-import io.netty.handler.codec.http.multipart.DefaultHttpDataFactory;
 import io.netty.handler.codec.http.multipart.HttpDataFactory;
 import io.netty.handler.codec.http.multipart.InterfaceHttpPostRequestDecoder;
 
@@ -27,7 +26,6 @@ import java.nio.charset.StandardCharsets;
 
 public class UrlEncodedComparisonTest extends AbstractComparisonTest {
     static final HttpRequest REQUEST = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "/");
-    static final HttpDataFactory FACTORY = new DefaultHttpDataFactory(false);
 
     @SuppressWarnings("unused")
     public static void fuzzerTestOneInput(byte[] bytes) {
@@ -35,17 +33,17 @@ public class UrlEncodedComparisonTest extends AbstractComparisonTest {
     }
 
     @Override
-    protected InterfaceHttpPostRequestDecoder createNormal() {
+    protected InterfaceHttpPostRequestDecoder createNormal(HttpDataFactory factory) {
         return HttpPostRequestDecoder.builder()
                 .enableAllQuirks()
-                .dataFactory(FACTORY)
+                .dataFactory(factory)
                 .maxFields(-1)
                 .undecodedLimit(-1)
                 .buildStandard(REQUEST);
     }
 
     @Override
-    protected InterfaceHttpPostRequestDecoder createLegacy() {
-        return new HttpPostStandardRequestDecoderLegacy(FACTORY, REQUEST, StandardCharsets.UTF_8, -1, -1);
+    protected InterfaceHttpPostRequestDecoder createLegacy(HttpDataFactory factory) {
+        return new HttpPostStandardRequestDecoderLegacy(factory, REQUEST, StandardCharsets.UTF_8, -1, -1);
     }
 }

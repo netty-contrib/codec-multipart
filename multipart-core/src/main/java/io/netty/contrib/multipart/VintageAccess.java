@@ -74,5 +74,10 @@ public final class VintageAccess {
         void setCompactionThreshold(int compactionThreshold);
 
         boolean isEof();
+
+        /**
+         * Whether the current field was a key without a {@code =} separator (e.g. {@code a} in {@code a&b=c}).
+         */
+        boolean isKeyWithoutValue();
     }
 }

@@ -25,12 +25,19 @@ import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.LastHttpContent;
+import io.netty.handler.codec.http.multipart.Attribute;
 import io.netty.handler.codec.http.multipart.DefaultHttpDataFactory;
 import io.netty.handler.codec.http.multipart.InterfaceHttpData;
 import io.netty.handler.codec.http.multipart.MemoryAttribute;
 import io.netty.util.CharsetUtil;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.List;
 
 import static io.netty.handler.codec.http.DefaultHttpHeadersFactory.headersFactory;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -283,6 +290,58 @@ class HttpPostStandardRequestDecoderTest {
             decoder.destroy();
             firstContent.release();
             secondContent.release();
+        }
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "a, a",
+            "a&b=c, a",
+            "a=, ''",
+            "a=&b=c, ''",
+            "a=x, ''",
+    })
+    void testKeyWithoutValueCompletedState(String requestBody, String keysWithoutValue) throws IOException {
+        List<String> noValue = Arrays.asList(keysWithoutValue.split(","));
+        for (boolean quirks : new boolean[] {true, false}) {
+            for (String factoryType : new String[] {"memory", "disk", "mixed"}) {
+                DefaultHttpDataFactory factory;
+                switch (factoryType) {
+                    case "memory":
+                        factory = new DefaultHttpDataFactory(false);
+                        break;
+                    case "disk":
+                        factory = new DefaultHttpDataFactory(true);
+                        break;
+                    default:
+                        // limit 0 so that non-empty values actually move to disk
+                        factory = new DefaultHttpDataFactory(0);
+                        break;
+                }
+                HttpRequest request = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/upload");
+                HttpPostRequestDecoder.Builder builder = HttpPostRequestDecoder.builder().dataFactory(factory);
+                if (quirks) {
+                    builder.enableAllQuirks();
+                }
+                HttpPostStandardRequestDecoder decoder = builder.buildStandard(request);
+                try {
+                    decoder.offer(new DefaultLastHttpContent(
+                            Unpooled.wrappedBuffer(requestBody.getBytes(CharsetUtil.UTF_8))));
+                    for (InterfaceHttpData data : decoder.getBodyHttpDatas()) {
+                        Attribute attribute = (Attribute) data;
+                        String message = requestBody + " " + factoryType + " quirks=" + quirks + " " + data.getName();
+                        // like netty 4, disk attributes for keys without '=' are not marked as completed
+                        boolean expectCompleted = !"disk".equals(factoryType) || !noValue.contains(data.getName());
+                        assertEquals(expectCompleted, attribute.isCompleted(), message);
+                        if (noValue.contains(data.getName())) {
+                            assertEquals("", attribute.getValue(), message);
+                            assertEquals(0, attribute.length(), message);
+                        }
+                    }
+                } finally {
+                    decoder.destroy();
+                }
+            }
         }
     }
 
