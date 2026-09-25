@@ -21,10 +21,19 @@ import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.EnumSet;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.stream.Stream;
 
 class UrlEncodedDecoderTest {
     private void expectField(PostBodyDecoder decoder, String name, String value) {
@@ -199,5 +208,120 @@ class UrlEncodedDecoderTest {
         }
 
         MultipartDecoderTest.bufferCompaction(PostBodyDecoder.builder().forUrlEncodedData(), "xyz=", fullData, "");
+    }
+
+    private static final Set<DecoderQuirk> URL_QUIRKS = EnumSet.of(
+            DecoderQuirk.EARLY_DECODE,
+            DecoderQuirk.WAIT_ON_CR,
+            DecoderQuirk.EARLY_CRLF_CHECK,
+            DecoderQuirk.REFUSE_NON_HEX_PERCENT_DECODE,
+            DecoderQuirk.REFUSE_SHORT_PERCENT_DECODE);
+
+    static Stream<Set<DecoderQuirk>> quirkConfigurations() {
+        List<Set<DecoderQuirk>> configurations = new ArrayList<>();
+        configurations.add(EnumSet.noneOf(DecoderQuirk.class));
+        for (DecoderQuirk quirk : URL_QUIRKS) {
+            configurations.add(EnumSet.of(quirk));
+        }
+        configurations.add(EnumSet.allOf(DecoderQuirk.class));
+        return configurations.stream();
+    }
+
+    // values deliberately contain no percent escapes: chunking of escapes in values is quirk-dependent (see #47), this
+    // is only concerned with keys
+    private static final String[] SPLIT_INPUTS = {
+            "foo=bar&fizz=buzz",
+            "a%20key=v&k%C3%A4y+2=x+y&last",
+            "&&leading=1&&empty=&novalue&=anon&trailing=",
+            "longkeylongkeylongkeylongkey%41%42%43=longvalue&second%2Bkey",
+            "k1=v1&k2=v2\r\n",
+            "k1=v1\nignored",
+            "bad%zzkey=v",
+            "short%4",
+            "trailing%=v&x%4=y",
+    };
+
+    /**
+     * Run the decoder on the given input, split into chunks of {@code chunkSize} bytes, and describe the resulting
+     * fields (or failure) as a list of strings.
+     */
+    private static List<String> decodeChunked(Set<DecoderQuirk> quirks, byte[] input, int chunkSize,
+                                              int compactionThreshold) {
+        PostBodyDecoder.Builder builder = PostBodyDecoder.builder().compactionThreshold(compactionThreshold);
+        builder.enableQuirks(quirks.toArray(new DecoderQuirk[0]));
+        List<String> result = new ArrayList<>();
+        StringBuilder value = new StringBuilder();
+        try (PostBodyDecoder decoder = builder.forUrlEncodedData()) {
+            try {
+                for (int i = 0; i < input.length; i += chunkSize) {
+                    decoder.add(Unpooled.copiedBuffer(input, i, Math.min(chunkSize, input.length - i)));
+                    drain(decoder, result, value);
+                }
+                decoder.endInput();
+                drain(decoder, result, value);
+            } catch (FormDecoderException e) {
+                result.add("failed: " + e.getClass().getSimpleName());
+            }
+        }
+        return result;
+    }
+
+    private static void drain(PostBodyDecoder decoder, List<String> result, StringBuilder value) {
+        while (true) {
+            PostBodyDecoder.Event event = decoder.next();
+            if (event == null) {
+                return;
+            }
+            switch (event) {
+                case HEADER:
+                    result.add("name: " + ((ContentDisposition) decoder.parsedHeaderValue()).name());
+                    break;
+                case CONTENT:
+                    value.append(decoder.decodedContentString());
+                    break;
+                case FIELD_COMPLETE:
+                    result.add("value: " + value);
+                    value.setLength(0);
+                    break;
+                default:
+                    break;
+            }
+        }
+    }
+
+    @ParameterizedTest
+    @MethodSource("quirkConfigurations")
+    public void byteAtATimeMatchesWholeInput(Set<DecoderQuirk> quirks) {
+        for (String input : SPLIT_INPUTS) {
+            byte[] bytes = input.getBytes(StandardCharsets.UTF_8);
+            List<String> whole = decodeChunked(quirks, bytes, bytes.length, -1);
+            Assertions.assertFalse(whole.isEmpty(), input);
+            for (int compactionThreshold : new int[] {-1, 0, 4}) {
+                for (int chunkSize = 1; chunkSize < bytes.length; chunkSize++) {
+                    Assertions.assertEquals(whole, decodeChunked(quirks, bytes, chunkSize, compactionThreshold),
+                            () -> Arrays.toString(bytes) + " " + quirks);
+                }
+            }
+        }
+    }
+
+    @Test
+    public void longKeyByteAtATimeIsLinear() {
+        // before resuming the key delimiter search, this took quadratic time and would run for minutes
+        int keyLength = 1024 * 1024;
+        Assertions.assertTimeoutPreemptively(Duration.ofSeconds(30), () -> {
+            try (PostBodyDecoder decoder = PostBodyDecoder.builder().undecodedLimit(-1).forUrlEncodedData()) {
+                ByteBuf chunk = Unpooled.wrappedBuffer(new byte[] {'k'});
+                for (int i = 0; i < keyLength; i++) {
+                    decoder.add(chunk.retainedDuplicate());
+                    Assertions.assertNull(decoder.next());
+                }
+                chunk.release();
+                decoder.add(Unpooled.copiedBuffer("=v", StandardCharsets.UTF_8));
+                decoder.endInput();
+                expectField(decoder, "k".repeat(keyLength), "v");
+                Assertions.assertNull(decoder.next());
+            }
+        });
     }
 }
