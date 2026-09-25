@@ -20,6 +20,8 @@ import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.Unpooled;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -314,6 +316,115 @@ class MultipartDecoderTest {
             Assertions.assertEquals("bar", content.toString());
             Assertions.assertNull(decoder.next());
         }
+    }
+
+    @Test
+    public void headerOnlyPartFollowedBySplitDelimiter() {
+        // https://github.com/netty-contrib/codec-multipart/issues/31
+        try (PostBodyDecoder decoder = PostBodyDecoder.builder().forMultipartBoundary("a")) {
+            decoder.add(Unpooled.copiedBuffer("--a\r\nContent-Disposition: form-data; name=\"x\"\r\n\r\n-",
+                    StandardCharsets.UTF_8));
+
+            Assertions.assertEquals(PostBodyDecoder.Event.BEGIN_FIELD, decoder.next());
+            Assertions.assertEquals(PostBodyDecoder.Event.HEADER, decoder.next());
+            Assertions.assertEquals(PostBodyDecoder.Event.HEADERS_COMPLETE, decoder.next());
+            // the "-" might be the start of a delimiter, so it must not be emitted as content yet
+            Assertions.assertNull(decoder.next());
+
+            decoder.add(Unpooled.copiedBuffer("-a\r\nContent-Disposition: form-data; name=\"y\"\r\n\r\nval\r\n--a--",
+                    StandardCharsets.UTF_8));
+            decoder.endInput();
+
+            Assertions.assertEquals(PostBodyDecoder.Event.FIELD_COMPLETE, decoder.next());
+            Assertions.assertEquals(PostBodyDecoder.Event.BEGIN_FIELD, decoder.next());
+            Assertions.assertEquals(PostBodyDecoder.Event.HEADER, decoder.next());
+            Assertions.assertEquals("form-data; name=\"y\"", decoder.headerValue());
+            Assertions.assertEquals(PostBodyDecoder.Event.HEADERS_COMPLETE, decoder.next());
+            Assertions.assertEquals(PostBodyDecoder.Event.CONTENT, decoder.next());
+            Assertions.assertEquals("val", decoder.decodedContentString());
+            Assertions.assertEquals(PostBodyDecoder.Event.FIELD_COMPLETE, decoder.next());
+            Assertions.assertNull(decoder.next());
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+            // header-only part, delimiter directly after the headers
+            "--a\r\nContent-Disposition: form-data; name=\"x\"\r\n\r\n" +
+                    "--a\r\nContent-Disposition: form-data; name=\"y\"\r\n\r\nval\r\n--a--\r\n",
+            // header-only last part
+            "--a\r\nContent-Disposition: form-data; name=\"x\"\r\n\r\nval\r\n" +
+                    "--a\r\nContent-Disposition: form-data; name=\"y\"\r\n\r\n--a--\r\n",
+            // empty content
+            "--a\r\nContent-Disposition: form-data; name=\"x\"\r\n\r\n\r\n" +
+                    "--a\r\nContent-Disposition: form-data; name=\"y\"\r\n\r\n\r\n--a--\r\n",
+            // content resembling a partial delimiter
+            "--a\r\nContent-Disposition: form-data; name=\"x\"\r\n\r\n-x\r\n" +
+                    "--a\r\nContent-Disposition: form-data; name=\"y\"\r\n\r\n--\r\n-\r\n--b\r\n" +
+                    "--a\r\nContent-Disposition: form-data; name=\"z\"\r\n\r\n--\r\n--a--\r\n",
+            // content resembling a full delimiter with an invalid suffix, at part start and after a line break
+            "--a\r\nContent-Disposition: form-data; name=\"x\"\r\n\r\n--aX\r\n--a-x\n--ab\r\n" +
+                    "--a\r\nContent-Disposition: form-data; name=\"y\"\r\n\r\n--a-\r\n--a\r\r\n--a--\r\n",
+            // nested multipart/mixed with a header-only sub-part
+            "--a\r\nContent-Disposition: form-data; name=\"mix\"\r\n" +
+                    "Content-Type: multipart/mixed; boundary=b\r\n\r\n" +
+                    "--b\r\nContent-Disposition: file; filename=\"1.txt\"\r\n\r\n" +
+                    "--b\r\nContent-Disposition: file; filename=\"2.txt\"\r\n\r\nfile2\r\n" +
+                    "--b\r\nContent-Disposition: file; filename=\"3.txt\"\r\n\r\n" +
+                    "--b--\r\n--a--\r\n",
+    })
+    public void splitInvariance(String body) {
+        byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
+        List<String> expected = decodeSplit(bytes);
+        Assertions.assertFalse(expected.stream().anyMatch(s -> s.startsWith("ERROR")), expected::toString);
+        for (int i = 0; i <= bytes.length; i++) {
+            Assertions.assertEquals(expected, decodeSplit(bytes, i), "split at " + i);
+            for (int j = i; j <= bytes.length; j++) {
+                Assertions.assertEquals(expected, decodeSplit(bytes, i, j), "split at " + i + ", " + j);
+            }
+        }
+    }
+
+    /**
+     * Decode the given input, split into chunks at the given indices, and return a normalized list of events, with
+     * consecutive content merged.
+     */
+    private static List<String> decodeSplit(byte[] input, int... splits) {
+        List<String> events = new ArrayList<>();
+        StringBuilder content = new StringBuilder();
+        try (PostBodyDecoder decoder = PostBodyDecoder.builder().forMultipartBoundary("a")) {
+            int start = 0;
+            for (int k = 0; k <= splits.length; k++) {
+                int end = k == splits.length ? input.length : splits[k];
+                decoder.add(Unpooled.copiedBuffer(input, start, end - start));
+                start = end;
+                if (k == splits.length) {
+                    decoder.endInput();
+                }
+                PostBodyDecoder.Event event;
+                while ((event = decoder.next()) != null) {
+                    if (event == PostBodyDecoder.Event.CONTENT) {
+                        content.append(decoder.decodedContentString());
+                        continue;
+                    }
+                    if (content.length() > 0) {
+                        events.add("CONTENT " + content);
+                        content.setLength(0);
+                    }
+                    if (event == PostBodyDecoder.Event.HEADER) {
+                        events.add("HEADER " + decoder.headerName() + ": " + decoder.headerValue());
+                    } else {
+                        events.add(event.name());
+                    }
+                }
+            }
+        } catch (FormDecoderException e) {
+            events.add("ERROR " + e.getClass().getSimpleName());
+        }
+        if (content.length() > 0) {
+            events.add("CONTENT " + content);
+        }
+        return events;
     }
 
     @Test

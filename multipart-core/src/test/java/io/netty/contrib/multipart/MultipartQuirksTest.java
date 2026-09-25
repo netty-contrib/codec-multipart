@@ -151,6 +151,39 @@ class MultipartQuirksTest {
     }
 
     @Test
+    void forwardPartStartDelimiterPrefix() {
+        PostBodyDecoder.Builder builder = PostBodyDecoder.builder();
+        if (quirk) {
+            builder.enableQuirks(DecoderQuirk.FORWARD_PART_START_DELIMITER_PREFIX);
+        }
+        try (PostBodyDecoder decoder = builder.forMultipartBoundary("a")) {
+            add(decoder, "--a\nfoo:bar\n\n-");
+
+            assertEquals(PostBodyDecoder.Event.BEGIN_FIELD, decoder.next());
+            assertEquals(PostBodyDecoder.Event.HEADER, decoder.next());
+            assertEquals(PostBodyDecoder.Event.HEADERS_COMPLETE, decoder.next());
+            if (quirk) {
+                // in quirk mode, the partial delimiter is emitted as content
+                assertEquals(PostBodyDecoder.Event.CONTENT, decoder.next());
+                assertEquals("-", decoder.decodedContentString());
+            }
+            assertNull(decoder.next());
+
+            add(decoder, "-a\nfoo:bar\n\n");
+            if (quirk) {
+                // ... and the rest of the delimiter and the following headers are absorbed into the content
+                assertEquals(PostBodyDecoder.Event.CONTENT, decoder.next());
+                assertEquals("-a\nfoo:bar\n", decoder.decodedContentString());
+            } else {
+                assertEquals(PostBodyDecoder.Event.FIELD_COMPLETE, decoder.next());
+                assertEquals(PostBodyDecoder.Event.BEGIN_FIELD, decoder.next());
+                assertEquals(PostBodyDecoder.Event.HEADER, decoder.next());
+                assertEquals(PostBodyDecoder.Event.HEADERS_COMPLETE, decoder.next());
+            }
+        }
+    }
+
+    @Test
     void disableEarlyMixedEnd() {
         PostBodyDecoder.Builder builder = PostBodyDecoder.builder();
         if (quirk) {
