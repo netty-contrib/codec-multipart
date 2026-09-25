@@ -18,6 +18,7 @@ package io.netty.contrib.multipart.vintage;
 import io.netty.contrib.multipart.DecoderQuirk;
 import io.netty.contrib.multipart.FormDecoderException;
 import io.netty.contrib.multipart.PostBodyDecoder;
+import io.netty.contrib.multipart.VintageAccess;
 import io.netty.handler.codec.DecoderException;
 import io.netty.handler.codec.http.HttpConstants;
 import io.netty.handler.codec.http.HttpContent;
@@ -155,7 +156,9 @@ public class HttpPostRequestDecoder implements InterfaceHttpPostRequestDecoder {
     }
 
     private HttpPostRequestDecoder(Builder builder, HttpRequest request) {
-        if (isMultipart(request)) {
+        boolean legacy = VintageAccess.hasQuirk(builder.decoderBuilder,
+                DecoderQuirk.LEGACY_MULTIPART_CONTENT_TYPE_DETECTION);
+        if (isMultipart(request, legacy)) {
             decoder = builder.buildMultipart(request);
         } else {
             decoder = builder.buildStandard(request);
@@ -202,15 +205,27 @@ public class HttpPostRequestDecoder implements InterfaceHttpPostRequestDecoder {
     }
 
     /**
-     * Check if the given request is a multipart request
+     * Check if the given request is a multipart request.
+     * <p>
+     * This method uses the legacy detection logic (see
+     * {@link DecoderQuirk#LEGACY_MULTIPART_CONTENT_TYPE_DETECTION}) for compatibility. Decoders created using
+     * {@link #builder()} without that quirk compare the complete media type case-insensitively instead.
+     *
      * @return True if the request is a Multipart request
      */
     public static boolean isMultipart(HttpRequest request) {
+        return isMultipart(request, true);
+    }
+
+    private static boolean isMultipart(HttpRequest request, boolean legacy) {
         String mimeType = request.headers().get(HttpHeaderNames.CONTENT_TYPE);
-        if (mimeType != null && mimeType.startsWith(HttpHeaderValues.MULTIPART_FORM_DATA.toString())) {
-            return getMultipartDataBoundary(mimeType) != null;
+        if (mimeType == null) {
+            return false;
         }
-        return false;
+        if (legacy && !mimeType.startsWith(HttpHeaderValues.MULTIPART_FORM_DATA.toString())) {
+            return false;
+        }
+        return getMultipartDataBoundary(mimeType, legacy) != null;
     }
 
     /**
@@ -219,10 +234,25 @@ public class HttpPostRequestDecoder implements InterfaceHttpPostRequestDecoder {
      * as first element, charset if any as second (missing if not set), else null
      */
     protected static String[] getMultipartDataBoundary(String contentType) {
+        return getMultipartDataBoundary(contentType, true);
+    }
+
+    /**
+     * Check from the request ContentType if this request is a Multipart request.
+     *
+     * @param legacy If {@code true}, only compare a case-insensitive prefix of the media type, like legacy Netty. If
+     *               {@code false}, compare the complete media type case-insensitively.
+     * @return an array of String if multipartDataBoundary exists with the multipartDataBoundary
+     * as first element, charset if any as second (missing if not set), else null
+     */
+    static String[] getMultipartDataBoundary(String contentType, boolean legacy) {
         // Check if Post using "multipart/form-data; boundary=--89421926422648 [; charset=xxx]"
         String[] headerContentType = splitHeaderContentType(contentType);
         final String multiPartHeader = HttpHeaderValues.MULTIPART_FORM_DATA.toString();
-        if (headerContentType[0].regionMatches(true, 0, multiPartHeader, 0 , multiPartHeader.length())) {
+        boolean mediaTypeMatches = legacy ?
+                headerContentType[0].regionMatches(true, 0, multiPartHeader, 0, multiPartHeader.length()) :
+                headerContentType[0].trim().equalsIgnoreCase(multiPartHeader);
+        if (mediaTypeMatches) {
             int mrank;
             int crank;
             final String boundaryHeader = HttpHeaderValues.BOUNDARY.toString();

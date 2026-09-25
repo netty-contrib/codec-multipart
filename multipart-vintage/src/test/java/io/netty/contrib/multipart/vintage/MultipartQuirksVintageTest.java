@@ -38,7 +38,9 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @ParameterizedClass
 @ValueSource(booleans = {false, true})
@@ -163,6 +165,99 @@ class MultipartQuirksVintageTest {
             assertEquals("field", attribute.getName());
             assertEquals("value", attribute.getValue());
             assertEquals(quirk ? 100 : 0, attribute.definedLength());
+        } finally {
+            decoder.destroy();
+        }
+    }
+
+    private static FullHttpRequest requestWithContentType(String contentType, String body) {
+        DefaultFullHttpRequest request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/",
+                Unpooled.copiedBuffer(body, StandardCharsets.UTF_8));
+        request.headers().add(HttpHeaderNames.CONTENT_TYPE, contentType);
+        return request;
+    }
+
+    private HttpPostRequestDecoder contentTypeDetectionDecoder(String contentType) {
+        HttpPostRequestDecoder.Builder builder = HttpPostRequestDecoder.builder().dataFactory(dataFactory);
+        if (quirk) {
+            builder.enableQuirks(DecoderQuirk.LEGACY_MULTIPART_CONTENT_TYPE_DETECTION);
+        }
+        return builder.build(requestWithContentType(contentType,
+                "--a\r\ncontent-disposition: form-data; name=\"field\"\r\n\r\nvalue\r\n--a--\r\n"));
+    }
+
+    @Test
+    void mixedCaseMultipartMediaType() throws IOException {
+        HttpPostRequestDecoder decoder = contentTypeDetectionDecoder("Multipart/Form-Data; boundary=a");
+        try {
+            assertEquals(!quirk, decoder.isMultipart());
+            if (!quirk) {
+                Attribute attribute = assertInstanceOf(Attribute.class, decoder.getBodyHttpData("field"));
+                assertEquals("value", attribute.getValue());
+            }
+        } finally {
+            decoder.destroy();
+        }
+    }
+
+    @Test
+    void upperCaseMultipartMediaType() {
+        HttpPostRequestDecoder decoder = contentTypeDetectionDecoder("MULTIPART/FORM-DATA; boundary=a");
+        try {
+            assertEquals(!quirk, decoder.isMultipart());
+        } finally {
+            decoder.destroy();
+        }
+    }
+
+    @Test
+    void multipartMediaTypeWithInvalidSuffix() {
+        HttpPostRequestDecoder decoder = contentTypeDetectionDecoder("multipart/form-datax; boundary=a");
+        try {
+            assertEquals(quirk, decoder.isMultipart());
+        } finally {
+            decoder.destroy();
+        }
+    }
+
+    @Test
+    void mixedCaseMultipartMediaTypeWithInvalidSuffix() {
+        HttpPostRequestDecoder decoder = contentTypeDetectionDecoder("Multipart/Form-Datax; boundary=a");
+        try {
+            assertFalse(decoder.isMultipart());
+        } finally {
+            decoder.destroy();
+        }
+    }
+
+    @Test
+    void regularMultipartMediaType() {
+        HttpPostRequestDecoder decoder = contentTypeDetectionDecoder("multipart/form-data; boundary=a");
+        try {
+            assertTrue(decoder.isMultipart());
+        } finally {
+            decoder.destroy();
+        }
+    }
+
+    @Test
+    void staticIsMultipartKeepsLegacyBehavior() {
+        // the static method is not tied to a builder, so it always replicates legacy Netty
+        assertFalse(HttpPostRequestDecoder.isMultipart(
+                requestWithContentType("Multipart/Form-Data; boundary=a", "")));
+        assertTrue(HttpPostRequestDecoder.isMultipart(
+                requestWithContentType("multipart/form-datax; boundary=a", "")));
+        assertTrue(HttpPostRequestDecoder.isMultipart(
+                requestWithContentType("multipart/form-data; boundary=a", "")));
+    }
+
+    @Test
+    @SuppressWarnings("deprecation")
+    void deprecatedConstructorKeepsLegacyBehavior() {
+        HttpPostRequestDecoder decoder = new HttpPostRequestDecoder(dataFactory, requestWithContentType(
+                "Multipart/Form-Data; boundary=a", "a=b"));
+        try {
+            assertFalse(decoder.isMultipart());
         } finally {
             decoder.destroy();
         }

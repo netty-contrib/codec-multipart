@@ -110,6 +110,16 @@ public enum DecoderQuirk {
      */
     NPE_ON_MISSING_CONTENT_DISPOSITION_NAME,
 
+    /**
+     * Detect {@code multipart/form-data} requests using the legacy {@code Content-Type} checks.
+     * <p>
+     * This quirk replicates a bug where the legacy decoder first required the {@code Content-Type} to start with
+     * {@code multipart/form-data} case-sensitively (rejecting valid media types such as {@code Multipart/Form-Data}),
+     * and then only compared a case-insensitive prefix of the media type (accepting invalid media types such as
+     * {@code multipart/form-datax}). Without this quirk, the complete media type is compared case-insensitively.
+     */
+    LEGACY_MULTIPART_CONTENT_TYPE_DETECTION,
+
     // URL ENCODED
 
     /**

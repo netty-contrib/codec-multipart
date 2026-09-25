@@ -37,6 +37,10 @@ public final class VintageAccess {
         return builder.maxFields;
     }
 
+    public static boolean hasQuirk(PostBodyDecoder.Builder builder, DecoderQuirk quirk) {
+        return builder.multipartQuirks.contains(quirk);
+    }
+
     public static String cleanString(String s) {
         return io.netty.contrib.multipart.MultipartDecoder.cleanString(s);
     }

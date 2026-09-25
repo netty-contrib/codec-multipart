@@ -218,7 +218,8 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
             throw new ErrorDataDecoderException("No '" + HttpHeaderNames.CONTENT_TYPE + "' header present.");
         }
 
-        String[] dataBoundary = HttpPostRequestDecoder.getMultipartDataBoundary(contentTypeValue.toString());
+        String[] dataBoundary = HttpPostRequestDecoder.getMultipartDataBoundary(contentTypeValue.toString(),
+                VintageAccess.hasQuirk(builder, DecoderQuirk.LEGACY_MULTIPART_CONTENT_TYPE_DETECTION));
         String multipartDataBoundary;
         if (dataBoundary != null) {
             multipartDataBoundary = dataBoundary[0];
