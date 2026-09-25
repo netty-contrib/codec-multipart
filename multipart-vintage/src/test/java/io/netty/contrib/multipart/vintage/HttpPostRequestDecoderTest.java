@@ -49,6 +49,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.charset.UnsupportedCharsetException;
 import java.util.Arrays;
@@ -1241,5 +1242,52 @@ public class HttpPostRequestDecoderTest {
         assertEquals("file2", ((FileUpload) datas.get(2)).getString());
 
         decoder.destroy();
+    }
+
+    @Test
+    public void testBuilderReuseMultipartCharset() throws Exception {
+        HttpPostRequestDecoder.Builder builder = this.builder().charset(StandardCharsets.UTF_8);
+
+        // the request charset of one request must not become the default for later requests
+        assertEquals(StandardCharsets.ISO_8859_1, decodeFileUploadCharset(builder, "; charset=ISO-8859-1"));
+        assertEquals(StandardCharsets.UTF_8, decodeFileUploadCharset(builder, ""));
+        assertEquals(StandardCharsets.US_ASCII, decodeFileUploadCharset(builder, "; charset=US-ASCII"));
+        assertEquals(StandardCharsets.UTF_8, decodeFileUploadCharset(builder, ""));
+    }
+
+    private static Charset decodeFileUploadCharset(HttpPostRequestDecoder.Builder builder,
+                                                   String charsetParameter) throws Exception {
+        FullHttpRequest req = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/");
+        req.headers().set(HttpHeaderNames.CONTENT_TYPE, "multipart/form-data; boundary=a" + charsetParameter);
+        req.content().writeBytes(("--a\r\n" +
+                "content-disposition: form-data; name=\"file\"; filename=\"1.txt\"\r\n" +
+                "\r\n" +
+                "abc\r\n" +
+                "--a--\r\n").getBytes(StandardCharsets.US_ASCII));
+        HttpPostRequestDecoder decoder = builder.build(req);
+        try {
+            FileUpload upload = (FileUpload) decoder.getBodyHttpData("file");
+            assertEquals("abc", upload.getString());
+            return upload.getCharset();
+        } finally {
+            decoder.destroy();
+            assertTrue(req.release());
+        }
+    }
+
+    @Test
+    public void testBuilderReuseStandardMaxFields() {
+        HttpPostRequestDecoder.Builder builder = this.builder().maxFields(2).undecodedLimit(-1);
+
+        // each build must see the configured maxFields, not a value adjusted by a previous build
+        for (int i = 0; i < 3; i++) {
+            HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/");
+            HttpPostRequestDecoder decoder = builder.build(req);
+            assertFalse(decoder.isMultipart());
+            decoder.offer(new DefaultHttpContent(Unpooled.wrappedBuffer("a=1&b=2&".getBytes())));
+            assertThrows(TooManyFormFieldsException.class, () -> decoder.offer(
+                    new DefaultHttpContent(Unpooled.wrappedBuffer("c=3&".getBytes()))));
+            decoder.destroy();
+        }
     }
 }

@@ -209,6 +209,8 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
     HttpPostMultipartRequestDecoder(HttpDataFactory factory, HttpRequest request, PostBodyDecoder.Builder builder) {
         this.request = checkNotNullWithIAE(request, "request");
         this.factory = checkNotNullWithIAE(factory, "factory");
+        // work on a copy, the request charset must not leak into the caller's builder
+        builder = VintageAccess.copy(builder);
         // Fill default values
 
         CharSequence contentTypeValue = this.request.headers().get(HttpHeaderNames.CONTENT_TYPE);

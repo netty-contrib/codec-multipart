@@ -179,6 +179,8 @@ public class HttpPostStandardRequestDecoder implements InterfaceHttpPostRequestD
     HttpPostStandardRequestDecoder(HttpDataFactory factory, HttpRequest request, PostBodyDecoder.Builder builder) {
         this.request = checkNotNullWithIAE(request, "request");
         this.factory = checkNotNullWithIAE(factory, "factory");
+        // work on a copy, the maxFields adjustment below must not leak into the caller's builder
+        builder = VintageAccess.copy(builder);
         // we do our own maxFields checks to pass the legacy comparison fuzzer
         this.maxFields = VintageAccess.maxFields(builder);
         if (VintageAccess.maxFields(builder) < Integer.MAX_VALUE) {
