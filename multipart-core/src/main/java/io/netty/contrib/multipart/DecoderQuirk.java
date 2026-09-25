@@ -32,6 +32,11 @@ public enum DecoderQuirk {
      * <p>
      * Legacy decoders would roll back to the start of the current header block when the input chunk ended in the middle
      * of header parsing, and re-parse on the next {@link PostBodyDecoder#next()} call.
+     * <p>
+     * The completed headers of the current block remain part of the retained, undecoded data (and thus count towards
+     * the undecoded data limit), like in the legacy decoder. They are not parsed again, however, and each header is
+     * only reported once as a {@link PostBodyDecoder.Event#HEADER} event. Since the legacy decoder applied re-parsed
+     * headers idempotently, this has no observable effect on the resulting fields.
      */
     RESCAN_HEADERS_ON_CHUNK_BOUNDARY,
 

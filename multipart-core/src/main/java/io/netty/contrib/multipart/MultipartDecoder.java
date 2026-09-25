@@ -50,9 +50,16 @@ final class MultipartDecoder extends AbstractDecoder implements VintageAccess.Mu
 
     /**
      * Old implementation would revisit all headers on the next iteration if there is an end-of-chunk during header
-     * parsing.
+     * parsing. We replicate this by rewinding the buffer to the start of the header block, so that the completed
+     * headers stay part of the retained (undecoded) data, just like in the old implementation.
      */
     private int quirkHeaderStart = -1;
+    /**
+     * When the buffer was rewound to {@link #quirkHeaderStart}, the number of bytes of completed headers that were
+     * already parsed and reported. These are skipped on the next iteration instead of being parsed again, to avoid
+     * quadratic parse work for fine-grained input.
+     */
+    private int quirkHeaderResume;
     private String[] quirkHeader;
     long quirkDefinedLength;
     Charset quirkPartCharset;
@@ -121,6 +128,12 @@ final class MultipartDecoder extends AbstractDecoder implements VintageAccess.Mu
                     if (buffer == null) {
                         return null;
                     }
+                    if (quirkHeaderResume > 0) {
+                        // skip the completed headers that were only retained for the RESCAN quirk
+                        quirkHeaderStart = buffer.readerIndex();
+                        buffer.readerIndex(quirkHeaderStart + quirkHeaderResume);
+                        quirkHeaderResume = 0;
+                    }
                     if (!skipOneLine(buffer)) {
                         int readerIndex = buffer.readerIndex();
                         if (hasQuirk(DecoderQuirk.RESCAN_HEADERS_ON_CHUNK_BOUNDARY) && quirkHeaderStart == -1) {
@@ -132,11 +145,11 @@ final class MultipartDecoder extends AbstractDecoder implements VintageAccess.Mu
                             newline = readLineOptimized(buffer, charset);
                         } catch (NotEnoughDataDecoderException ignored) {
                             if (hasQuirk(DecoderQuirk.RESCAN_HEADERS_ON_CHUNK_BOUNDARY)) {
+                                // Keep the completed headers in the retained data (this is observable through the
+                                // undecoded data limit), but remember where to resume so that we don't parse and
+                                // report them again.
+                                quirkHeaderResume = readerIndex - quirkHeaderStart;
                                 buffer.readerIndex(quirkHeaderStart);
-                                if (mixedHeader) {
-                                    mixedBoundary = null;
-                                    mixedHeader = false;
-                                }
                             } else {
                                 buffer.readerIndex(readerIndex);
                             }

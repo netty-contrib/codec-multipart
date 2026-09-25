@@ -23,6 +23,7 @@ import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.multipart.DefaultHttpDataFactory;
 import io.netty.handler.codec.http.multipart.HttpDataFactory;
 import io.netty.handler.codec.http.multipart.InterfaceHttpPostRequestDecoder;
+import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
 
@@ -59,5 +60,44 @@ public class MultipartComparisonTest extends AbstractComparisonTest {
     @Override
     protected InterfaceHttpPostRequestDecoder createLegacy() {
         return new HttpPostMultipartRequestDecoderLegacy(FACTORY, REQUEST, StandardCharsets.UTF_8, -1, -1);
+    }
+
+    @Test
+    void headersSplitByteByByte() {
+        // Every byte arrives in its own chunk, so header parsing hits a chunk boundary in every line. This exercises
+        // the RESCAN_HEADERS_ON_CHUNK_BOUNDARY quirk, which must behave like the legacy decoder.
+        String body = "--a\r\n" +
+                "content-disposition: form-data; name=\"field\"\r\n" +
+                "content-transfer-encoding: 8bit\r\n" +
+                "content-type: text/plain; charset=utf-16\r\n" +
+                "content-length: 3\r\n" +
+                "x-unknown: foo\r\n" +
+                "\r\n" +
+                "bar\r\n" +
+                "--a\r\n" +
+                "content-type: application/octet-stream\r\n" +
+                "content-disposition: form-data; name=\"file\"; filename=\"f.txt\"\r\n" +
+                "content-transfer-encoding: binary\r\n" +
+                "\r\n" +
+                "baz\r\n" +
+                "--a\r\n" +
+                "content-disposition: form-data; name=\"mixed\"\r\n" +
+                "content-type: multipart/mixed; boundary=b\r\n" +
+                "\r\n" +
+                "--b\r\n" +
+                "content-disposition: attachment; filename=\"g.txt\"\r\n" +
+                "content-type: text/plain\r\n" +
+                "\r\n" +
+                "qux\r\n" +
+                "--b--\r\n" +
+                "--a--\r\n";
+        StringBuilder split = new StringBuilder();
+        for (int i = 0; i < body.length(); i++) {
+            if (i != 0) {
+                split.append(FUZZ_SEPARATOR_STR);
+            }
+            split.append(body.charAt(i));
+        }
+        compare(split.toString().getBytes(StandardCharsets.US_ASCII));
     }
 }
