@@ -470,6 +470,14 @@ final class MultipartDecoder extends AbstractDecoder implements VintageAccess.Mu
             }
             // not a delimiter, continue search
         }
+        if (receivedLength == 0 &&
+                !hasQuirk(DecoderQuirk.FORWARD_PART_START_DELIMITER_PREFIX) &&
+                buffer.readableBytes() < delimiter.length &&
+                isPrefixOf(buffer, delimiter)) {
+            // the input so far might be the start of a delimiter at the start of the part, which does not need a
+            // preceding line break. Hold everything back until we know more.
+            return 0;
+        }
 
         int i = buffer.readerIndex();
         int lfOffset = -1;
@@ -563,6 +571,22 @@ final class MultipartDecoder extends AbstractDecoder implements VintageAccess.Mu
         }
         for (int i = 0; i < needle.length; i++) {
             if (haystack.getByte(haystackIndex + i) != needle[i]) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Check whether all readable bytes of the given buffer match the start of the given needle.
+     */
+    private static boolean isPrefixOf(ByteBuf haystack, byte[] needle) {
+        int n = haystack.readableBytes();
+        if (n > needle.length) {
+            return false;
+        }
+        for (int i = 0; i < n; i++) {
+            if (haystack.getByte(haystack.readerIndex() + i) != needle[i]) {
                 return false;
             }
         }

@@ -88,6 +88,16 @@ public enum DecoderQuirk {
     FORWARD_CHUNK_CR,
 
     /**
+     * At the start of a part, the boundary does not have to be preceded by a line break, so when an input chunk ends
+     * with a partial boundary at that position (e.g. {@code -} or {@code --bound}), we need to hold back those bytes in
+     * case the rest of the boundary follows in the next chunk.
+     * <p>
+     * This quirk replicates a bug where these bytes would be incorrectly emitted as part content, and the remainder of
+     * the boundary (and possibly following parts) would be treated as content as well.
+     */
+    FORWARD_PART_START_DELIMITER_PREFIX,
+
+    /**
      * Use the part-specific charset (derived from the part headers) for delimiter detection as soon as headers are
      * complete. This should not really matter since boundaries are supposed to be ASCII anyway.
      */
