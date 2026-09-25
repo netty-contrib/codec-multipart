@@ -18,6 +18,7 @@ package io.netty.contrib.multipart.vintage;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.contrib.multipart.ContentDisposition;
+import io.netty.contrib.multipart.DecoderQuirk;
 import io.netty.contrib.multipart.FormDecoderException;
 import io.netty.contrib.multipart.PostBodyDecoder;
 import io.netty.contrib.multipart.TooManyFormFieldsException;
@@ -107,7 +108,7 @@ public class HttpPostStandardRequestDecoder implements InterfaceHttpPostRequestD
      */
     @Deprecated
     public HttpPostStandardRequestDecoder(HttpRequest request) {
-        this(new DefaultHttpDataFactory(DefaultHttpDataFactory.MINSIZE), request, PostBodyDecoder.builder());
+        this(new DefaultHttpDataFactory(DefaultHttpDataFactory.MINSIZE), request, legacyBuilder());
     }
 
     /**
@@ -125,7 +126,7 @@ public class HttpPostStandardRequestDecoder implements InterfaceHttpPostRequestD
      */
     @Deprecated
     public HttpPostStandardRequestDecoder(HttpDataFactory factory, HttpRequest request) {
-        this(factory, request, PostBodyDecoder.builder());
+        this(factory, request, legacyBuilder());
     }
 
     /**
@@ -145,7 +146,7 @@ public class HttpPostStandardRequestDecoder implements InterfaceHttpPostRequestD
      */
     @Deprecated
     public HttpPostStandardRequestDecoder(HttpDataFactory factory, HttpRequest request, Charset charset) {
-        this(factory, request, PostBodyDecoder.builder().charset(charset));
+        this(factory, request, legacyBuilder().charset(charset));
     }
 
     /**
@@ -170,10 +171,18 @@ public class HttpPostStandardRequestDecoder implements InterfaceHttpPostRequestD
     @Deprecated
     public HttpPostStandardRequestDecoder(HttpDataFactory factory, HttpRequest request, Charset charset,
                                           int maxFields, int maxBufferedBytes) {
-        this(factory, request, PostBodyDecoder.builder()
+        this(factory, request, legacyBuilder()
                 .charset(charset)
                 .maxFields(maxFields)
                 .undecodedLimit(maxBufferedBytes == 0 ? Integer.MAX_VALUE : maxBufferedBytes));
+    }
+
+    /**
+     * Builder for the deprecated constructors. These keep the legacy end-of-line handling (trailing data after a line
+     * ending is discarded), matching the behavior of the original netty decoder.
+     */
+    private static PostBodyDecoder.Builder legacyBuilder() {
+        return PostBodyDecoder.builder().enableQuirks(DecoderQuirk.LENIENT_END_OF_LINE);
     }
 
     HttpPostStandardRequestDecoder(HttpDataFactory factory, HttpRequest request, PostBodyDecoder.Builder builder) {

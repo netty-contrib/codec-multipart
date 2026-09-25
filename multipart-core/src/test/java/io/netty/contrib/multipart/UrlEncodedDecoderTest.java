@@ -236,6 +236,10 @@ class UrlEncodedDecoderTest {
             "longkeylongkeylongkeylongkey%41%42%43=longvalue&second%2Bkey",
             "k1=v1&k2=v2\r\n",
             "k1=v1\nignored",
+            // line endings in key position: without LENIENT_END_OF_LINE, resumed key scans must stop at them
+            "k1=v1&longnovaluekey\r\n",
+            "longnovaluekey\ntrailing",
+            "k1=v1&longnovaluekey\r",
             "bad%zzkey=v",
             "short%4",
             "trailing%=v&x%4=y",
