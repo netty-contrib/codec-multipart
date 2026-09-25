@@ -17,6 +17,7 @@ package io.netty.contrib.multipart.vintage;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.contrib.multipart.FormDecoderException;
 import io.netty.handler.codec.http.DefaultFullHttpRequest;
 import io.netty.handler.codec.http.DefaultHttpContent;
 import io.netty.handler.codec.http.DefaultHttpRequest;
@@ -44,6 +45,7 @@ import java.util.Arrays;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -111,18 +113,15 @@ public class HttpPostMultiPartRequestDecoderTest {
 
         try {
             this.builder().buildMultipart(req);
+            fail("Was expecting a FormDecoderException");
+        } catch (FormDecoderException expected) {
+            // expected. With quirks, the headers are rejected (ErrorDataDecoderException). Without quirks, the
+            // part headers never end, so the body is missing the close delimiter.
             if (quirk) {
-                fail("Was expecting an ErrorDataDecoderException");
+                assertInstanceOf(HttpPostRequestDecoder.ErrorDataDecoderException.class, expected);
             }
-        } catch (HttpPostRequestDecoder.ErrorDataDecoderException expected) {
-            if (!quirk) {
-                throw expected;
-            }
-            // expected
         } finally {
-            if (quirk) {
-                assertTrue(req.release());
-            }
+            assertTrue(req.release());
         }
     }
 
@@ -135,14 +134,17 @@ public class HttpPostMultiPartRequestDecoderTest {
             "attributeValue\r"; // here goes CR not followed by LF
         String suffix = "\n--861fbeab-cd20-470c-9609-d40a0f704466--\r\n";
 
-        FullHttpRequest req = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/upload",
-            Unpooled.copiedBuffer(prefix, CharsetUtil.US_ASCII));
+        HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/upload");
         req.headers().set("content-type", "multipart/form-data; boundary=861fbeab-cd20-470c-9609-d40a0f704466");
         req.headers().set("content-length", prefix.length() + suffix.length());
-        HttpContent content = new DefaultHttpContent(Unpooled.copiedBuffer(suffix, CharsetUtil.US_ASCII));
+        HttpContent prefixContent = new DefaultHttpContent(Unpooled.copiedBuffer(prefix, CharsetUtil.US_ASCII));
+        HttpContent suffixContent = new DefaultLastHttpContent(Unpooled.copiedBuffer(suffix, CharsetUtil.US_ASCII));
 
         HttpPostMultipartRequestDecoder decoder = this.builder().buildMultipart(req);
-        decoder.offer(content);
+        decoder.offer(prefixContent);
+        prefixContent.release();
+        decoder.offer(suffixContent);
+        suffixContent.release();
         Attribute attribute = (Attribute) decoder.getBodyHttpDatas().get(0);
 
         if (quirk) {

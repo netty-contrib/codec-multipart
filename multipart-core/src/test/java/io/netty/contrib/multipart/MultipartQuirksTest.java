@@ -19,6 +19,7 @@ import io.netty.buffer.Unpooled;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedClass;
+import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import java.nio.charset.StandardCharsets;
@@ -248,6 +249,201 @@ class MultipartQuirksTest {
             } else {
                 feedHeaders.run();
             }
+        }
+    }
+
+    /**
+     * Decode the given multipart input chunks (boundary {@code a}), followed by {@link PostBodyDecoder#endInput()},
+     * and return the list of completed field contents.
+     */
+    private List<String> decodeUntilEnd(String... chunks) {
+        PostBodyDecoder.Builder builder = PostBodyDecoder.builder();
+        if (quirk) {
+            builder.enableQuirks(DecoderQuirk.ALLOW_MISSING_CLOSE_DELIMITER);
+        }
+        try (PostBodyDecoder decoder = builder.forMultipartBoundary("a")) {
+            List<String> fields = new ArrayList<>();
+            StringBuilder content = new StringBuilder();
+            for (String chunk : chunks) {
+                if (!chunk.isEmpty()) {
+                    add(decoder, chunk);
+                }
+                // drain after each chunk and before endInput, as a streaming user would
+                while (true) {
+                    PostBodyDecoder.Event event = decoder.next();
+                    if (event == null) {
+                        break;
+                    }
+                    content = handle(decoder, event, fields, content);
+                }
+            }
+            decoder.endInput();
+            while (true) {
+                PostBodyDecoder.Event event = decoder.next();
+                if (event == null) {
+                    break;
+                }
+                content = handle(decoder, event, fields, content);
+            }
+            // must remain null after completion
+            assertNull(decoder.next());
+            return fields;
+        }
+    }
+
+    private static StringBuilder handle(PostBodyDecoder decoder, PostBodyDecoder.Event event, List<String> fields,
+                                        StringBuilder content) {
+        switch (event) {
+            case CONTENT:
+                content.append(decoder.decodedContentString());
+                return content;
+            case FIELD_COMPLETE:
+                fields.add(content.toString());
+                return new StringBuilder();
+            default:
+                return content;
+        }
+    }
+
+    @Test
+    void validCloseDelimiter() {
+        assertEquals(List.of("x", "y"), decodeUntilEnd("--a\nfoo:bar\n\nx\n--a\nfoo:bar\n\ny\n--a--\n"));
+        assertEquals(List.of("x"), decodeUntilEnd("--a\r\nfoo:bar\r\n\r\nx\r\n--a--\r\n"));
+        // no line break after the close delimiter
+        assertEquals(List.of("x"), decodeUntilEnd("--a\nfoo:bar\n\nx\n--a--"));
+        // epilogue
+        assertEquals(List.of("x"), decodeUntilEnd("--a\nfoo:bar\n\nx\n--a--\nepilogue"));
+        // form without any fields
+        assertEquals(List.of(), decodeUntilEnd("--a--\n"));
+    }
+
+    @Test
+    void validCloseDelimiterWithTrailingCr() {
+        // the close delimiter is complete, only the (optional) LF of the trailing CRLF is missing
+        assertEquals(List.of("x"), decodeUntilEnd("--a\r\nfoo:bar\r\n\r\nx\r\n--a--\r"));
+        assertEquals(List.of(), decodeUntilEnd("--a--\r"));
+    }
+
+    @Test
+    void missingCloseDelimiter() {
+        String input = "--a\nfoo:bar\n\nx\n--a\nfoo:bar\n\ny\n";
+        if (quirk) {
+            // the last field is incomplete and silently dropped
+            assertEquals(List.of("x"), decodeUntilEnd(input));
+        } else {
+            FormDecoderException e = assertThrows(FormDecoderException.class, () -> decodeUntilEnd(input));
+            assertEquals("Multipart input ended without a close delimiter", e.getMessage());
+        }
+    }
+
+    @Test
+    void missingCloseDelimiterAfterCompletePart() {
+        // the part delimiter is there but not the close delimiter ("--a--")
+        // "--a" at the end of input is not followed by a line break or "--", so it is not a delimiter (#30). The
+        // content of the part is therefore incomplete, and dropped with the quirk.
+        String input = "--a\nfoo:bar\n\nx\n--a";
+        if (quirk) {
+            assertEquals(List.of(), decodeUntilEnd(input));
+        } else {
+            assertThrows(FormDecoderException.class, () -> decodeUntilEnd(input));
+        }
+    }
+
+    /**
+     * Input truncated in the delimiter, the headers, or the content of the part following a complete part, or in the
+     * close delimiter.
+     */
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "--a\nfoo:bar\n\nx\n--a\n",
+            "--a\nfoo:bar\n\nx\n--a\nfoo:b",
+            "--a\nfoo:bar\n\nx\n--a\nfoo:bar\n",
+            "--a\nfoo:bar\n\nx\n--a\nfoo:bar\n\ny",
+    })
+    void truncatedNextPart(String input) {
+        if (quirk) {
+            assertEquals(List.of("x"), decodeUntilEnd(input));
+        } else {
+            assertThrows(FormDecoderException.class, () -> decodeUntilEnd(input));
+        }
+    }
+
+    /**
+     * Input ending in a potential delimiter whose suffix is still undecided (held back as potential content by the
+     * delimiter search). At the end of input, it is not a valid delimiter, so the current part is truncated.
+     */
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "--a\nfoo:bar\n\nx\n--a",
+            "--a\r\nfoo:bar\r\n\r\nx\r\n--a",
+            "--a\r\nfoo:bar\r\n\r\nx\r\n--a\r",
+            "--a\nfoo:bar\n\nx\n--a-",
+            "--a\r\nfoo:bar\r\n\r\nx\r\n--a-",
+    })
+    void truncatedInHeldBackDelimiter(String input) {
+        if (quirk) {
+            assertEquals(List.of(), decodeUntilEnd(input));
+        } else {
+            FormDecoderException e = assertThrows(FormDecoderException.class, () -> decodeUntilEnd(input));
+            assertEquals("Multipart input ended without a close delimiter", e.getMessage());
+        }
+    }
+
+    /**
+     * Input truncated right after a part delimiter at the start of the body.
+     */
+    @ParameterizedTest
+    @ValueSource(strings = {"--a", "--a\r", "--a-", "--a\n", "--a\r\n"})
+    void truncatedAfterFirstDelimiter(String input) {
+        if (quirk) {
+            assertEquals(List.of(), decodeUntilEnd(input));
+        } else {
+            FormDecoderException e = assertThrows(FormDecoderException.class, () -> decodeUntilEnd(input));
+            assertEquals("Multipart input ended without a close delimiter", e.getMessage());
+        }
+    }
+
+    /**
+     * The close delimiter is complete at the end of input, without a trailing line break. The delimiter search may
+     * hold back the delimiter while its suffix is undecided, so also feed the input in small chunks.
+     */
+    @Test
+    void closeDelimiterAtEndOfInputChunked() {
+        assertEquals(List.of("x"), decodeUntilEnd("--a\nfoo:bar\n\nx\n--a", "--"));
+        assertEquals(List.of("x"), decodeUntilEnd("--a\nfoo:bar\n\nx\n--a-", "-"));
+        assertEquals(List.of("x"), decodeUntilEnd("--a\r\nfoo:bar\r\n\r\nx\r\n--a", "--"));
+        assertEquals(List.of("x"), decodeUntilEnd("--a\r\nfoo:bar\r\n\r\nx\r\n--a", "--", "\r"));
+        assertEquals(List.of("x"), decodeUntilEnd("--a\r\nfoo:bar\r\n\r\nx\r\n--a--\r", "\n"));
+        assertEquals(List.of(), decodeUntilEnd("--a", "--"));
+        assertEquals(List.of(), decodeUntilEnd("--a-", "-", "\r"));
+        String input = "--a\r\nfoo:bar\r\n\r\nx\r\n--a\r\nfoo:bar\r\n\r\ny\r\n--a--";
+        assertEquals(List.of("x", "y"), decodeUntilEnd(input.split("")));
+        assertEquals(List.of("x", "y"), decodeUntilEnd((input + "\r").split("")));
+    }
+
+    /**
+     * Like {@link #truncatedInHeldBackDelimiter}, but the input is fed byte by byte.
+     */
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "--a\r\nfoo:bar\r\n\r\nx\r\n--a",
+            "--a\r\nfoo:bar\r\n\r\nx\r\n--a\r",
+            "--a\r\nfoo:bar\r\n\r\nx\r\n--a-",
+    })
+    void truncatedInHeldBackDelimiterChunked(String input) {
+        if (quirk) {
+            assertEquals(List.of(), decodeUntilEnd(input.split("")));
+        } else {
+            assertThrows(FormDecoderException.class, () -> decodeUntilEnd(input.split("")));
+        }
+    }
+
+    @Test
+    void emptyInput() {
+        if (quirk) {
+            assertEquals(List.of(), decodeUntilEnd(""));
+        } else {
+            assertThrows(FormDecoderException.class, () -> decodeUntilEnd(""));
         }
     }
 }
