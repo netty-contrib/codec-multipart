@@ -101,6 +101,16 @@ final class MultipartDecoder extends AbstractDecoder implements VintageAccess.Mu
 
     @Override
     public Event next() {
+        Event event = next0();
+        if (event == null && eof && state != State.PREEPILOGUE &&
+                !hasQuirk(DecoderQuirk.ALLOW_MISSING_CLOSE_DELIMITER)) {
+            // input ended, but we did not see the close delimiter. The input is truncated.
+            throw new FormDecoderException("Multipart input ended without a close delimiter");
+        }
+        return event;
+    }
+
+    private Event next0() {
         while (true) {
             switch (state) {
                 case HEADERDELIMITER:
@@ -427,6 +437,12 @@ final class MultipartDecoder extends AbstractDecoder implements VintageAccess.Mu
         try {
             newline = readDelimiterOptimized(buffer, delimiter, charset);
         } catch (NotEnoughDataDecoderException ignored) {
+            if (eof && isCloseDelimiterWithTrailingCr(delimiter)) {
+                // the input ends with the close delimiter followed by a lone CR. The CRLF after the close delimiter
+                // is optional, so accept this as a complete close delimiter.
+                buffer.skipBytes(buffer.readableBytes());
+                return DelimiterType.CLOSEDELIMITER;
+            }
             buffer.readerIndex(readerIndex);
             return null;
         }
@@ -438,6 +454,17 @@ final class MultipartDecoder extends AbstractDecoder implements VintageAccess.Mu
         }
         buffer.readerIndex(readerIndex);
         throw new FormDecoderException("No Multipart delimiter found");
+    }
+
+    /**
+     * Check whether the remaining input is exactly the close delimiter ({@code delimiter + "--"}) followed by a single
+     * CR. {@link #readDelimiterOptimized} waits for the LF in that case, which will never come at the end of input.
+     */
+    private boolean isCloseDelimiterWithTrailingCr(String delimiter) {
+        byte[] close = (delimiter + "--").getBytes(charset);
+        return buffer.readableBytes() == close.length + 1 &&
+                hasCommonPrefix(buffer, buffer.readerIndex(), close) &&
+                buffer.getByte(buffer.writerIndex() - 1) == HttpConstants.CR;
     }
 
     /**

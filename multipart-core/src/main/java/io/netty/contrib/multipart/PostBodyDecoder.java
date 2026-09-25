@@ -62,6 +62,12 @@ public interface PostBodyDecoder extends Closeable {
 
     /**
      * Signal that no more input is forthcoming after the last {@link #add(ByteBuf)} call.
+     * <p>
+     * For multipart input, once this method has been called, {@link #next()} will throw a
+     * {@link FormDecoderException} if the input ended before the multipart close delimiter, i.e. if the input was
+     * truncated. If {@link #next()} returns {@code null} after this method has been called, the input was complete.
+     * The legacy behavior of ignoring a missing close delimiter can be restored with
+     * {@link DecoderQuirk#ALLOW_MISSING_CLOSE_DELIMITER}.
      */
     void endInput();
 
@@ -75,7 +81,8 @@ public interface PostBodyDecoder extends Closeable {
      * }</pre>
      *
      * @return The next parsed event, or {@code null} if more input is needed.
-     * @throws FormDecoderException On invalid input
+     * @throws FormDecoderException On invalid input, or if {@link #endInput()} has been called and the multipart
+     *                             input ended without a close delimiter
      * @see Event
      */
     Event next();

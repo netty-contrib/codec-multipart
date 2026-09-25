@@ -49,6 +49,7 @@ abstract class AbstractDecoder implements PostBodyDecoder {
     @Override
     public void add(ByteBuf buffer) {
         if (eof) {
+            buffer.release();
             throw new IllegalStateException("endInput() already called");
         }
         if (!buffer.isReadable()) {

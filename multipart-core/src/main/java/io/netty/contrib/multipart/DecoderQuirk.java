@@ -130,6 +130,23 @@ public enum DecoderQuirk {
      */
     IGNORE_DELIMITER_SUFFIX,
 
+    /**
+     * Accept multipart input that ends without the closing delimiter ({@code --boundary--}).
+     * <p>
+     * Without this quirk, when {@link PostBodyDecoder#endInput()} has been called and the input ends before the close
+     * delimiter, {@link PostBodyDecoder#next()} throws a {@link FormDecoderException}, because the input was likely
+     * truncated. Any fields that were completed before the truncation have already been emitted at that point, but
+     * must not be considered a complete form.
+     * <p>
+     * The legacy decoder did not check for the close delimiter at the end of input, so callers could not
+     * distinguish a truncated body from a complete one: the fields completed before the truncation were returned as
+     * if they were the entire form, and any partially received field was silently dropped. This quirk replicates that
+     * behavior. With this quirk, {@link PostBodyDecoder#next()} does not throw at the end of input when the close
+     * delimiter is missing. The vintage decoder also does not call {@link PostBodyDecoder#endInput()}, so it keeps
+     * accepting input after the last chunk like before.
+     */
+    ALLOW_MISSING_CLOSE_DELIMITER,
+
     // URL ENCODED
 
     /**

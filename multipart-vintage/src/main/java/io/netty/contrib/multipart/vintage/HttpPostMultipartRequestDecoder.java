@@ -19,6 +19,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.contrib.multipart.ContentDisposition;
 import io.netty.contrib.multipart.DecoderQuirk;
+import io.netty.contrib.multipart.FormDecoderException;
 import io.netty.contrib.multipart.PostBodyDecoder;
 import io.netty.contrib.multipart.VintageAccess;
 import io.netty.contrib.multipart.vintage.HttpPostRequestDecoder.ErrorDataDecoderException;
@@ -359,18 +360,40 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
      * @throws ErrorDataDecoderException
      *             if there is a problem with the charset decoding or other
      *             errors
+     * @throws FormDecoderException
+     *             for errors detected by the underlying multipart decoder, which are not necessarily
+     *             {@link ErrorDataDecoderException}s. In particular, unless
+     *             {@link DecoderQuirk#ALLOW_MISSING_CLOSE_DELIMITER} is enabled, this is thrown when {@code content}
+     *             is a {@link LastHttpContent} and the body ended without the multipart close delimiter (truncated
+     *             body). In that case, the body is not considered complete, and {@link #getBodyHttpDatas()} and
+     *             related methods keep throwing {@link NotEnoughDataDecoderException}.
+     * @throws IllegalStateException
+     *             if {@link DecoderQuirk#ALLOW_MISSING_CLOSE_DELIMITER} is disabled and a {@link LastHttpContent}
+     *             has already been offered
      */
     @Override
     public HttpPostMultipartRequestDecoder offer(HttpContent content) {
         checkDestroyed();
 
-        if (content instanceof LastHttpContent) {
+        boolean last = content instanceof LastHttpContent;
+        boolean allowMissingClose = decoder.hasQuirk(DecoderQuirk.ALLOW_MISSING_CLOSE_DELIMITER);
+        if (last && allowMissingClose) {
+            // legacy behavior: the body is considered complete even if the close delimiter is missing
             isLastChunk = true;
         }
 
         ByteBuf buf = content.content();
         decoder.add(buf.retainedDuplicate());
+        if (last && !allowMissingClose) {
+            // makes parseBody throw if the close delimiter is missing
+            decoder.endInput();
+        }
         parseBody();
+        if (last) {
+            // only mark the body as complete once it has been parsed successfully, so that the getters don't
+            // expose a truncated body as if it was complete
+            isLastChunk = true;
+        }
         return this;
     }
 
