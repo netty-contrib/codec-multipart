@@ -66,11 +66,11 @@
   </developers>
 
   <properties>
-    <netty.version>4.2.7.Final</netty.version>
+    <netty.version>4.2.18.Final</netty.version>
     <netty.build.version>31</netty.build.version>
-    <jazzer.version>0.26.0</jazzer.version>
+    <jazzer.version>0.30.0</jazzer.version>
     <micronaut-fuzzing.version>0.1.13</micronaut-fuzzing.version>
-    <junit.version>6.0.1</junit.version>
+    <junit.version>6.1.3</junit.version>
     <project.scm.id>github</project.scm.id>
     <release.gpg.keyname />
     <release.gpg.passphrase />
@@ -87,14 +87,14 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
-        <version>3.8.1</version>
+        <version>3.16.0</version>
         <configuration>
           <release>11</release>
         </configuration>
       </plugin>
       <plugin>
         <artifactId>maven-checkstyle-plugin</artifactId>
-        <version>3.1.0</version>
+        <version>3.6.0</version>
         <executions>
           <execution>
             <id>check-style</id>
@@ -133,7 +133,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
-        <version>3.0.0-M5</version>
+        <version>3.6.0</version>
         <configuration>
           <!-- Ensure the whole stacktrace is preserved when an exception is thrown. See https://issues.apache.org/jira/browse/SUREFIRE-1457 -->
           <trimStackTrace>false</trimStackTrace>
@@ -150,7 +150,7 @@
       <plugin>
         <groupId>org.apache.felix</groupId>
         <artifactId>maven-bundle-plugin</artifactId>
-        <version>5.1.1</version>
+        <version>6.2.0</version>
         <executions>
           <execution>
             <id>generate-manifest</id>
@@ -177,7 +177,7 @@
 
       <plugin>
         <artifactId>maven-source-plugin</artifactId>
-        <version>3.2.0</version>
+        <version>3.4.0</version>
         <!-- Eclipse-related OSGi manifests
               See https://github.com/netty/netty/issues/3886
               More information: https://rajakannappan.blogspot.ie/2010/03/automating-eclipse-source-bundle.html -->
@@ -213,7 +213,7 @@
       </plugin>
       <plugin>
         <artifactId>maven-javadoc-plugin</artifactId>
-        <version>3.3.0</version>
+        <version>3.12.0</version>
         <configuration>
           <detectOfflineLinks>false</detectOfflineLinks>
           <breakiterator>true</breakiterator>
@@ -224,7 +224,7 @@
       </plugin>
       <plugin>
         <artifactId>maven-deploy-plugin</artifactId>
-        <version>2.8.2</version>
+        <version>3.2.0</version>
         <configuration>
           <retryFailedDeploymentCount>10</retryFailedDeploymentCount>
         </configuration>
@@ -232,7 +232,7 @@
       <plugin>
         <groupId>org.sonatype.central</groupId>
         <artifactId>central-publishing-maven-plugin</artifactId>
-        <version>0.7.0</version>
+        <version>0.11.0</version>
         <extensions>true</extensions>
         <configuration>
           <publishingServerId>central</publishingServerId>
@@ -241,7 +241,7 @@
       </plugin>
       <plugin>
         <artifactId>maven-release-plugin</artifactId>
-        <version>2.5.3</version>
+        <version>3.3.1</version>
         <configuration>
           <useReleaseProfile>false</useReleaseProfile>
           <arguments>-P sonatype-oss-release -DskipTests -Dgpg.keyname=${release.gpg.keyname} -Dgpg.passphrase=${release.gpg.passphrase}</arguments>
@@ -252,7 +252,7 @@
       </plugin>
       <plugin>
         <artifactId>maven-jar-plugin</artifactId>
-        <version>3.2.0</version>
+        <version>3.5.1</version>
       </plugin>
     </plugins>
   </build>
