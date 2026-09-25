@@ -147,12 +147,15 @@ class UrlEncodedEndOfLineVintageTest {
     @ParameterizedTest
     @ValueSource(strings = {"a=b\r\nc=d", "a=b\r"})
     @SuppressWarnings("deprecation")
-    void deprecatedConstructorKeepsLegacyBehavior(String body) throws IOException {
+    void deprecatedConstructorUsesNoQuirks(String body) {
+        // like for every other quirk, the deprecated constructors do not enable LENIENT_END_OF_LINE
         for (int chunkSize : new int[] {Integer.MAX_VALUE, 1}) {
-            assertEquals(List.of("a=b"), decode(() -> new HttpPostStandardRequestDecoder(REQUEST), body, chunkSize),
+            assertThrows(FormDecoderException.class,
+                    () -> decode(() -> new HttpPostStandardRequestDecoder(REQUEST), body, chunkSize),
                     "chunk size " + chunkSize);
-            assertEquals(List.of("a=b"), decode(() -> new HttpPostStandardRequestDecoder(dataFactory, REQUEST),
-                    body, chunkSize), "chunk size " + chunkSize);
+            assertThrows(FormDecoderException.class,
+                    () -> decode(() -> new HttpPostStandardRequestDecoder(dataFactory, REQUEST), body, chunkSize),
+                    "chunk size " + chunkSize);
         }
     }
 }
