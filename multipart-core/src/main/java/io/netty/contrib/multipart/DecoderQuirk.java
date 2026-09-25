@@ -41,6 +41,10 @@ public enum DecoderQuirk {
      * The modern parser uses structured parsing for {@code Content-Type} parameters, but the legacy decoder exposes
      * raw tokens. Enabling this quirk switches to the legacy split and fills the {@code quirkHeader} array so the
      * vintage wrapper can continue consuming headers exactly like before.
+     * <p>
+     * With this quirk, the vintage multipart decoder also stores {@code Content-Type} parameters such as {@code name},
+     * {@code filename} and {@code content-length} as part metadata, overriding the values from
+     * {@code Content-Disposition} and {@code Content-Length}, matching legacy Netty.
      */
     LEGACY_HEADER_SPLITTING,
 

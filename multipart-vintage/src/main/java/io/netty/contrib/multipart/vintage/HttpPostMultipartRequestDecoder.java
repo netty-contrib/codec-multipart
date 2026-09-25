@@ -652,6 +652,10 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
                     throw new ErrorDataDecoderException("Mixed Multipart found in a previous Mixed Multipart");
                 }
             } else {
+                // Legacy decoders stored every Content-Type parameter under its own name, so parameters such as
+                // name, filename or content-length would overwrite the part metadata. Without the quirk, only the
+                // type itself and the charset parameter are used.
+                boolean legacyParameters = decoder.hasQuirk(DecoderQuirk.LEGACY_HEADER_SPLITTING);
                 for (int i = 1; i < contents.length; i++) {
                     final String charsetHeader = HttpHeaderValues.CHARSET.toString();
                     if (contents[i].regionMatches(true, 0, charsetHeader, 0, charsetHeader.length())) {
@@ -666,7 +670,10 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
                             throw new ErrorDataDecoderException(e);
                         }
                         putCurrentFieldAttribute(HttpHeaderValues.CHARSET, attribute);
-                    } else if (contents[i].contains("=")) {
+                    } else if (!legacyParameters && i > 1) {
+                        // Other parameters (and stray tokens after the type) do not affect the part.
+                        continue;
+                    } else if (legacyParameters && contents[i].contains("=")) {
                         String name = StringUtil.substringBefore(contents[i], '=');
                         String values = StringUtil.substringAfter(contents[i], '=');
                         Attribute attribute;
