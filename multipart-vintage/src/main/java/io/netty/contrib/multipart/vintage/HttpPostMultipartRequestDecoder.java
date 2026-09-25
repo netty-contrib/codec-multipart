@@ -541,6 +541,11 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
             }
         }
         Attribute nameAttribute = currentFieldAttributes.get(HttpHeaderValues.NAME);
+        if (nameAttribute == null
+                && !decoder.hasQuirk(DecoderQuirk.NPE_ON_MISSING_CONTENT_DISPOSITION_NAME)) {
+            throw new ErrorDataDecoderException(
+                    "Content-Disposition is missing required 'name' parameter");
+        }
         Attribute lengthAttribute = currentFieldAttributes
                 .get(HttpHeaderNames.CONTENT_LENGTH);
         long size;
@@ -774,6 +779,11 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
         }
         Attribute filenameAttribute = currentFieldAttributes.get(HttpHeaderValues.FILENAME);
         Attribute nameAttribute = currentFieldAttributes.get(HttpHeaderValues.NAME);
+        if (nameAttribute == null
+                && !decoder.hasQuirk(DecoderQuirk.NPE_ON_MISSING_CONTENT_DISPOSITION_NAME)) {
+            throw new ErrorDataDecoderException(
+                    "Content-Disposition is missing required 'name' parameter");
+        }
         Attribute contentTypeAttribute = currentFieldAttributes.get(HttpHeaderNames.CONTENT_TYPE);
         Attribute lengthAttribute = currentFieldAttributes.get(HttpHeaderNames.CONTENT_LENGTH);
         long size;
