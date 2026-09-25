@@ -207,6 +207,13 @@ class MultipartDecoderTest {
     public void bufferCompaction() throws IOException {
         byte[] fullData = new byte[10 * 1024 * 1024];
         ThreadLocalRandom.current().nextBytes(fullData);
+        for (int i = 0; i < fullData.length; i++) {
+            // the data must not contain the delimiter ("\n--a"). Keep the newlines to exercise partial delimiter
+            // matches, but remove the dashes
+            if (fullData[i] == '-') {
+                fullData[i] = '+';
+            }
+        }
 
         bufferCompaction(PostBodyDecoder.builder().forMultipartBoundary("a"), "--a\r\n\r\n", fullData, "\r\n--a--");
     }
