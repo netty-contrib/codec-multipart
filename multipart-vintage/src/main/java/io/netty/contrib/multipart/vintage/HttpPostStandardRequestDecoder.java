@@ -437,13 +437,9 @@ public class HttpPostStandardRequestDecoder implements InterfaceHttpPostRequestD
                     }
                     currentAttribute.addContent(Unpooled.EMPTY_BUFFER, true);
                     // in netty 4, decoding happens late
-                    ByteBuf bb = currentAttribute.getByteBuf().retain();
-                    try {
-                        decoder.decodeComponent(bb, false);
-                    } catch (Exception e) {
-                        bb.release();
-                        throw e;
-                    }
+                    // decodeComponent does not modify the attribute content, which may be shared with the
+                    // caller's HttpContent buffer. It takes ownership of this retained reference.
+                    ByteBuf bb = decoder.decodeComponent(currentAttribute.getByteBuf().retain(), false);
                     currentAttribute.setContent(bb);
 
                     addHttpData(currentAttribute);

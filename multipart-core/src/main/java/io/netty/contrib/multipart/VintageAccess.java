@@ -67,7 +67,12 @@ public final class VintageAccess {
     public interface UrlEncodedDecoder extends PostBodyDecoder {
         ByteBuf undecodedContent();
 
-        void decodeComponent(ByteBuf buffer, boolean key);
+        /**
+         * Percent-decode the given buffer without modifying it. Takes ownership of the input buffer (also on
+         * failure) and returns a buffer owned by the caller, which may be the same instance if nothing needed
+         * decoding.
+         */
+        ByteBuf decodeComponent(ByteBuf buffer, boolean key);
 
         int getCompactionThreshold();
 
