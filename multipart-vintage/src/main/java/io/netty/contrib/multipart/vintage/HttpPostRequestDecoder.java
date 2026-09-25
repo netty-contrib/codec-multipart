@@ -146,7 +146,12 @@ public class HttpPostRequestDecoder implements InterfaceHttpPostRequestDecoder {
     @Deprecated
     public HttpPostRequestDecoder(HttpDataFactory factory, HttpRequest request, Charset charset,
                                   int maxFields, int maxBufferedBytes) {
-        this(builder().enableAllQuirks().dataFactory(factory).charset(charset).maxFields(maxFields).undecodedLimit(maxBufferedBytes), request);
+        this(builder()
+                .enableAllQuirks()
+                .dataFactory(factory)
+                .charset(charset)
+                .maxFields(maxFields)
+                .undecodedLimit(maxBufferedBytes), request);
     }
 
     private HttpPostRequestDecoder(Builder builder, HttpRequest request) {

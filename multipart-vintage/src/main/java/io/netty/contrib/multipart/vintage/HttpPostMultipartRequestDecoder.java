@@ -135,7 +135,8 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
      */
     @Deprecated
     public HttpPostMultipartRequestDecoder(HttpRequest request) {
-        this(new DefaultHttpDataFactory(DefaultHttpDataFactory.MINSIZE), request, PostBodyDecoder.builder().enableAllQuirks());
+        this(new DefaultHttpDataFactory(DefaultHttpDataFactory.MINSIZE), request,
+                PostBodyDecoder.builder().enableAllQuirks());
     }
 
     /**
@@ -198,7 +199,11 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
     @Deprecated
     public HttpPostMultipartRequestDecoder(HttpDataFactory factory, HttpRequest request, Charset charset,
                                            int maxFields, int maxBufferedBytes) {
-        this(factory, request, PostBodyDecoder.builder().enableAllQuirks().charset(charset).maxFields(maxFields).undecodedLimit(maxBufferedBytes));
+        this(factory, request, PostBodyDecoder.builder()
+                .enableAllQuirks()
+                .charset(charset)
+                .maxFields(maxFields)
+                .undecodedLimit(maxBufferedBytes));
     }
 
     HttpPostMultipartRequestDecoder(HttpDataFactory factory, HttpRequest request, PostBodyDecoder.Builder builder) {
@@ -582,10 +587,12 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
         if (contents == USE_NEW_DISPOSITION_PARSER) {
             ContentDisposition cd = (ContentDisposition) decoder.parsedHeaderValue();
             if (cd.name() != null) {
-                putCurrentFieldAttribute(HttpHeaderValues.NAME, factory.createAttribute(request, HttpHeaderValues.NAME.toString(), cd.name()));
+                putCurrentFieldAttribute(HttpHeaderValues.NAME,
+                        factory.createAttribute(request, HttpHeaderValues.NAME.toString(), cd.name()));
             }
             if (cd.fileName() != null) {
-                putCurrentFieldAttribute(HttpHeaderValues.FILENAME, factory.createAttribute(request, HttpHeaderValues.FILENAME.toString(), cd.fileName()));
+                putCurrentFieldAttribute(HttpHeaderValues.FILENAME,
+                        factory.createAttribute(request, HttpHeaderValues.FILENAME.toString(), cd.fileName()));
             }
         } else if (HttpHeaderNames.CONTENT_DISPOSITION.contentEqualsIgnoreCase(contents[0])) {
             boolean checkSecondArg;
@@ -651,7 +658,8 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
                         String values = StringUtil.substringAfter(contents[i], '=');
                         Attribute attribute;
                         try {
-                            attribute = factory.createAttribute(request, charsetHeader, VintageAccess.cleanString(values));
+                            attribute = factory.createAttribute(request, charsetHeader,
+                                    VintageAccess.cleanString(values));
                         } catch (NullPointerException e) {
                             throw new ErrorDataDecoderException(e);
                         } catch (IllegalArgumentException e) {
@@ -802,7 +810,8 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
                 contentType = HttpPostBodyUtil.DEFAULT_BINARY_CONTENT_TYPE;
             }
             currentFileUpload = factory.createFileUpload(request,
-                    VintageAccess.cleanString(nameAttribute.getValue()), VintageAccess.cleanString(filenameAttribute.getValue()),
+                    VintageAccess.cleanString(nameAttribute.getValue()),
+                    VintageAccess.cleanString(filenameAttribute.getValue()),
                     contentType, mechanism.value(), localCharset,
                     size);
         } catch (NullPointerException e) {

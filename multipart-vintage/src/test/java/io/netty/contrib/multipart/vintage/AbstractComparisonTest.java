@@ -1,3 +1,18 @@
+/*
+ * Copyright 2025 The Netty Project
+ *
+ * The Netty Project licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ *   https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ */
 package io.netty.contrib.multipart.vintage;
 
 import com.code_intelligence.jazzer.junit.FuzzTest;
@@ -25,7 +40,8 @@ abstract class AbstractComparisonTest extends AbstractFuzzTest {
             ByteSplitter.ChunkIterator itr = FUZZ_SPLITTER.splitIterator(bytes);
             while (itr.hasNext() && !runner.failed) {
                 ByteBuf piece = next(bytes, itr);
-                HttpContent content = !itr.hasNext() ? new DefaultLastHttpContent(piece) : new DefaultHttpContent(piece);
+                HttpContent content = !itr.hasNext() ?
+                        new DefaultLastHttpContent(piece) : new DefaultHttpContent(piece);
                 try {
                     runner.offer(content);
                 } finally {
@@ -40,11 +56,11 @@ abstract class AbstractComparisonTest extends AbstractFuzzTest {
 
     protected abstract InterfaceHttpPostRequestDecoder createLegacy();
 
-    private class Runner implements Closeable {
+    private final class Runner implements Closeable {
 
         final InterfaceHttpPostRequestDecoder a;
         final InterfaceHttpPostRequestDecoder b;
-        boolean failed = false;
+        boolean failed;
 
         private Runner() {
             a = createLegacy();
@@ -91,7 +107,8 @@ abstract class AbstractComparisonTest extends AbstractFuzzTest {
                 } catch (AssertionError e) {
                     // NPE does not have consistent messages
                     boolean inconsistentMessage = false;
-                    for (Class<?> cl : List.of(NullPointerException.class, ArrayIndexOutOfBoundsException.class, IndexOutOfBoundsException.class)) {
+                    for (Class<?> cl : List.of(NullPointerException.class, ArrayIndexOutOfBoundsException.class,
+                            IndexOutOfBoundsException.class)) {
                         if ((cl.isInstance(exc1.getCause()) && cl.isInstance(exc2.getCause())) ||
                                 (cl.isInstance(exc1) && cl.isInstance(exc2))) {
                             inconsistentMessage = true;
@@ -163,7 +180,8 @@ abstract class AbstractComparisonTest extends AbstractFuzzTest {
         Assertions.assertEquals(a.getMaxSize(), b.getMaxSize());
         if (a instanceof FileUpload) {
             Assertions.assertEquals(((FileUpload) a).getContentType(), ((FileUpload) b).getContentType());
-            Assertions.assertEquals(((FileUpload) a).getContentTransferEncoding(), ((FileUpload) b).getContentTransferEncoding());
+            Assertions.assertEquals(((FileUpload) a).getContentTransferEncoding(),
+                    ((FileUpload) b).getContentTransferEncoding());
             Assertions.assertEquals(((FileUpload) a).getFilename(), ((FileUpload) b).getFilename());
         }
         try {

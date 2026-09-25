@@ -31,7 +31,7 @@ import java.util.EnumSet;
 import java.util.List;
 
 final class MultipartDecoder extends AbstractDecoder implements VintageAccess.MultipartDecoder {
-    private final static ByteProcessor CTRLSPACE_PROCESSOR = value -> {
+    private static final ByteProcessor CTRLSPACE_PROCESSOR = value -> {
         char c = (char) (value & 0xff);
         return Character.isISOControl(c) || Character.isWhitespace(c);
     };
@@ -96,7 +96,8 @@ final class MultipartDecoder extends AbstractDecoder implements VintageAccess.Mu
                     if (buffer == null) {
                         return null;
                     }
-                    DelimiterType delimiter = findMultipartDelimiter(mixedBoundary == null ? multipartDataBoundary : mixedBoundary);
+                    DelimiterType delimiter = findMultipartDelimiter(
+                            mixedBoundary == null ? multipartDataBoundary : mixedBoundary);
                     if (delimiter == null) {
                         return null;
                     } else if (delimiter == DelimiterType.DISPOSITION) {
@@ -463,13 +464,16 @@ final class MultipartDecoder extends AbstractDecoder implements VintageAccess.Mu
                 if (buffer.writerIndex() - lfOffset > delimiter.length) {
                     int n = buffer.readableBytes();
                     if (n > 0 &&
-                            buffer.getByte(buffer.writerIndex() - 1) == '\r' && (!hasQuirk(DecoderQuirk.FORWARD_CHUNK_CR) || quirkDefinedLength == receivedLength + n - 1)) {
+                            buffer.getByte(buffer.writerIndex() - 1) == '\r' &&
+                            (!hasQuirk(DecoderQuirk.FORWARD_CHUNK_CR) ||
+                                    quirkDefinedLength == receivedLength + n - 1)) {
                         n--;
                     }
                     return n;
                 }
                 if (buffer.readerIndex() < lfOffset && buffer.getByte(lfOffset - 1) == '\r') {
-                    if (!hasQuirk(DecoderQuirk.FORWARD_CHUNK_CR) || quirkDefinedLength == receivedLength + buffer.readableBytes() - 1) {
+                    if (!hasQuirk(DecoderQuirk.FORWARD_CHUNK_CR) ||
+                            quirkDefinedLength == receivedLength + buffer.readableBytes() - 1) {
                         lfOffset--;
                     }
                 }
@@ -819,8 +823,6 @@ final class MultipartDecoder extends AbstractDecoder implements VintageAccess.Mu
         values.add(svalue.substring(start));
         return values.toArray(new String[0]);
     }
-
-
 
     @Override
     public int getCompactionThreshold() {

@@ -31,7 +31,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 class MultipartQuirksTest {
     private final boolean quirk;
 
-    public MultipartQuirksTest(boolean quirk) {
+    MultipartQuirksTest(boolean quirk) {
         this.quirk = quirk;
     }
 
@@ -129,7 +129,8 @@ class MultipartQuirksTest {
             builder.enableQuirks(DecoderQuirk.DISABLE_EARLY_MIXED_END);
         }
         try (PostBodyDecoder decoder = builder.forMultipartBoundary("a")) {
-            add(decoder, "--a\ncontent-type: multipart/mixed; boundary=b\n\n--b\nfizz: buzz\n\nx\n--a\nfoo: bar\n\n--b");
+            add(decoder, "--a\ncontent-type: multipart/mixed; boundary=b\n\n" +
+                    "--b\nfizz: buzz\n\nx\n--a\nfoo: bar\n\n--b");
 
             assertEquals(PostBodyDecoder.Event.BEGIN_FIELD, decoder.next());
             assertEquals(PostBodyDecoder.Event.HEADER, decoder.next());
