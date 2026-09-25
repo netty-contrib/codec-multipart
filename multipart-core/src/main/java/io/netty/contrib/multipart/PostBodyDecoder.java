@@ -132,6 +132,10 @@ public interface PostBodyDecoder extends Closeable {
      * This method will decode the content, if necessary. For example, for {@code application/x-www-form-urlencoded},
      * it will perform percent decoding. In the future, it may also decode encoded multipart fields like base64, but
      * this is currently unsupported.
+     * <p>
+     * Decoding may carry bytes over to the next {@link Event#CONTENT} event of the same field, e.g. a percent escape
+     * that is split across input buffers. The returned buffer may thus be empty, and there may be an additional
+     * {@link Event#CONTENT} event before {@link Event#FIELD_COMPLETE}.
      *
      * @return The content
      * @throws IllegalStateException If the last event was not {@link Event#CONTENT}, or if this method has already

@@ -105,8 +105,13 @@ final class UrlEncodedDecoder extends AbstractDecoder implements VintageAccess.U
                     return Event.HEADERS_COMPLETE;
                 case VALUE:
                     if (undecodedContent != null) {
+                        // content was not consumed. the held back escape does not belong to the next chunk anymore
                         undecodedContent.release();
                         undecodedContent = null;
+                        if (pendingEscape != null) {
+                            pendingEscape.release();
+                            pendingEscape = null;
+                        }
                     }
                     if (buffer != null && buffer.readableBytes() == 0) {
                         buffer.release();
@@ -149,8 +154,6 @@ final class UrlEncodedDecoder extends AbstractDecoder implements VintageAccess.U
                         if (valueEnd < 0) {
                             undecodedContent = buffer;
                             buffer = null;
-                        } else if (valueEnd == buffer.readerIndex()) {
-                            return null;
                         } else {
                             undecodedContent = buffer.readBytes(valueEnd - buffer.readerIndex());
                         }
@@ -189,10 +192,10 @@ final class UrlEncodedDecoder extends AbstractDecoder implements VintageAccess.U
      * {@code %%}), the first one is returned.
      *
      * @param buffer The buffer
-     * @param end The end index in the buffer to start scanning at (exclusive)
      * @return The index of the unfinished escape, or {@code -1} if there is no unfinished escape
      */
-    private static int findTrailingEscape(ByteBuf buffer, int end) {
+    private static int findTrailingEscape(ByteBuf buffer) {
+        int end = buffer.writerIndex();
         if (buffer.readerIndex() <= end - 2 && buffer.getByte(end - 2) == '%') {
             return end - 2;
         }
@@ -254,25 +257,12 @@ final class UrlEncodedDecoder extends AbstractDecoder implements VintageAccess.U
         if (undecodedContent == null) {
             throw new IllegalStateException("Not in CONTENT event");
         }
-        ByteBuf b = undecodedContent;
-        undecodedContent = null;
+        ByteBuf b = takeUndecodedContent();
         try {
-            if (pendingEscape != null) {
-                ByteBuf pending = pendingEscape;
-                pendingEscape = null;
-                try {
-                    ByteBuf joined = b.alloc().buffer(pending.readableBytes() + b.readableBytes());
-                    joined.writeBytes(pending).writeBytes(b);
-                    b.release();
-                    b = joined;
-                } finally {
-                    pending.release();
-                }
-            }
             if (undecodedContentContinues) {
                 // hold back an escape that may be completed by the next chunk, so that it is classified the same
                 // way regardless of chunking
-                int trailing = findTrailingEscape(b, b.writerIndex());
+                int trailing = findTrailingEscape(b);
                 if (trailing != -1) {
                     pendingEscape = b.copy(trailing, b.writerIndex() - trailing);
                     b.writerIndex(trailing);
@@ -288,8 +278,21 @@ final class UrlEncodedDecoder extends AbstractDecoder implements VintageAccess.U
 
     @Override
     public ByteBuf undecodedContent() {
+        return takeUndecodedContent();
+    }
+
+    /**
+     * Take the current content, prefixed with the escape held back from the previous chunk by
+     * {@link #decodedContent()}, if any.
+     */
+    private ByteBuf takeUndecodedContent() {
         ByteBuf b = undecodedContent;
-        this.undecodedContent = null;
+        undecodedContent = null;
+        if (b != null && pendingEscape != null) {
+            ByteBuf pending = pendingEscape;
+            pendingEscape = null;
+            b = b.alloc().compositeBuffer(2).addComponents(true, pending, b);
+        }
         return b;
     }
 

@@ -17,6 +17,7 @@ package io.netty.contrib.multipart;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -29,6 +30,7 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 /**
  * Percent-decoding of url encoded values must not depend on how the input is split into chunks.
@@ -148,6 +150,91 @@ class UrlEncodedChunkingTest {
                             () -> "body " + body + " quirks " + quirks);
                 }
             } while (increment(digits, alphabet.length));
+        }
+    }
+
+    @Test
+    public void skipContent() {
+        try (PostBodyDecoder decoder = PostBodyDecoder.builder().forUrlEncodedData()) {
+            decoder.add(Unpooled.copiedBuffer("a=x%4", StandardCharsets.ISO_8859_1));
+            assertEquals(PostBodyDecoder.Event.BEGIN_FIELD, decoder.next());
+            assertEquals(PostBodyDecoder.Event.HEADER, decoder.next());
+            assertEquals(PostBodyDecoder.Event.HEADERS_COMPLETE, decoder.next());
+            assertEquals(PostBodyDecoder.Event.CONTENT, decoder.next());
+            assertEquals("x", decoder.decodedContentString());
+            assertNull(decoder.next());
+
+            // skipped content, the held back escape is dropped with it
+            decoder.add(Unpooled.copiedBuffer("ZZZ", StandardCharsets.ISO_8859_1));
+            assertEquals(PostBodyDecoder.Event.CONTENT, decoder.next());
+            assertNull(decoder.next());
+
+            decoder.add(Unpooled.copiedBuffer("1yy", StandardCharsets.ISO_8859_1));
+            assertEquals(PostBodyDecoder.Event.CONTENT, decoder.next());
+            assertEquals("1yy", decoder.decodedContentString());
+            assertNull(decoder.next());
+
+            decoder.endInput();
+            assertEquals(PostBodyDecoder.Event.FIELD_COMPLETE, decoder.next());
+            assertNull(decoder.next());
+        }
+    }
+
+    @Test
+    public void skipFlushContent() {
+        try (PostBodyDecoder decoder = PostBodyDecoder.builder().forUrlEncodedData()) {
+            decoder.add(Unpooled.copiedBuffer("a=x%4", StandardCharsets.ISO_8859_1));
+            assertEquals(PostBodyDecoder.Event.BEGIN_FIELD, decoder.next());
+            assertEquals(PostBodyDecoder.Event.HEADER, decoder.next());
+            assertEquals(PostBodyDecoder.Event.HEADERS_COMPLETE, decoder.next());
+            assertEquals(PostBodyDecoder.Event.CONTENT, decoder.next());
+            assertEquals("x", decoder.decodedContentString());
+            assertNull(decoder.next());
+
+            decoder.add(Unpooled.copiedBuffer("&b=1", StandardCharsets.ISO_8859_1));
+            decoder.endInput();
+            // flush of the held back escape, skipped
+            assertEquals(PostBodyDecoder.Event.CONTENT, decoder.next());
+            assertEquals(PostBodyDecoder.Event.FIELD_COMPLETE, decoder.next());
+            assertEquals(PostBodyDecoder.Event.BEGIN_FIELD, decoder.next());
+            assertEquals(PostBodyDecoder.Event.HEADER, decoder.next());
+            assertEquals(PostBodyDecoder.Event.HEADERS_COMPLETE, decoder.next());
+            assertEquals(PostBodyDecoder.Event.CONTENT, decoder.next());
+            assertEquals("1", decoder.decodedContentString());
+            assertEquals(PostBodyDecoder.Event.FIELD_COMPLETE, decoder.next());
+            assertNull(decoder.next());
+        }
+    }
+
+    @Test
+    public void mixedDecodedAndUndecoded() {
+        PostBodyDecoder decoder = PostBodyDecoder.builder().forUrlEncodedData();
+        try {
+            VintageAccess.UrlEncodedDecoder access = (VintageAccess.UrlEncodedDecoder) decoder;
+            decoder.add(Unpooled.copiedBuffer("a=x%4", StandardCharsets.ISO_8859_1));
+            assertEquals(PostBodyDecoder.Event.BEGIN_FIELD, decoder.next());
+            assertEquals(PostBodyDecoder.Event.HEADER, decoder.next());
+            assertEquals(PostBodyDecoder.Event.HEADERS_COMPLETE, decoder.next());
+            assertEquals(PostBodyDecoder.Event.CONTENT, decoder.next());
+            assertEquals("x", decoder.decodedContentString());
+            assertNull(decoder.next());
+
+            // the held back escape comes first
+            decoder.add(Unpooled.copiedBuffer("1yy", StandardCharsets.ISO_8859_1));
+            assertEquals(PostBodyDecoder.Event.CONTENT, decoder.next());
+            ByteBuf undecoded = access.undecodedContent();
+            try {
+                assertEquals("%41yy", undecoded.toString(StandardCharsets.ISO_8859_1));
+            } finally {
+                undecoded.release();
+            }
+            assertNull(decoder.next());
+
+            decoder.endInput();
+            assertEquals(PostBodyDecoder.Event.FIELD_COMPLETE, decoder.next());
+            assertNull(decoder.next());
+        } finally {
+            decoder.close();
         }
     }
 
