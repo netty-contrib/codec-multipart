@@ -126,6 +126,31 @@ class MultipartQuirksTest {
     }
 
     @Test
+    void ignoreDelimiterSuffix() {
+        PostBodyDecoder.Builder builder = PostBodyDecoder.builder();
+        if (quirk) {
+            builder.enableQuirks(DecoderQuirk.IGNORE_DELIMITER_SUFFIX);
+        }
+        try (PostBodyDecoder decoder = builder.forMultipartBoundary("a")) {
+            add(decoder, "--a\nfoo:bar\n\nx\n--aX\n--a--\n");
+
+            assertEquals(PostBodyDecoder.Event.BEGIN_FIELD, decoder.next());
+            assertEquals(PostBodyDecoder.Event.HEADER, decoder.next());
+            assertEquals(PostBodyDecoder.Event.HEADERS_COMPLETE, decoder.next());
+            assertEquals(PostBodyDecoder.Event.CONTENT, decoder.next());
+            if (quirk) {
+                // in quirk mode, --aX ends the field, and then the decoder gets stuck on the invalid delimiter line
+                assertEquals("x", decoder.decodedContentString());
+                assertEquals(PostBodyDecoder.Event.FIELD_COMPLETE, decoder.next());
+            } else {
+                assertEquals("x\n--aX", decoder.decodedContentString());
+                assertEquals(PostBodyDecoder.Event.FIELD_COMPLETE, decoder.next());
+            }
+            assertNull(decoder.next());
+        }
+    }
+
+    @Test
     void disableEarlyMixedEnd() {
         PostBodyDecoder.Builder builder = PostBodyDecoder.builder();
         if (quirk) {
@@ -133,7 +158,7 @@ class MultipartQuirksTest {
         }
         try (PostBodyDecoder decoder = builder.forMultipartBoundary("a")) {
             add(decoder, "--a\ncontent-type: multipart/mixed; boundary=b\n\n" +
-                    "--b\nfizz: buzz\n\nx\n--a\nfoo: bar\n\n--b");
+                    "--b\nfizz: buzz\n\nx\n--a\nfoo: bar\n\n--b\n");
 
             assertEquals(PostBodyDecoder.Event.BEGIN_FIELD, decoder.next());
             assertEquals(PostBodyDecoder.Event.HEADER, decoder.next());
@@ -149,6 +174,9 @@ class MultipartQuirksTest {
                 assertEquals(PostBodyDecoder.Event.HEADER, decoder.next());
                 assertEquals(PostBodyDecoder.Event.HEADERS_COMPLETE, decoder.next());
                 assertEquals(PostBodyDecoder.Event.CONTENT, decoder.next());
+            } else {
+                // the nested "--b" delimiter starts a new nested field
+                assertEquals(PostBodyDecoder.Event.BEGIN_FIELD, decoder.next());
             }
             assertNull(decoder.next());
         }

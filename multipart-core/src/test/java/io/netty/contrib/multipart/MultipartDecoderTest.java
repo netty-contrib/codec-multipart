@@ -181,12 +181,33 @@ class MultipartDecoderTest {
             Assertions.assertEquals(0, findDelimiter(ro, "\nab", "abc"));
             Assertions.assertEquals(2, findDelimiter(ro, "ab\r\nab", "abc"));
             Assertions.assertEquals(2, findDelimiter(ro, "ab\nab", "abc"));
-            Assertions.assertEquals(~5, findDelimiter(ro, "\r\nabc", "abc"));
-            Assertions.assertEquals(~4, findDelimiter(ro, "\nabc", "abc"));
-            Assertions.assertEquals(~5, findDelimiter(ro, "\r\nabcx", "abc"));
-            Assertions.assertEquals(~4, findDelimiter(ro, "\nabcx", "abc"));
-            Assertions.assertEquals(~3, findDelimiter(ro, "abcx", "abc"));
+            Assertions.assertEquals(~5, findDelimiter(ro, "\r\nabc\r\n", "abc"));
+            Assertions.assertEquals(~5, findDelimiter(ro, "\r\nabc\n", "abc"));
+            Assertions.assertEquals(~5, findDelimiter(ro, "\r\nabc--", "abc"));
+            Assertions.assertEquals(~4, findDelimiter(ro, "\nabc\r\n", "abc"));
+            Assertions.assertEquals(~4, findDelimiter(ro, "\nabc--", "abc"));
+            Assertions.assertEquals(~3, findDelimiter(ro, "abc\r\n", "abc"));
+            Assertions.assertEquals(~3, findDelimiter(ro, "abc--", "abc"));
             Assertions.assertEquals(2, findDelimiter(ro, "\n\n\n", "abc"));
+
+            // delimiter suffix not yet known
+            Assertions.assertEquals(0, findDelimiter(ro, "\r\nabc", "abc"));
+            Assertions.assertEquals(0, findDelimiter(ro, "\nabc", "abc"));
+            Assertions.assertEquals(0, findDelimiter(ro, "\r\nabc\r", "abc"));
+            Assertions.assertEquals(0, findDelimiter(ro, "\r\nabc-", "abc"));
+            Assertions.assertEquals(0, findDelimiter(ro, "abc", "abc"));
+            Assertions.assertEquals(0, findDelimiter(ro, "abc-", "abc"));
+            Assertions.assertEquals(2, findDelimiter(ro, "xy\r\nabc", "abc"));
+            Assertions.assertEquals(2, findDelimiter(ro, "xy\r\nabc\r", "abc"));
+
+            // invalid delimiter suffix: not a delimiter
+            Assertions.assertEquals(6, findDelimiter(ro, "\r\nabcx", "abc"));
+            Assertions.assertEquals(5, findDelimiter(ro, "\nabcx", "abc"));
+            Assertions.assertEquals(4, findDelimiter(ro, "abcx", "abc"));
+            Assertions.assertEquals(5, findDelimiter(ro, "abc-x", "abc"));
+            Assertions.assertEquals(7, findDelimiter(ro, "\r\nabc\rx", "abc"));
+            Assertions.assertEquals(7, findDelimiter(ro, "\r\nabc-x", "abc"));
+            Assertions.assertEquals(6, findDelimiter(ro, "\r\nabcx\r\nabc\r\n", "abc"));
         }
     }
 
@@ -201,6 +222,76 @@ class MultipartDecoderTest {
         } finally {
             b.release();
         }
+    }
+
+    @Test
+    public void delimiterWithInvalidSuffixIsContent() {
+        String input = "--a\r\n" +
+                "Content-Disposition: form-data; name=\"foo\"\r\n" +
+                "\r\n" +
+                "x\r\n--aX\r\n--a-\r\n--a\ry\r\n" +
+                "--a\r\n" +
+                "Content-Disposition: form-data; name=\"bar\"\r\n" +
+                "\r\n" +
+                "\r\n--ab\r\n" +
+                "--a--\r\n";
+        for (int chunkSize : new int[]{input.length(), 1, 2, 3, 5}) {
+            try (PostBodyDecoder decoder = PostBodyDecoder.builder().forMultipartBoundary("a")) {
+                for (int i = 0; i < input.length(); i += chunkSize) {
+                    decoder.add(Unpooled.copiedBuffer(input.substring(i, Math.min(input.length(), i + chunkSize)),
+                            StandardCharsets.UTF_8));
+                }
+                decoder.endInput();
+
+                Assertions.assertEquals(PostBodyDecoder.Event.BEGIN_FIELD, decoder.next());
+                Assertions.assertEquals(PostBodyDecoder.Event.HEADER, decoder.next());
+                Assertions.assertEquals(PostBodyDecoder.Event.HEADERS_COMPLETE, decoder.next());
+                Assertions.assertEquals("x\r\n--aX\r\n--a-\r\n--a\ry", readContent(decoder));
+
+                Assertions.assertEquals(PostBodyDecoder.Event.BEGIN_FIELD, decoder.next());
+                Assertions.assertEquals(PostBodyDecoder.Event.HEADER, decoder.next());
+                Assertions.assertEquals("bar", ((ContentDisposition) decoder.parsedHeaderValue()).name());
+                Assertions.assertEquals(PostBodyDecoder.Event.HEADERS_COMPLETE, decoder.next());
+                Assertions.assertEquals("\r\n--ab", readContent(decoder));
+                Assertions.assertNull(decoder.next());
+            }
+        }
+    }
+
+    @Test
+    public void delimiterWithInvalidSuffixSplitAcrossChunks() {
+        try (PostBodyDecoder decoder = PostBodyDecoder.builder().forMultipartBoundary("a")) {
+            decoder.add(Unpooled.copiedBuffer("--a\r\nContent-Disposition: form-data; name=\"foo\"\r\n\r\nx\r\n--a",
+                    StandardCharsets.UTF_8));
+
+            Assertions.assertEquals(PostBodyDecoder.Event.BEGIN_FIELD, decoder.next());
+            Assertions.assertEquals(PostBodyDecoder.Event.HEADER, decoder.next());
+            Assertions.assertEquals(PostBodyDecoder.Event.HEADERS_COMPLETE, decoder.next());
+            Assertions.assertEquals(PostBodyDecoder.Event.CONTENT, decoder.next());
+            Assertions.assertEquals("x", decoder.decodedContentString());
+            // can't decide yet whether this is a delimiter
+            Assertions.assertNull(decoder.next());
+
+            decoder.add(Unpooled.copiedBuffer("X", StandardCharsets.UTF_8));
+            Assertions.assertEquals(PostBodyDecoder.Event.CONTENT, decoder.next());
+            Assertions.assertEquals("\r\n--aX", decoder.decodedContentString());
+            Assertions.assertNull(decoder.next());
+
+            decoder.add(Unpooled.copiedBuffer("\r\n--a--", StandardCharsets.UTF_8));
+            decoder.endInput();
+            Assertions.assertEquals(PostBodyDecoder.Event.FIELD_COMPLETE, decoder.next());
+            Assertions.assertNull(decoder.next());
+        }
+    }
+
+    private static String readContent(PostBodyDecoder decoder) {
+        StringBuilder content = new StringBuilder();
+        PostBodyDecoder.Event event;
+        while ((event = decoder.next()) == PostBodyDecoder.Event.CONTENT) {
+            content.append(decoder.decodedContentString());
+        }
+        Assertions.assertEquals(PostBodyDecoder.Event.FIELD_COMPLETE, event);
+        return content.toString();
     }
 
     @Test

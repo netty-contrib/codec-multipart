@@ -110,6 +110,16 @@ public enum DecoderQuirk {
      */
     NPE_ON_MISSING_CONTENT_DISPOSITION_NAME,
 
+    /**
+     * Treat a line starting with the boundary as the end of the current part, regardless of what follows the boundary.
+     * <p>
+     * A boundary delimiter line must be followed by a line break (or the close marker {@code --}), otherwise it is part
+     * of the content. This quirk replicates a bug where the legacy decoder would end the current part as soon as it
+     * saw the boundary, even if it was followed by other data (e.g. {@code --boundaryX}), and would then fail to parse
+     * the next delimiter line and wait for more data indefinitely.
+     */
+    IGNORE_DELIMITER_SUFFIX,
+
     // URL ENCODED
 
     /**

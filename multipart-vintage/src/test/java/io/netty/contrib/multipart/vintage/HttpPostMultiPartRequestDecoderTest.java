@@ -600,6 +600,54 @@ public class HttpPostMultiPartRequestDecoderTest {
     }
 
     @Test
+    public void testDelimiterWithInvalidSuffixIsContent() throws IOException {
+        String boundary = "861fbeab-cd20-470c-9609-d40a0f704466";
+        String body = "--" + boundary + "\r\n" +
+                "Content-Disposition: form-data; name=\"a\"\r\n" +
+                "\r\n" +
+                "foo\r\n--" + boundary + "X\r\n" +
+                "--" + boundary + "\r\n" +
+                "Content-Disposition: form-data; name=\"b\"\r\n" +
+                "\r\n" +
+                "bar\r\n" +
+                "--" + boundary + "--\r\n";
+        byte[] bytes = body.getBytes(CharsetUtil.US_ASCII);
+        for (int chunkSize : new int[]{bytes.length, 1, 7}) {
+            HttpRequest request = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/upload");
+            request.headers().set(HttpHeaderNames.CONTENT_TYPE, "multipart/form-data; boundary=" + boundary);
+            HttpDataFactory factory = new DefaultHttpDataFactory(false);
+            HttpPostMultipartRequestDecoder decoder = this.builder().dataFactory(factory).buildMultipart(request);
+            try {
+                for (int i = 0; i < bytes.length; i += chunkSize) {
+                    ByteBuf chunk = Unpooled.copiedBuffer(bytes, i, Math.min(chunkSize, bytes.length - i));
+                    HttpContent httpContent = i + chunkSize >= bytes.length ?
+                            new DefaultLastHttpContent(chunk) : new DefaultHttpContent(chunk);
+                    try {
+                        decoder.offer(httpContent);
+                    } finally {
+                        httpContent.release();
+                    }
+                }
+
+                Attribute a = (Attribute) decoder.getBodyHttpData("a");
+                if (quirk) {
+                    // legacy: "--boundaryX" ends the field, then the decoder gets stuck on the invalid delimiter
+                    // (the value may contain a trailing CR due to FORWARD_CHUNK_CR)
+                    assertTrue(a.getValue().startsWith("foo"));
+                    assertNull(decoder.getBodyHttpData("b"));
+                    assertEquals(1, decoder.getBodyHttpDatas().size());
+                } else {
+                    assertEquals("foo\r\n--" + boundary + "X", a.getValue());
+                    assertEquals("bar", ((Attribute) decoder.getBodyHttpData("b")).getValue());
+                    assertEquals(2, decoder.getBodyHttpDatas().size());
+                }
+            } finally {
+                decoder.destroy();
+            }
+        }
+    }
+
+    @Test
     public void testFieldWithoutNameAttributeThrowsErrorDataDecoderException() {
         String boundary = "861fbeab-cd20-470c-9609-d40a0f704466";
         String content = "--" + boundary + "\r\n" +
