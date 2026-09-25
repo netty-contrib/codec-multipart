@@ -367,7 +367,7 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
         }
 
         ByteBuf buf = content.content();
-        decoder.add(buf.retain());
+        decoder.add(buf.retainedDuplicate());
         parseBody();
         return this;
     }

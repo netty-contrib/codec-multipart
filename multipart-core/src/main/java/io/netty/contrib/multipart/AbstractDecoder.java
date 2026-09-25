@@ -16,7 +16,6 @@
 package io.netty.contrib.multipart;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.CompositeByteBuf;
 
 import java.nio.charset.Charset;
 
@@ -27,6 +26,11 @@ abstract class AbstractDecoder implements PostBodyDecoder {
     private int remainingFieldLimit;
 
     ByteBuf buffer;
+    /**
+     * Whether {@link #buffer} was allocated by this decoder, so that we may write to it. If {@code false}, it is a
+     * buffer that was passed to {@link #add(ByteBuf)} and must not be modified.
+     */
+    private boolean bufferOwned;
     boolean eof;
 
     AbstractDecoder(Builder builder) {
@@ -57,30 +61,30 @@ abstract class AbstractDecoder implements PostBodyDecoder {
         }
         if (this.buffer == null) {
             this.buffer = buffer;
+            bufferOwned = false;
         } else {
-            if ((compactionThreshold >= 0 && this.buffer.writerIndex() >= compactionThreshold) ||
-                    this.buffer.writerIndex() + buffer.readableBytes() > buffer.maxCapacity()) {
-                this.buffer.discardSomeReadBytes();
-            }
             if (this.buffer.readableBytes() > undecodedLimit) {
                 buffer.release();
                 throw new UndecodedDataLimitExceededException();
             }
 
-            if (this.buffer instanceof CompositeByteBuf) {
-                ((CompositeByteBuf) this.buffer).addComponent(true, buffer);
-            } else {
-                try {
-                    if (this.buffer.writerIndex() + buffer.readableBytes() > buffer.maxCapacity()) {
-                        ByteBuf newBuffer = this.buffer.alloc().buffer();
-                        newBuffer.writeBytes(this.buffer);
-                        this.buffer.release();
-                        this.buffer = newBuffer;
-                    }
-                    this.buffer.writeBytes(buffer);
-                } finally {
-                    buffer.release();
+            try {
+                if (!bufferOwned || this.buffer.maxWritableBytes() < buffer.readableBytes()) {
+                    // The held buffer may still be visible to the caller (e.g. the content of an HttpContent), may be
+                    // read-only, or may be too small. Copy the remaining bytes into a buffer we own instead of
+                    // appending to it.
+                    ByteBuf newBuffer = this.buffer.alloc()
+                            .buffer(this.buffer.readableBytes() + buffer.readableBytes());
+                    newBuffer.writeBytes(this.buffer);
+                    this.buffer.release();
+                    this.buffer = newBuffer;
+                    bufferOwned = true;
+                } else if (compactionThreshold >= 0 && this.buffer.writerIndex() >= compactionThreshold) {
+                    this.buffer.discardSomeReadBytes();
                 }
+                this.buffer.writeBytes(buffer);
+            } finally {
+                buffer.release();
             }
         }
     }

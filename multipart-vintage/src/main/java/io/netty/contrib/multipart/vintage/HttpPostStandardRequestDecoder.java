@@ -317,7 +317,7 @@ public class HttpPostStandardRequestDecoder implements InterfaceHttpPostRequestD
         checkDestroyed();
 
         ByteBuf buf = content.content();
-        decoder.add(buf.retain());
+        decoder.add(buf.retainedDuplicate());
         if (content instanceof LastHttpContent) {
             decoder.endInput();
         }
