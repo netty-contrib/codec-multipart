@@ -20,6 +20,7 @@ import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.http.DefaultFullHttpRequest;
 import io.netty.handler.codec.http.DefaultHttpRequest;
+import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpConstants;
 import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.HttpMethod;
@@ -36,6 +37,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
+import java.nio.charset.Charset;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -512,11 +514,64 @@ public class HttpPostRequestEncoderTest {
         encoder.cleanFiles();
     }
 
+    @Test
+    public void testUrlEncodedContentLengthUtf8() throws Exception {
+        checkUrlEncodedContentLength(UTF_8);
+    }
+
+    @Test
+    public void testUrlEncodedContentLengthUtf16() throws Exception {
+        checkUrlEncodedContentLength(CharsetUtil.UTF_16);
+    }
+
+    @Test
+    public void testUrlEncodedContentLengthUtf32() throws Exception {
+        checkUrlEncodedContentLength(Charset.forName("UTF-32"));
+    }
+
+    private static void checkUrlEncodedContentLength(Charset charset) throws Exception {
+        // small body, sent as a single full request
+        checkUrlEncodedContentLength(charset, "b\u00e9ta \u6f22\u5b57", false);
+        // large body, sent in chunks
+        checkUrlEncodedContentLength(charset, "b\u00e9ta \u6f22\u5b57" + generateString(chunkSize * 2), true);
+    }
+
+    private static void checkUrlEncodedContentLength(Charset charset, String value, boolean chunked)
+            throws Exception {
+        HttpRequest request = new DefaultHttpRequest(HTTP_1_1, POST, "/");
+        HttpPostRequestEncoder encoder = new HttpPostRequestEncoder(new DefaultHttpDataFactory(false), request,
+                false, charset, HttpPostRequestEncoder.EncoderMode.RFC1738);
+        encoder.addBodyAttribute("k\u00e9y", value);
+        encoder.addBodyAttribute("other", "x");
+        encoder.addBodyFileUpload("file", new File(HttpPostRequestEncoderTest.class.getResource(
+                "/file-01.txt").toURI()), "text/plain", false);
+
+        HttpRequest finalized = encoder.finalizeRequest();
+        assertEquals(chunked, encoder.isChunked());
+        long emitted;
+        if (chunked) {
+            emitted = 0;
+            while (!encoder.isEndOfInput()) {
+                HttpContent httpContent = encoder.readChunk((ByteBufAllocator) null);
+                emitted += httpContent.content().readableBytes();
+                httpContent.release();
+            }
+        } else {
+            FullHttpRequest fullRequest = (FullHttpRequest) finalized;
+            emitted = fullRequest.content().readableBytes();
+            // Content-Length is only set for requests that are not chunked
+            assertEquals(String.valueOf(emitted), fullRequest.headers().get(CONTENT_LENGTH), charset.name());
+            fullRequest.release();
+        }
+        assertEquals(emitted, encoder.length(), charset.name());
+        encoder.cleanFiles();
+    }
+
     private String largeText(String key, int multipleChunks) {
         return generateString(chunkSize * multipleChunks - key.length() - 2); // 2 is '=' and '&'
     }
 
-    private String generateString(int length) {
+    private static String generateString(int length) {
         final char[] array = new char[length];
         Arrays.fill(array, 'a');
         return new String(array);

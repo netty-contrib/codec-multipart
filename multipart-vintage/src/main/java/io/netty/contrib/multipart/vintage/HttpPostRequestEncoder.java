@@ -463,7 +463,7 @@ public class HttpPostRequestEncoder implements ChunkedInput<HttpContent> {
                     String value = encodeAttribute(attribute.getValue(), charset);
                     Attribute newattribute = factory.createAttribute(request, key, value);
                     multipartHttpDatas.add(newattribute);
-                    globalBodySize += newattribute.getName().length() + 1 + newattribute.length() + 1;
+                    globalBodySize += urlEncodedSize(newattribute);
                 } catch (IOException e) {
                     throw new ErrorDataEncoderException(e);
                 }
@@ -475,7 +475,7 @@ public class HttpPostRequestEncoder implements ChunkedInput<HttpContent> {
                 String value = encodeAttribute(fileUpload.getFilename(), charset);
                 Attribute newattribute = factory.createAttribute(request, key, value);
                 multipartHttpDatas.add(newattribute);
-                globalBodySize += newattribute.getName().length() + 1 + newattribute.length() + 1;
+                globalBodySize += urlEncodedSize(newattribute);
             }
             return;
         }
@@ -786,7 +786,7 @@ public class HttpPostRequestEncoder implements ChunkedInput<HttpContent> {
         // Now consider size for chunk or not
         long realSize = globalBodySize;
         if (!isMultipart) {
-            realSize -= 1; // last '&' removed
+            realSize -= delimiterSize(); // last '&' removed
         }
         iterator = multipartHttpDatas.listIterator();
 
@@ -829,6 +829,25 @@ public class HttpPostRequestEncoder implements ChunkedInput<HttpContent> {
      */
     public boolean isChunked() {
         return isChunked;
+    }
+
+    /**
+     * Compute the number of bytes emitted by {@link #encodeNextChunkUrlEncoded(int)} for one attribute, as
+     * "name=value&amp;" including the trailing delimiter. The name and delimiters are serialized using the encoder
+     * charset, while the value is serialized using the charset of the attribute itself.
+     *
+     * @return the serialized size of the attribute in bytes
+     */
+    private long urlEncodedSize(Attribute attribute) {
+        return attribute.getName().getBytes(charset).length + "=".getBytes(charset).length
+                + attribute.length() + delimiterSize();
+    }
+
+    /**
+     * @return the serialized size of the '&amp;' delimiter in bytes
+     */
+    private int delimiterSize() {
+        return "&".getBytes(charset).length;
     }
 
     /**
@@ -1139,7 +1158,7 @@ public class HttpPostRequestEncoder implements ChunkedInput<HttpContent> {
 
     @Override
     public long length() {
-        return isMultipart? globalBodySize : globalBodySize - 1;
+        return isMultipart? globalBodySize : globalBodySize - delimiterSize();
     }
 
     @Override
