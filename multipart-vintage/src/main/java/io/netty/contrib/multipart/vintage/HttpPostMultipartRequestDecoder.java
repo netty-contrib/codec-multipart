@@ -821,6 +821,16 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
             }
         }
 
+        // The partially decoded item is not in bodyListHttpData, and the factory only tracks disk based items
+        if (currentFileUpload != null && currentFileUpload.refCnt() > 0) {
+            currentFileUpload.release();
+        }
+        currentFileUpload = null;
+        if (currentAttribute != null && currentAttribute.refCnt() > 0) {
+            currentAttribute.release();
+        }
+        currentAttribute = null;
+
         destroyed = true;
 
         decoder.close();

@@ -1000,6 +1000,16 @@ public class HttpPostMultipartRequestDecoderLegacy implements InterfaceHttpPostR
             }
         }
 
+        // Not part of upstream netty: release the partially decoded item, which would otherwise leak
+        if (currentFileUpload != null && currentFileUpload.refCnt() > 0) {
+            currentFileUpload.release();
+        }
+        currentFileUpload = null;
+        if (currentAttribute != null && currentAttribute.refCnt() > 0) {
+            currentAttribute.release();
+        }
+        currentAttribute = null;
+
         destroyed = true;
 
         if (undecodedChunk != null && undecodedChunk.refCnt() > 0) {

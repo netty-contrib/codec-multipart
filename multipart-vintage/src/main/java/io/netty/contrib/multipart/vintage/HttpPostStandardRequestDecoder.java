@@ -472,6 +472,12 @@ public class HttpPostStandardRequestDecoder implements InterfaceHttpPostRequestD
             }
         }
 
+        // The partially decoded attribute is not in bodyListHttpData, and the factory only tracks disk based items
+        if (currentAttribute != null && currentAttribute.refCnt() > 0) {
+            currentAttribute.release();
+        }
+        currentAttribute = null;
+
         destroyed = true;
         decoder.close();
     }

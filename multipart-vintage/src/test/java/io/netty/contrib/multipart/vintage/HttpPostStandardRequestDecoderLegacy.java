@@ -636,6 +636,12 @@ public class HttpPostStandardRequestDecoderLegacy implements InterfaceHttpPostRe
             }
         }
 
+        // Not part of upstream netty: release the partially decoded item, which would otherwise leak
+        if (currentAttribute != null && currentAttribute.refCnt() > 0) {
+            currentAttribute.release();
+        }
+        currentAttribute = null;
+
         destroyed = true;
 
         if (undecodedChunk != null && undecodedChunk.refCnt() > 0) {
