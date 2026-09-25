@@ -207,6 +207,20 @@ public interface PostBodyDecoder extends Closeable {
         }
 
         /**
+         * Create an independent copy of this builder, so that later changes to either builder do not affect the
+         * other.
+         */
+        Builder copy() {
+            Builder copy = new Builder();
+            copy.undecodedLimit = undecodedLimit;
+            copy.compactionThreshold = compactionThreshold;
+            copy.charset = charset;
+            copy.maxFields = maxFields;
+            copy.multipartQuirks = EnumSet.copyOf(multipartQuirks);
+            return copy;
+        }
+
+        /**
          * Set the maximum number of undecoded bytes when a new buffer is added to this decoder. You may
          * {@link #add(Send) add} buffers of arbitrary size to the decoder, but at most this number must remain in the
          * buffer before the next add call.

@@ -29,6 +29,10 @@ public final class VintageAccess {
         return builder.forBoundary0(boundary);
     }
 
+    public static PostBodyDecoder.Builder copy(PostBodyDecoder.Builder builder) {
+        return builder.copy();
+    }
+
     public static int maxFields(PostBodyDecoder.Builder builder) {
         return builder.maxFields;
     }
