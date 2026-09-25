@@ -16,6 +16,7 @@
 package io.netty.contrib.multipart.vintage;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.CompositeByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.http.DefaultHttpContent;
 import io.netty.handler.codec.http.DefaultHttpRequest;
@@ -231,6 +232,58 @@ class HttpPostStandardRequestDecoderTest {
 
         assertEquals(0, decoder.getBodyHttpDatas().size());
         decoder.destroy();
+    }
+
+    @Test
+    void testOfferDoesNotModifyContent() {
+        ByteBuf first = Unpooled.buffer(64).writeBytes("key1=value1&ke".getBytes(CharsetUtil.UTF_8));
+        first.retain();
+        try {
+            assertContentNotModified(first);
+            // spare capacity must not have been written to either
+            assertEquals(0, first.getByte(first.writerIndex()));
+        } finally {
+            first.release();
+        }
+    }
+
+    @Test
+    void testOfferDoesNotModifyCompositeContent() {
+        CompositeByteBuf first = Unpooled.compositeBuffer();
+        first.addComponent(true, Unpooled.copiedBuffer("key1=val", CharsetUtil.UTF_8));
+        first.addComponent(true, Unpooled.copiedBuffer("ue1&ke", CharsetUtil.UTF_8));
+        first.retain();
+        try {
+            assertContentNotModified(first);
+            assertEquals(2, first.numComponents());
+        } finally {
+            first.release();
+        }
+    }
+
+    private static void assertContentNotModified(ByteBuf first) {
+        HttpRequest request = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/upload");
+
+        HttpPostStandardRequestDecoder decoder = new HttpPostStandardRequestDecoder(httpDiskDataFactory(), request);
+        DefaultHttpContent firstContent = new DefaultHttpContent(first);
+        DefaultHttpContent secondContent = new DefaultLastHttpContent(
+                Unpooled.copiedBuffer("y2=value2", CharsetUtil.UTF_8));
+        try {
+            decoder.offer(firstContent);
+            decoder.offer(secondContent);
+
+            assertEquals(2, decoder.getBodyHttpDatas().size());
+            assertMemoryAttribute(decoder.getBodyHttpData("key1"), "value1");
+            assertMemoryAttribute(decoder.getBodyHttpData("key2"), "value2");
+
+            assertEquals(0, first.readerIndex());
+            assertEquals(14, first.writerIndex());
+            assertEquals("key1=value1&ke", first.toString(CharsetUtil.UTF_8));
+        } finally {
+            decoder.destroy();
+            firstContent.release();
+            secondContent.release();
+        }
     }
 
     private static DefaultHttpDataFactory httpDiskDataFactory() {

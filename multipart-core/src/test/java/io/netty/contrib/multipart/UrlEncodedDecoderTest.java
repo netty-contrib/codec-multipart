@@ -15,6 +15,8 @@
  */
 package io.netty.contrib.multipart;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.CompositeByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import org.junit.jupiter.api.Assertions;
@@ -116,6 +118,71 @@ class UrlEncodedDecoderTest {
 
             expectField(decoder, "    ", "   ");
             Assertions.assertNull(decoder.next());
+        }
+    }
+
+    private void expectFooBar(PostBodyDecoder decoder, ByteBuf first) {
+        decoder.add(first);
+        decoder.add(Unpooled.copiedBuffer("ar&fizz=buzz", StandardCharsets.UTF_8));
+        decoder.endInput();
+
+        expectField(decoder, "foo", "bar");
+        expectField(decoder, "fizz", "buzz");
+        Assertions.assertNull(decoder.next());
+    }
+
+    @Test
+    public void wrappedFirstBuffer() {
+        try (PostBodyDecoder decoder = PostBodyDecoder.builder().forUrlEncodedData()) {
+            expectFooBar(decoder, Unpooled.wrappedBuffer("foo=b".getBytes(StandardCharsets.UTF_8)));
+        }
+    }
+
+    @Test
+    public void sliceFirstBuffer() {
+        ByteBuf full = Unpooled.copiedBuffer("foo=bxyz", StandardCharsets.UTF_8);
+        try (PostBodyDecoder decoder = PostBodyDecoder.builder().forUrlEncodedData()) {
+            expectFooBar(decoder, full.retainedSlice(0, 5));
+            Assertions.assertEquals("foo=bxyz", full.toString(StandardCharsets.UTF_8));
+        } finally {
+            full.release();
+        }
+    }
+
+    @Test
+    public void readOnlyFirstBuffer() {
+        try (PostBodyDecoder decoder = PostBodyDecoder.builder().forUrlEncodedData()) {
+            expectFooBar(decoder, Unpooled.copiedBuffer("foo=b", StandardCharsets.UTF_8).asReadOnly());
+        }
+    }
+
+    @Test
+    public void callerBufferNotModified() {
+        ByteBuf first = Unpooled.buffer(64).writeBytes("foo=b".getBytes(StandardCharsets.UTF_8));
+        try (PostBodyDecoder decoder = PostBodyDecoder.builder().forUrlEncodedData()) {
+            expectFooBar(decoder, first.retain());
+            Assertions.assertEquals(5, first.writerIndex());
+            Assertions.assertEquals("foo=b", first.toString(0, 5, StandardCharsets.UTF_8));
+            // spare capacity must not have been written to either
+            Assertions.assertEquals(0, first.getByte(5));
+        } finally {
+            first.release();
+        }
+    }
+
+    @Test
+    public void callerCompositeBufferNotModified() {
+        CompositeByteBuf first = Unpooled.compositeBuffer();
+        first.addComponent(true, Unpooled.copiedBuffer("foo", StandardCharsets.UTF_8));
+        first.addComponent(true, Unpooled.copiedBuffer("=b", StandardCharsets.UTF_8));
+        try (PostBodyDecoder decoder = PostBodyDecoder.builder().forUrlEncodedData()) {
+            // pass the composite itself (not a duplicate) so that the decoder sees a CompositeByteBuf
+            expectFooBar(decoder, first.retain());
+            Assertions.assertEquals(2, first.numComponents());
+            Assertions.assertEquals(5, first.writerIndex());
+            Assertions.assertEquals("foo=b", first.toString(0, 5, StandardCharsets.UTF_8));
+        } finally {
+            first.release();
         }
     }
 

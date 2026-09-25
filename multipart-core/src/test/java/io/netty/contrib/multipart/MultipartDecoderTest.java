@@ -204,6 +204,28 @@ class MultipartDecoderTest {
     }
 
     @Test
+    public void wrappedFirstBuffer() {
+        try (PostBodyDecoder decoder = PostBodyDecoder.builder().forMultipartBoundary("a")) {
+            decoder.add(Unpooled.wrappedBuffer("--a\r\nContent-Disposition: form-data; name=\"foo\"\r\n\r\nb"
+                    .getBytes(StandardCharsets.UTF_8)));
+            decoder.add(Unpooled.copiedBuffer("ar\r\n--a--", StandardCharsets.UTF_8));
+            decoder.endInput();
+
+            Assertions.assertEquals(PostBodyDecoder.Event.BEGIN_FIELD, decoder.next());
+            Assertions.assertEquals(PostBodyDecoder.Event.HEADER, decoder.next());
+            Assertions.assertEquals(PostBodyDecoder.Event.HEADERS_COMPLETE, decoder.next());
+            StringBuilder content = new StringBuilder();
+            PostBodyDecoder.Event event;
+            while ((event = decoder.next()) == PostBodyDecoder.Event.CONTENT) {
+                content.append(decoder.decodedContentString());
+            }
+            Assertions.assertEquals(PostBodyDecoder.Event.FIELD_COMPLETE, event);
+            Assertions.assertEquals("bar", content.toString());
+            Assertions.assertNull(decoder.next());
+        }
+    }
+
+    @Test
     public void bufferCompaction() throws IOException {
         byte[] fullData = new byte[10 * 1024 * 1024];
         ThreadLocalRandom.current().nextBytes(fullData);
