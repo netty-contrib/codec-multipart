@@ -16,6 +16,12 @@
 package io.netty.contrib.multipart;
 
 public class NotEnoughDataDecoderException extends FormDecoderException {
+    // Incomplete input is expected while streaming, so there is no failure location to record.
+    @Override
+    public synchronized Throwable fillInStackTrace() {
+        return this;
+    }
+
     public NotEnoughDataDecoderException() {
         super("Not enough multipart chunks");
     }
