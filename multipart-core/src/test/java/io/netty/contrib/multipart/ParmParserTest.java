@@ -55,6 +55,36 @@ class ParmParserTest {
         Assertions.assertEquals(Map.of("att1", "ö"), tester.attributes);
     }
 
+    @Test
+    public void encodedInvalidEscape() {
+        // malformed ext-values are ignored, like ext-values with an unknown charset
+        Tester tester = new Tester();
+        tester.run("foo;att1*=UTF-8''%;att2*=UTF-8''%Z1;att3*=UTF-8''%C;att4*=UTF-8''%C3%B6");
+        Assertions.assertEquals("foo", tester.type);
+        Assertions.assertEquals(Map.of("att4", "ö"), tester.attributes);
+    }
+
+    @Test
+    public void encodedUnknownCharset() {
+        Tester tester = new Tester();
+        tester.run("foo;att1*=x-unknown''abc;att2*=UTF-8''%C3%B6");
+        Assertions.assertEquals("foo", tester.type);
+        Assertions.assertEquals(Map.of("att2", "ö"), tester.attributes);
+    }
+
+    @Test
+    public void contentDispositionInvalidEscape() {
+        MultipartContentDisposition disposition = new MultipartContentDisposition("form-data; name*=UTF-8''%");
+        Assertions.assertNull(disposition.name());
+        Assertions.assertNull(disposition.fileName());
+
+        // a plain parameter is kept if the extended one is malformed
+        disposition = new MultipartContentDisposition(
+                "form-data; name=\"foo\"; name*=UTF-8''%Z1; filename=\"a.txt\"; filename*=UTF-8''%");
+        Assertions.assertEquals("foo", disposition.name());
+        Assertions.assertEquals("a.txt", disposition.fileName());
+    }
+
     private static class Tester extends ParmParser {
         final Map<String, String> attributes = new HashMap<>();
         String type;
