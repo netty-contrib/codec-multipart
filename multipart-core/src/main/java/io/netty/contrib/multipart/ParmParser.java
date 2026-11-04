@@ -104,8 +104,13 @@ abstract class ParmParser {
                         }
                     }
                     if (charset != null) {
-                        parameterValue = QueryStringDecoder.decodeComponent(
-                                headerValue.substring(secondQuote + 1, parameterValueEnd), charset);
+                        try {
+                            parameterValue = QueryStringDecoder.decodeComponent(
+                                    headerValue.substring(secondQuote + 1, parameterValueEnd), charset);
+                        } catch (IllegalArgumentException e) {
+                            // invalid percent escape. Ignore the parameter, like for an unknown charset
+                            parameterValue = null;
+                        }
                     }
                 }
             } else if (parameterValueEnd < headerValue.length() && headerValue.charAt(parameterValueEnd) == '"') {
