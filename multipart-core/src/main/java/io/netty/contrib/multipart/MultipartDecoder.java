@@ -29,6 +29,7 @@ import java.nio.charset.UnsupportedCharsetException;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Locale;
 
 final class MultipartDecoder extends AbstractDecoder implements VintageAccess.MultipartDecoder {
     private static final ByteProcessor CTRLSPACE_PROCESSOR = value -> {
@@ -303,15 +304,17 @@ final class MultipartDecoder extends AbstractDecoder implements VintageAccess.Mu
         }
 
         if (HttpHeaderNames.CONTENT_TRANSFER_ENCODING.contentEqualsIgnoreCase(headerKey)) {
-            if (HttpPostBodyUtil.TransferEncodingMechanism.BIT7.value().equals(headerValue)) {
+            // RFC 2045 mechanism tokens are case-insensitive. Locale.US so that "BINARY" does not become "bınary"
+            String mechanismName = headerValue.toLowerCase(Locale.US);
+            if (HttpPostBodyUtil.TransferEncodingMechanism.BIT7.value().equals(mechanismName)) {
                 if (partCharset != null) {
                     partCharset = StandardCharsets.US_ASCII;
                 }
-            } else if (HttpPostBodyUtil.TransferEncodingMechanism.BIT8.value().equals(headerValue)) {
+            } else if (HttpPostBodyUtil.TransferEncodingMechanism.BIT8.value().equals(mechanismName)) {
                 if (partCharset != null) {
                     partCharset = StandardCharsets.ISO_8859_1;
                 }
-            } else if (HttpPostBodyUtil.TransferEncodingMechanism.BINARY.value().equals(headerValue)) {
+            } else if (HttpPostBodyUtil.TransferEncodingMechanism.BINARY.value().equals(mechanismName)) {
                 // no charset
             } else {
                 throw new FormDecoderException("TransferEncoding Unknown: " + headerValue);
