@@ -52,7 +52,6 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 @ParameterizedClass
 @ValueSource(booleans = {false, true})
@@ -133,8 +132,6 @@ public class HttpPostMultiPartRequestDecoderTest {
     @Test
     public void testUppercaseBinaryTransferEncodingUnderTurkishLocale() {
         // On a Turkish-locale JVM, toLowerCase() without a Locale turns "BINARY" into "bınary" (U+0131).
-        // Without quirks, the transfer encoding is matched case-sensitively, so only the quirk path applies.
-        assumeTrue(quirk);
         Locale original = Locale.getDefault();
         try {
             Locale.setDefault(Locale.forLanguageTag("tr-TR"));
