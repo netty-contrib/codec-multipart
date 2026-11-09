@@ -17,6 +17,7 @@ package io.netty.contrib.multipart.vintage;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.http.HttpConstants;
+import io.netty.handler.codec.http.HttpHeaderValidationUtil;
 
 /**
  * Shared Static object between HttpMessageDecoder, HttpPostRequestDecoder and HttpPostRequestEncoder
@@ -74,6 +75,31 @@ final class HttpPostBodyUtil {
     }
 
     private HttpPostBodyUtil() {
+    }
+
+    /**
+     * Determine if the given content type value is syntactically valid and well-formed.
+     * <p>
+     * The Content-Type value is valid if it is structured in the form of {@code type/subtype parameters}.
+     * See <a href="https://www.rfc-editor.org/rfc/rfc9110.html#section-8.3.1">RFC 9110 §8.3.1</a>,
+     * and <a href="https://www.rfc-editor.org/info/rfc2045/#section-5.1">RFC 2045 §5.1</a>.
+     * <p>
+     * This is used for multipart <em>decoding</em>, where
+     * <a href="https://www.rfc-editor.org/info/rfc2045/#section-5.2">RFC 2045 §5.2</a>
+     * recommends that syntactically invalid content type values be replaced with a default.
+     *
+     * @param contentType The Content-Type header value to check.
+     * @return {@code true} if the Content-Type header value is valid, otherwise {@code false}.
+     */
+    static boolean isContentTypeForMultiPartValid(String contentType) {
+        if (contentType == null || HttpHeaderValidationUtil.validateValidHeaderValue(contentType) != -1) {
+            return false;
+        }
+        int slash = contentType.indexOf('/');
+        int semicolon = contentType.indexOf(';');
+        return slash > 0 &&
+                (semicolon != -1 || slash != contentType.length() - 1) &&
+                (semicolon == -1 || slash + 1 < semicolon);
     }
 
     /**

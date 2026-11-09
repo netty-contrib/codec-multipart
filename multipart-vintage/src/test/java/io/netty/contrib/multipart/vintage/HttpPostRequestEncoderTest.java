@@ -39,6 +39,7 @@ import java.io.File;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
 
@@ -520,5 +521,32 @@ public class HttpPostRequestEncoderTest {
         final char[] array = new char[length];
         Arrays.fill(array, 'a');
         return new String(array);
+    }
+
+    @Test
+    public void testFinalizeRemovesPreexistingMultipartContentTypeUnderTurkishLocale() throws Exception {
+        // On a Turkish-locale JVM, toLowerCase() without a Locale turns "MULTIPART" into "multıpart" (U+0131),
+        // which used to leave the pre-existing header alongside the one the encoder adds.
+        Locale original = Locale.getDefault();
+        try {
+            Locale.setDefault(Locale.forLanguageTag("tr-TR"));
+            DefaultFullHttpRequest request = new DefaultFullHttpRequest(HTTP_1_1, POST, "http://localhost");
+            HttpPostRequestEncoder encoder = null;
+            try {
+                request.headers().add(CONTENT_TYPE, "MULTIPART/form-data; boundary=preexisting");
+                encoder = new HttpPostRequestEncoder(request, true);
+                encoder.finalizeRequest();
+                List<String> contentTypes = request.headers().getAll(CONTENT_TYPE);
+                assertEquals(1, contentTypes.size());
+                assertTrue(contentTypes.get(0).startsWith("multipart/form-data"));
+            } finally {
+                if (encoder != null) {
+                    encoder.cleanFiles();
+                }
+                request.release();
+            }
+        } finally {
+            Locale.setDefault(original);
+        }
     }
 }

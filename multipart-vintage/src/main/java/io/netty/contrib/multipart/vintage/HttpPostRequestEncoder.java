@@ -52,6 +52,7 @@ import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Pattern;
 
@@ -766,7 +767,9 @@ public class HttpPostRequestEncoder implements ChunkedInput<HttpContent> {
             headers.remove(HttpHeaderNames.CONTENT_TYPE);
             for (String contentType : contentTypes) {
                 // "multipart/form-data; boundary=--89421926422648"
-                String lowercased = contentType.toLowerCase();
+                // toLowerCase() without a Locale would turn "MULTIPART" into "multıpart" under the Turkish
+                // locale, miss the prefix check, and leave a duplicate Content-Type header behind.
+                String lowercased = contentType.toLowerCase(Locale.US);
                 if (lowercased.startsWith(HttpHeaderValues.MULTIPART_FORM_DATA.toString()) ||
                         lowercased.startsWith(HttpHeaderValues.APPLICATION_X_WWW_FORM_URLENCODED.toString())) {
                     // ignore
