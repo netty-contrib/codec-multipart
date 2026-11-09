@@ -43,6 +43,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.IOException;
+import java.nio.charset.IllegalCharsetNameException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
@@ -103,6 +104,30 @@ class MultipartQuirksVintageTest {
             builder.enableQuirks(DecoderQuirk.LEGACY_HEADER_SPLITTING);
         }
         return builder.build(fullRequest("a", body));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"; filename=\"x.txt\"", ""})
+    void illegalCharsetName(String filenameParameter) {
+        FullHttpRequest request = fullRequest("a", "--a\r\n" +
+                "Content-Disposition: form-data; name=\"f\"" + filenameParameter + "\r\n" +
+                "Content-Type: text/plain; charset=\"x/y\"\r\n" +
+                "\r\n" +
+                "v\r\n" +
+                "--a--\r\n");
+        try {
+            HttpPostRequestDecoder.Builder builder = HttpPostRequestDecoder.builder().dataFactory(dataFactory);
+            if (quirk) {
+                builder.enableQuirks(DecoderQuirk.RAW_ILLEGAL_CHARSET_NAME_EXCEPTION);
+                assertThrows(IllegalCharsetNameException.class, () -> builder.build(request));
+            } else {
+                HttpPostRequestDecoder.ErrorDataDecoderException e = assertThrows(
+                        HttpPostRequestDecoder.ErrorDataDecoderException.class, () -> builder.build(request));
+                assertInstanceOf(IllegalCharsetNameException.class, e.getCause());
+            }
+        } finally {
+            request.release();
+        }
     }
 
     @Test
