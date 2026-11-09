@@ -577,6 +577,11 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
                 throw new ErrorDataDecoderException(e);
             } catch (UnsupportedCharsetException e) {
                 throw new ErrorDataDecoderException(e);
+            } catch (IllegalCharsetNameException e) {
+                if (decoder.hasQuirk(DecoderQuirk.RAW_ILLEGAL_CHARSET_NAME_EXCEPTION)) {
+                    throw e;
+                }
+                throw new ErrorDataDecoderException(e);
             }
         }
         Attribute nameAttribute = currentFieldAttributes.get(HttpHeaderValues.NAME);
@@ -823,6 +828,11 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
             } catch (IOException e) {
                 throw new ErrorDataDecoderException(e);
             } catch (UnsupportedCharsetException e) {
+                throw new ErrorDataDecoderException(e);
+            } catch (IllegalCharsetNameException e) {
+                if (decoder.hasQuirk(DecoderQuirk.RAW_ILLEGAL_CHARSET_NAME_EXCEPTION)) {
+                    throw e;
+                }
                 throw new ErrorDataDecoderException(e);
             }
         }

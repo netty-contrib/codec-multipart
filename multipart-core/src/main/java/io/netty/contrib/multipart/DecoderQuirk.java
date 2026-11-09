@@ -121,6 +121,17 @@ public enum DecoderQuirk {
     NPE_ON_MISSING_CONTENT_DISPOSITION_NAME,
 
     /**
+     * Surface a raw {@link java.nio.charset.IllegalCharsetNameException} when a multipart part declares a
+     * syntactically invalid charset name (e.g. {@code charset="x/y"}), instead of wrapping it in an
+     * {@code ErrorDataDecoderException}.
+     * <p>
+     * This quirk replicates a bug where the legacy decoder only caught
+     * {@link java.nio.charset.UnsupportedCharsetException}, so callers that handle {@code ErrorDataDecoderException}
+     * to reject malformed uploads saw an unexpected exception instead.
+     */
+    RAW_ILLEGAL_CHARSET_NAME_EXCEPTION,
+
+    /**
      * Treat a line starting with the boundary as the end of the current part, regardless of what follows the boundary.
      * <p>
      * A boundary delimiter line must be followed by a line break (or the close marker {@code --}), otherwise it is part
