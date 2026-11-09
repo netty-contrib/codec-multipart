@@ -486,4 +486,11 @@ class MultipartDecoderTest {
 
         assertArrayEquals(fullData, combined.toByteArray());
     }
+
+    @Test
+    void cleanStringSanitizesFilenameCharacters() {
+        Assertions.assertEquals("dirfile   \u00f7.txt",
+                MultipartDecoder.cleanString(" dir\\file\0\u0013\u007f\u00f7.txt \""));
+        Assertions.assertEquals("a b c d", MultipartDecoder.cleanString("a:b;c\td"));
+    }
 }

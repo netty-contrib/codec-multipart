@@ -42,14 +42,17 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Locale;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 @ParameterizedClass
 @ValueSource(booleans = {false, true})
@@ -76,6 +79,98 @@ public class HttpPostMultiPartRequestDecoderTest {
             fail("Was expecting an ErrorDataDecoderException");
         } catch (HttpPostRequestDecoder.ErrorDataDecoderException expected) {
             // expected
+        } finally {
+            assertTrue(req.release());
+        }
+    }
+
+    @Test
+    public void decodeMustCleanFilenameCharacters() {
+        String content = "\n--861fbeab-cd20-470c-9609-d40a0f704466\r\n" +
+                "content-disposition: form-data; " +
+                "name=\"file\"; filename=\" dir\\file\0\u007F÷.txt \"\r\n" +
+                "content-type: text/plain\r\n" +
+                "Content-Length: 1\r\n\r\n" +
+                "x\r\n--861fbeab-cd20-470c-9609-d40a0f704466--\r\n";
+        FullHttpRequest req = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/upload",
+                Unpooled.copiedBuffer(content, CharsetUtil.UTF_8));
+        req.headers().set("content-type", "multipart/form-data; boundary=861fbeab-cd20-470c-9609-d40a0f704466");
+        req.headers().set("content-length", content.length());
+
+        HttpPostMultipartRequestDecoder test = this.builder().buildMultipart(req);
+        try {
+            FileUpload httpData = (FileUpload) test.getBodyHttpDatas("file").get(0);
+            assertEquals("dirfile  ÷.txt", httpData.getFilename());
+        } finally {
+            test.destroy();
+            req.release();
+        }
+    }
+
+    @Test
+    public void decodeMustCleanFilenamePercentEncodedCharacters() {
+        String content = "\n--861fbeab-cd20-470c-9609-d40a0f704466\r\n" +
+                "content-disposition: form-data; " +
+                "name=\"file\"; filename*=UTF-8''\"%20dir\\file%00%13%7F÷.txt%20\"\r\n" +
+                "content-type: text/plain\r\n" +
+                "Content-Length: 1\r\n\r\n" +
+                "x\r\n--861fbeab-cd20-470c-9609-d40a0f704466--\r\n";
+        FullHttpRequest req = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/upload",
+                Unpooled.copiedBuffer(content, CharsetUtil.UTF_8));
+        req.headers().set("content-type", "multipart/form-data; boundary=861fbeab-cd20-470c-9609-d40a0f704466");
+        req.headers().set("content-length", content.length());
+
+        HttpPostMultipartRequestDecoder test = this.builder().buildMultipart(req);
+        try {
+            FileUpload httpData = (FileUpload) test.getBodyHttpDatas("file").get(0);
+            assertEquals("dirfile   ÷.txt", httpData.getFilename());
+        } finally {
+            test.destroy();
+            req.release();
+        }
+    }
+
+    @Test
+    public void testUppercaseBinaryTransferEncodingUnderTurkishLocale() {
+        // On a Turkish-locale JVM, toLowerCase() without a Locale turns "BINARY" into "bınary" (U+0131).
+        // Without quirks, the transfer encoding is matched case-sensitively, so only the quirk path applies.
+        assumeTrue(quirk);
+        Locale original = Locale.getDefault();
+        try {
+            Locale.setDefault(Locale.forLanguageTag("tr-TR"));
+            String content = "\n--861fbeab-cd20-470c-9609-d40a0f704466\r\n" +
+                    "content-disposition: form-data; " +
+                    "name=\"file\"; filename=\"myfile.ogg\"\r\n" +
+                    "content-type: audio/ogg; codecs=opus; charset=UTF8\r\n" +
+                    "Content-Transfer-Encoding: BINARY\r\n" +
+                    "\r\n\r\n--861fbeab-cd20-470c-9609-d40a0f704466--\r\n";
+
+            FullHttpRequest req = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/upload",
+                    Unpooled.copiedBuffer(content, CharsetUtil.US_ASCII));
+            req.headers().set("content-type", "multipart/form-data; boundary=861fbeab-cd20-470c-9609-d40a0f704466");
+            req.headers().set("content-length", content.length());
+
+            HttpPostMultipartRequestDecoder decoder = this.builder().buildMultipart(req);
+            try {
+                FileUpload httpData = (FileUpload) decoder.getBodyHttpDatas("file").get(0);
+                assertNotNull(httpData);
+                assertEquals("audio/ogg", httpData.getContentType());
+            } finally {
+                decoder.destroy();
+                req.release();
+            }
+        } finally {
+            Locale.setDefault(original);
+        }
+    }
+
+    @Test
+    public void testDecodeFullHttpRequestWithEmptyContentTypeHeader() {
+        FullHttpRequest req = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/");
+        req.headers().set(HttpHeaderNames.CONTENT_TYPE, "");
+        try {
+            assertThrows(HttpPostRequestDecoder.ErrorDataDecoderException.class,
+                    () -> this.builder().buildMultipart(req));
         } finally {
             assertTrue(req.release());
         }

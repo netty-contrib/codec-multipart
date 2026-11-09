@@ -47,6 +47,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.charset.UnsupportedCharsetException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -215,8 +216,10 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
         // Fill default values
 
         CharSequence contentTypeValue = this.request.headers().get(HttpHeaderNames.CONTENT_TYPE);
-        if (contentTypeValue == null) {
-            throw new ErrorDataDecoderException("No '" + HttpHeaderNames.CONTENT_TYPE + "' header present.");
+        if (contentTypeValue == null || contentTypeValue.length() == 0) {
+            // Content-Type must be present and cannot have an empty value, because it defines the data boundary value.
+            throw new ErrorDataDecoderException(
+                    "No '" + HttpHeaderNames.CONTENT_TYPE + "' header present, or value is empty.");
         }
 
         String[] dataBoundary = HttpPostRequestDecoder.getMultipartDataBoundary(contentTypeValue.toString());
@@ -640,9 +643,7 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
                     Attribute attribute;
                     try {
                         attribute = getContentDispositionAttribute(values);
-                    } catch (NullPointerException e) {
-                        throw new ErrorDataDecoderException(e);
-                    } catch (IllegalArgumentException e) {
+                    } catch (NullPointerException | IllegalArgumentException | ArrayIndexOutOfBoundsException e) {
                         throw new ErrorDataDecoderException(e);
                     }
                     putCurrentFieldAttribute(attribute.getName(), attribute);
@@ -797,7 +798,9 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
         if (encoding != null) {
             String code;
             try {
-                code = encoding.getValue().toLowerCase();
+                // RFC 2045 Content-Transfer-Encoding values are case-insensitive ASCII tokens. toLowerCase()
+                // without a Locale would turn "BINARY" into "bınary" under the Turkish locale.
+                code = encoding.getValue().toLowerCase(Locale.US);
             } catch (IOException e) {
                 throw new ErrorDataDecoderException(e);
             }
@@ -850,7 +853,7 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
             currentFileUpload = factory.createFileUpload(request,
                     VintageAccess.cleanString(nameAttribute.getValue()),
                     VintageAccess.cleanString(filenameAttribute.getValue()),
-                    contentType, mechanism.value(), localCharset,
+                    cleanMimeContentType(contentType), mechanism.value(), localCharset,
                     size);
         } catch (NullPointerException e) {
             throw new ErrorDataDecoderException(e);
@@ -860,6 +863,21 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
             throw new ErrorDataDecoderException(e);
         }
         return currentFileUpload;
+    }
+
+    /**
+     * The Content-Type values in part-headers are defined by RFC 2045, aka. MIME, which effectively means
+     * we use a default content type if the given content type is empty or malformed.
+     * @param contentType The Content-Type part header value.
+     * @return A cleaned up or replaced Content-Type header value that passes validation.
+     */
+    private static String cleanMimeContentType(String contentType) {
+        if (!HttpPostBodyUtil.isContentTypeForMultiPartValid(contentType)) {
+            // RFC 2045 section 5.2 recommends falling back to a default content type,
+            // when a "syntactically invalid Content-Type header field is encountered".
+            return HttpPostBodyUtil.DEFAULT_BINARY_CONTENT_TYPE;
+        }
+        return contentType;
     }
 
     /**
